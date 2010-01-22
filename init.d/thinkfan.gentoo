@@ -1,0 +1,29 @@
+#!/sbin/runscript
+# Copyright 1999-2008 Gentoo Foundation
+# Distributed under the terms of the GNU General Public License v2
+# $Header: $
+
+opts="reload"
+
+depend() {
+	after modules
+}
+
+start() {
+	ebegin "Starting thinkfan"
+	start-stop-daemon --start --exec /usr/sbin/thinkfan -- -q -s5
+	eend $?
+}
+
+stop() {
+	ebegin "Stopping thinkfan"
+	start-stop-daemon --stop --exec /usr/sbin/thinkfan
+	eend $?
+}
+
+reload() {
+	PID=$(</var/run/thinkfan.pid)
+	ebegin "Sending SIGHUP to thinkfan($PID)"
+	kill -HUP $PID
+	eend $?
+}

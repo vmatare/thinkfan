@@ -1,0 +1,156 @@
+2009-11-21	Victor Mataré
+		* README: Reduce burble, update to reflect new behaviour
+		* thinkfan.conf.example: Split into thinkfan.conf.sysfs and
+		thinkfan.conf.thinkpad.
+		* thinkfan.c: Remove DEBUG flag. Instead print fan speed debug
+		messages when not in quiet mode and running in the foreground.
+		* thinkfan-0.6.5: Release
+
+2009-11-16	Victor Mataré
+		* system.c, system.h: Deal with messy behaviour of sysfs.
+		* messages.h: rename to message.h.
+		* message.h: Add some newlines to structure the output.
+		* config.c, thinkfan.c: Improve control flow to fix memory leaks on
+		error conditions.
+
+2009-11-15	Victor Mataré
+		* messages.h, system.c, thinkfan.c: Improve/fix error handling and try
+		to make error messages more meaningful.
+
+2009-11-13	Victor Mataré
+		* *.c, *.h: Refactor the entire program into more easily maintainable
+		modules and use a Makefile. Consider the fan-depulsing hack "working". 
+
+2009-10-28	Victor Mataré
+		* thinkfan-0.6_rc1: Release
+
+2009-10-27	Victor Mataré
+		* tf_system.c: Add methods for disengaging the fan shortly, to
+		implement the pulsing-fan workaround.
+		* thinkfan.c, tf_system.c, messages.h, thinkfan.h: Reduce argument
+		passing from inner loop, accomodate the pulsing-fan workaround
+		(without wasting too much CPU when it's not used).
+
+2009-06-28	Victor Mataré
+		* thinkfan.c, tf_system.c: Cleanup and optimizations. Convert all
+		looped stuff to open() instead of fopen().
+
+2009-06-27	Victor Mataré
+		* thinkfan.c: Some cleanup for consistency.
+		* tf_system.c: Some cleanup, too.
+
+2009-06-26	Victor Mataré
+		* thinkfan-0.5.0.1: Stupidity release.
+		* README: Oops. Removed duplicate and contradictory license
+		statements.
+
+2009-06-24	Victor Mataré
+		* thinkfan-0.5: Release
+		* Change license to Creative Commons Attribution-Share Alike 3.0
+		* thinkfan_system.c: rename to tf_system.c.
+		* tf_system.c: Save old PWM value in init_fan_sysfs() for restoring
+		later. Create setfan_sysfs_safe(), which calls init_fan_sysfs() before
+		setting the fan level, to deal with hwmon drivers resetting fan
+		control after a suspend/resume cycle.
+		* README: adapt to upcoming version 0.5 changes.
+		* thinkfan.c: New cmdline option -z to mark resuming as safe. Print
+		message when resuming is considered unsafe.
+		* messages.h: Add warning when setfan_sysfs_safe() is used.
+
+2009-06-05	Victor Mataré
+		* ChangeLog: Reformat to 78-char line width.
+
+2009-05-31	Victor Mataré
+
+		* In addition to the thinkpad-specific /proc/acpi/ibm interface,
+		thinkfan now also supports the generic sysfs interface for reading
+		temperatures and controlling fan speed.
+
+		* thinkfan_system.c: Create file. Create sysfs interface and
+		consolidate with IBM-specific interface.
+		Use open() instead of fopen() because it's signal safe and
+		causes no syscall noise.
+		* thinkfan.h: Create file. Move all global definitions in
+		here. Create macros for error- and informational output. Turn
+		get_temp(), setfan() and init_fan() into function pointers.
+		Extend tf_config structure to incorporate sysfs settings.
+		* thinkfan.c: Lots of minor reorderings and cleanup. Use
+		macros for all output. Move all sysfs-/IBM-specific functions
+		into thinkfan_system.c.  Extend readconfig() for dealing with
+		sysfs-specific settings. Clean up outer loop in run(),
+		initialize signal handler earlier in main().  Correctly remove
+		/var/run/thinkfan.pid on exit.
+
+2009-03-20	Victor Mataré
+		* thinkfan.c: Check for existing PID file upon startup, fix
+		return value.
+
+2009-02-25	Victor Mataré
+		* thinkfan-0.4: Release 
+		* README: Update to reflect 0.4 changes.
+		* thinkfan.c: Correctly initialize return value.
+		* thinkfan.example.conf: Update comments, use more
+		conservative temperature limits, fix typo (thx clcl).
+		* messages.c: Made things clearer.
+
+2009-01-20	Victor Mataré
+		* thinkfan.c: Add basic sanity checking on config, and a
+		commandline switch to disable sanity checks. Improve error
+		handling and logging behaviour in general, move all message
+		strings into messages.c, make messages more meaningful.
+		There has also been some minor code restructuring due to
+		additional testing for error conditions and stability.
+		* messages.c: Factor out all messages to make code more
+		readable and messages more easily custimizable
+
+2008-10-19	Victor Mataré
+		* thinkfan.c: Correctly initialize config file name to make -c
+		commandline option work. Thanks to clcl.
+		* thinkfan-0.3.3: Bugfix release
+
+2008-10-16	Victor Mataré
+		* thinkfan.c: Fixed a bug not finding the highest temperature
+		in the system if there are less than 16 entries in
+		/proc/acpi/ibm/thermal.  Thanks to db for reporting.
+		* thinkfan-0.3.2: Bugfix release
+
+2008-10-04	Victor Mataré
+		* thinkfan-0.3.1: Release
+
+2008-09-22	Victor Mataré
+		* thinkfan.c: Improve fan speed switching algorithm (see
+		README), give fan control back to firmware on exit, use only
+		the highest temperature instead of an average of 1st- and
+		2nd-highest.
+		* README: Update to reflect changes in behaviour
+		* init.d/thinkfan.gentoo: Set sleeptime to 5 seconds instead
+		of 10.
+
+2008-09-01	Victor Mataré
+		* thinkfan.c: Initialize memory, minor fixes.
+
+2008-08-16	Victor Mataré
+		* README, thinkfan.conf.example, thinkfan.c: Minor
+		documentation fixups.
+
+2008-08-07	Victor Mataré
+		* thinkfan-0.3: Release
+
+2008-08-02	Victor Mataré
+		* init.d/thinkfan.gentoo: Add initscript for Gentoo Linux
+
+2008-08-01	Victor Mataré
+		* thinkfan.c: Add signal handler and syslog functionality,
+		improve fan speed switching algorithm to react faster, improve
+		error handling.
+		* README: Reduce/fix documentation
+		* thinkfan.conf.example: Better example config
+
+2008-07-25	Victor Mataré
+		* ChangeLog: add this file.
+		* thinkfan.c: Make watchdog_timeout = sleeptime * 6
+		instead of 30 seconds
+		* thinkfan.c, README: Some documentation overhaul
+
+2008-07-24	Victor Mataré
+		* thinkfan-0.2: Inintial release

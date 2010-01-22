@@ -1,0 +1,232 @@
+/***************************************************************
+ * thinkfan version 0.6.5 -- copyleft 11-2009, Victor Mataré   *
+ ***************************************************************/
+
+ This program is provided to you AS-IS. It is licensed under a Creative Commons
+ Attribution-Share Alike 3.0 United States License. See
+ http://creativecommons.org/licenses/by-sa/3.0/us/ for details.
+
+ A minimalist, lightweight fan control program. Originally designed
+ specifically for IBM/Lenovo Thinkpads, it now supports any kind of system via
+ the sysfs hwmon interface (/sys/class/hwmon). It is designed to eat as little
+ CPU power as possible.
+ 
+ 
+ 
+ INDEX
+=================
+
+(0) WARNING
+
+(1) HOW IT WORKS
+
+(2) HOW TO INSTALL
+ (2.1)  Build
+ (2.2a) Configure hardware interface (IBM/Lenovo Thinkpads)
+ (2.2b) Configure hardware interface (any system)
+ (2.3)  Configure fan behaviour
+ (2.4)  Test and install
+
+3. USAGE
+ (3.1)  Invocation
+ (3.2)  Temperature biasing (the -b option)
+ (3.3)  Pulsing-fan workaround
+ (3.4)  Signals
+
+4. CONTACT
+
+
+
+(0) WARNING!!!!
+===============
+ There's only very basic sanity checking on the configuration (semantic
+ correctness). You can set the temperature limits as insane as you like.
+
+ Any change to fan behaviour that results in higher temperatures in some parts
+ of the system will shorten your system's lifetime and/or cause weird hardware
+ bugs that'll make you pull out your hair.
+
+    No warranties whatsoever.
+
+ If this program steals your car, kills your horse, smokes your dope or pees
+ on your carpet...
+  - too bad, you're on your own.
+
+
+(1) HOW IT WORKS
+================
+ Thinkfan sets your fan speed according to predefined temperature limits that
+ are specified in the config file. It always reads all temperatures it knows
+ about, but uses only the highest temperature it can find.
+
+ Thinkfan works in a single loop that repeats the following steps:
+ 1. Read temperature
+ 2. If desired: apply the pulsating-fan workaround (only on Thinkpads, see
+ below)
+ 2. Calculate temperature bias/exaggeration and possibly adjust sleep time
+ (see below)
+ 3. Set fan speed
+ 4. Sleep for a defined amount of time
+
+
+
+(2) HOW TO INSTALL
+==================
+
+(2.1) Build
+-----------
+ Just run
+ # make
+
+ If you want to debug:
+ # make CFLAGS="-g3 -O0"
+ But remember you have to "make clean" before rebuilding in the same directory.
+
+(2.2a) Configure hardware interface (IBM/Lenovo Thinkpads)
+--------------------------------------------------------------
+ First, you need to load the thinkpad_acpi module with fan_control=1:
+ # modprobe thinkpad_acpi fan_control=1
+ See your distribution documentation for how to load modules at bootup with
+ custom options.
+
+ Then you might want to check out which fan levels your fan controller
+ supports by doing something like this:
+
+ for i in 0 1 2 3 4 5 6 7; do
+	echo "level $i" > /proc/acpi/ibm/fan
+	echo "level $i..."
+	sleep 6
+	cat /proc/acpi/ibm/fan | egrep "^speed"
+	echo
+ done
+
+ On a Thinkpad, you don't have to do any configuration except for some
+ sensible fan speed settings. You can skip to section (2.3) now, as we have
+ all temperature sensors and the fan control in two well-known files.
+ You can also just stick with the shipped example config. It'll work out of
+ the box on any Thinkpad.
+
+(2.2b) Configure hardware interface (any system)
+-------------------------------------------------------
+ On all systems other that IBM/Lenovo Thinkpads, you need to provide thinkfan
+ with the path(s) of all sysfs temperature sensor files you want to use. You
+ may find them by doing something like this:
+ # find -L /sys/class/hwmon -maxdepth 5 -name "temp*_input" \
+        -print -exec cat \{\} \;
+ 
+ Now put all file names into the config file that give you a sensible
+ temperature reading, each one on a separate "sensor" line. Example:
+ sensor /sys/class/hwmon/hwmon3/device/temp10_input
+ ...
+
+ Next you need to find the PWM control file of your fan:
+ # find -L /sys/class/hwmon -maxdepth 3 -name "pwm?" \
+        -print -exec cat \{\} \;
+ 
+ At the moment, thinkfan can control only one fan. Support for multiple fans
+ may be added in a later release. Put your PWM control file on a "fan" line
+ like so:
+ fan /sys/class/hwmon/hwmon3/device/pwm1
+
+ You'll want to try out the behaviour of your PWM controller by echo'ing some
+ numbers from 0 to 255 to your PWM file and then checking the fan RPM in
+ fan?_input.
+ 
+ ATTENTION: Most hwmon drivers seem to disable userspace fan control after
+ suspend/resume. That means you'll have to send a SIGHUP to thinkfan after
+ resuming to make it restore userspace fan control. Check your distribution
+ documentation to find out how you can do a "pkill -HUP thinkfan" after
+ resuming.
+ By default, thinkfan re-initializes the PWM control *every time* a fan speed
+ is set. This is safe, but stupid. So if you want to do it properly, go the
+ SIGHUP way and use the -z option (see below).
+
+(2.3) Configure fan behaviour
+-----------------------------
+ Carefully edit the fan-config tuples to your needs. Note that for the sysfs
+ hwmon-interface, the fan level is a number from 0 to 255, while in the
+ IBM-Interface, it's a number from 0 to 7.
+ The temperature limits for different fan levels should overlap, so that once
+ the fan is on, it keeps running for a while.
+
+(2.4) Test and install
+----------------------
+ Run ./thinkfan -n -c PATH_TO_CONFIG and watch it do its job. Try putting some
+ load on your system with glxgears or running some infinite loop in bash.  If
+ everything works nicely, forget about it for a while to make sure it's
+ stable.
+ Once you're confident that it works well for you, you may want to copy it to
+ /usr/local/sbin or whatever you like and run it without -n.
+
+
+
+(3) USAGE
+=========
+
+(3.1) Invocation
+----------------
+Usage: thinkfan [-hnqzD] [-b BIAS ] [-c FILE] [-s SEC] [-p [SEC]]
+ -h       This help message
+ -s SEC   Maximum seconds between temperature updates (default: 5)
+ -b BIAS  Floating point number (0 <= BIAS <= 20) to control rising edge
+          temperature biasing strength (see below). Default 5.
+ -c FILE  Load different configuration file (default: /etc/thinkfan.conf)
+ -n       Do not become a daemon and log to terminal instead of syslog
+ -q       Be quiet (no status info on terminal)
+ -z       Assume we don't have to worry about resuming when using the sysfs
+          interface. Saves CPU load.
+ -p[SEC]  Use the pulsing-fan workaround (for older Thinkpads). Takes an
+          optional floating-point argument (0 ~ 10s) as depulsing duration.
+          Defaults to 0.5s. See (3.3).
+ -D       DANGEROUS mode: No sanity checks on config! May damage your
+          hardware!!
+
+(3.2) Temperature biasing (the -b option)
+-----------------------------------------
+ Thinkfan takes special measures to deal with temperatures rising very
+ suddenly (like when you turn on the computer and instantly run a some
+ CPU/GPU-intensive app).
+
+ You can provide a floating point number between 0 and 20 to adjust the
+ weighting of the temperature bias. If we have a temperature jump >=2 °C, the
+ bias is calculated to:
+ bias = (sleeptime * (delta_t - 1)) * (0.1 * BIAS)
+ (BIAS is the value provided on the commandline)
+
+ Ex: If we slept for 5 seconds during the last cycle, provided a BIAS of 10
+ on the commandline, and the temperature increased by 3 °C, we get a bias of:
+ 5*2*0.1*10 = 10 °C
+ That's pretty nervous. If you want to turn off biasing entirely, run
+ thinkfan with -b 0.
+
+ In addition to exaggerating the temperature reading, the sleep time is
+ reduced to 2 seconds, and then slowly increased back up to the specified
+ value.
+
+(3.3) Pulsing-fan workaround (the -p option)
+--------------------------------------------
+ Specifying this option activates the pulsing-fan workaround. It works by
+ setting the fan controller to "disengaged" mode for a short amount of time on
+ every cycle (check the -s option). The optional argument of the -p option is
+ the duration for which the fan is kept in "disengaged" mode (defaults to 0.5
+ seconds). Note that the time spent in "disengaged" mode adds to the cycle
+ time, so with the -p option, the default sleep time is actually 5.5 seconds.
+
+(3.4) Signals
+-------------
+ Send a SIGHUP to make thinkfan reload its config file:
+ # kill -HUP $(</var/run/thinkfan.pid)
+
+ SIGINT and SIGTERM are caught to make for a clean exit.
+
+
+
+(4) CONTACT / BUG REPORTS
+=========================
+
+ If you have anything to say, send a mail to my last name (without the
+ accent!) AT lih DOT rwth DASH aachen DOT de. Oh, by the way, all files are
+ UTF-8, so upgrade your system if it can't deal with that. And make me a
+ coffee, please.
+
+

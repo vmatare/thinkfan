@@ -1,0 +1,53 @@
+######################################################################
+#        thinkfan 0.6.5
+# ================================
+#       sysfs interface
+#
+# ATTENTION: There is only very basic sanity checking on the configuration.
+# That means you can set your temperature limits as insane as you like. You
+# can easily break your hardware with this, so be careful.
+#
+######################################################################
+#
+# 1) Temperature inputs
+# =====================
+# specifies the path of a temperature sensor to use. You can have as many as
+# you want. Check them out manually before using them. If you specify none, we
+# try to use /proc/acpi/ibm/thermal (Thinkpad-specific).
+#
+# Syntax:
+#    sensor [BIAS] SENSOR_PATH
+#    [sensor ...]
+# Example:
+#    sensor /sys/class/hwmon/hwmon3/device/temp1_input
+#    sensor /sys/class/hwmon/hwmon3/device/temp2_input
+#
+# 2) Fan control file
+# ===================
+# Specifies the path of the PWM fan control file. If there's none, we try the
+# thinkpad_acpi interface with /proc/acpi/ibm/fan.
+# Syntax:
+#    fan FAN_PATH
+# Example:
+#    fan /sys/class/hwmon/hwmon3/device/pwm1
+# 
+# 3) Fan speed config
+# ===================
+#  Syntax:
+#  [GROUP] (LEVEL, LOW, HIGH)
+#  LEVEL is the PWM modulation value
+#  LOW is the temperature at which to step down to the previous level
+#  HIGH is the temperature at which to step up to the next level
+#  All numbers are integers.
+#
+# ATTENTION: PWM modulation values range from 0 to 255
+#
+# (0,	0,	55)
+# (36,	48,	60)
+# (72,	50,	61)
+# (109,	52,	63)
+# (145,	56,	65)
+# (182,	59,	66)
+# (255,	63,	32768)
+######################################################################
+

@@ -1,0 +1,35 @@
+######################################################################
+# thinkfan 0.6.5 example config file
+# ================================
+#
+# ATTENTION: There is only very basic sanity checking on the configuration.
+# That means you can set your temperature limits as insane as you like. You
+# can easily break your hardware with this, so be careful.
+#
+######################################################################
+#
+# 1) IBM/Lenovo Thinkpads (thinkpad_acpi, /proc/acpi/ibm)
+# =======================================================
+# All you need to do is set the temperature limits or stick with these
+# defaults. So this config should work unmodified on any Thinkpad.
+#
+# It's also possible to specify sysfs temperature inputs, but you can't use
+# /proc/acpi/ibm/thermal along with them.
+# You could also explicitly specify "fan /proc/acpi/ibm/fan", but it's the
+# default anyway.
+#
+#  Syntax:
+#  (LEVEL, LOW, HIGH)
+#  LEVEL is the fan level to use (0-7 with thinkpad_acpi)
+#  LOW is the temperature at which to step down to the previous level
+#  HIGH is the temperature at which to step up to the next level
+#  All numbers are integers.
+#
+(0,	0,	55)
+(1,	48,	60)
+(2,	50,	61)
+(3,	52,	63)
+(4,	56,	65)
+(5,	59,	66)
+(7,	63,	32767)
+
