@@ -144,6 +144,7 @@ int main(int argc, char **argv) {
 	depulse = NULL;
 	FILE *fd;
 	prefix = "\n";
+	oldpwm = NULL;
 
 	openlog("thinkfan", LOG_CONS, LOG_USER);
 	syslog(LOG_INFO, "thinkfan " VERSION " starting...");
@@ -270,6 +271,7 @@ int run() {
 	int ret = 0;
 	struct tf_config *newconfig=NULL;
 	FILE *pidfile;
+	rbuf = malloc(sizeof(char) * 128);
 
 	if ((config = readconfig(config_file)) == NULL) {
 		message(LOG_ERR, MSG_ERR_CONF_NOFILE);
@@ -309,6 +311,8 @@ kapott:
 	free_config(config);
 kapott1:
 	free(depulse);
+	free(rbuf);
+	free(oldpwm);
 	unlink(PID_FILE);
 	return ret;
 }

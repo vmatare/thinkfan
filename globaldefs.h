@@ -18,7 +18,7 @@
 
 #define VERSION "0.6.9"
 
-#define ERR_T_GET     	-1
+#define ERR_T_GET     	INT_MIN
 #define ERR_FAN_INIT   	-2
 #define ERR_CONF_NOFILE	-3
 #define ERR_CONF_LOST	-4
@@ -27,8 +27,6 @@
 #define RV_PIDFILE		-4
 #define ERR_CONF_MIX	-8
 #define ERR_MALLOC		-9
-#define ERR_CONF_ORDER	-10
-#define WARN_CONF_ORDER 32
 #define ERR_CONF_LOWHIGH -11
 #define WARN_CONF_LOWHIGH 16
 
@@ -46,23 +44,22 @@
 #define likely(x)       __builtin_expect((x),1)
 #define unlikely(x)     __builtin_expect((x),0)
 
-struct thm_tuple {
+struct limit {
 	int level; // this is written to the fan control file.
 	int low;   // lower temperature for stepping down to previous level.
 	int high;  // upper temperature determines when to step to the next level.
 };
 
 struct sensor {
-	char *filename;
-	int (*get_temp)();
-	char* bias;
+	char *path;
+	int bias[16];
 };
 
 struct tf_config {
-	char **sensors;
+	struct sensor *sensors;
 	int num_sensors;
 	char *fan;
-	struct thm_tuple *limits;
+	struct limit *limits;
 	int num_limits;
 	int (*get_temp)();
 	void (*setfan)();
@@ -72,9 +69,9 @@ struct tf_config {
 
 
 struct tf_config *config;
-int quiet, nodaemon, errcnt, resume_is_safe;
-unsigned int chk_sanity, cur_lvl, watchdog_timeout;
-char *config_file, *prefix;
+int quiet, nodaemon, errcnt, resume_is_safe, cur_lvl;
+unsigned int chk_sanity, watchdog_timeout;
+char *config_file, *prefix, *rbuf;
 float bias_level, depulse_tmp;
 char *oldpwm; // old contents of pwm*_enable, used for uninit_fan
 struct timespec *depulse;

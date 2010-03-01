@@ -13,14 +13,19 @@
 # =====================
 # specifies the path of a temperature sensor to use. You can have as many as
 # you want. Check them out manually before using them. If you specify none, we
-# try to use /proc/acpi/ibm/thermal (Thinkpad-specific).
+# try to use /proc/acpi/ibm/thermal (specific to IBM/Lenovo Thinkpads).
 #
 # Syntax:
-#    sensor [BIAS] SENSOR_PATH
+#    sensor SENSOR_PATH [(BIAS)]
 #    [sensor ...]
+# The (BIAS) value that may be specified after SENSOR_PATH is an integer
+# number that's added to the value read from the file. This can be used to
+# make thinkfan react to devices with a lower temperature ratings, such as
+# hard disks.
+#
 # Example:
 #    sensor /sys/class/hwmon/hwmon3/device/temp1_input
-#    sensor /sys/class/hwmon/hwmon3/device/temp2_input
+#    sensor /sys/class/hwmon/hwmon3/device/temp2_input (10)
 #
 # 2) Fan control file
 # ===================

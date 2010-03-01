@@ -81,10 +81,8 @@
 #define MSG_ERR_CONF_LOST "Lost configuration! This is a bug. Please " \
  "report this to the author.\n"
 #define MSG_ERR_CONF_RELOAD "Error reloading config. Keeping old one.\n"
-#define MSG_ERR_CONF_PARSE "Could not find any fan speed settings in" \
+#define MSG_ERR_CONF_NOFAN "Could not find any fan speed settings in" \
 	" the config file. Please read the documentation.\n"
-#define MSG_ERR_CONF_ORDER(file, num, line) "%s:%d: %sFan level needs to be" \
-	" higher than the previous one!\n", file, num, line
 #define MSG_ERR_CONF_LOWHIGH(file, num, line) "%s:%d: %sLOWER limit must be" \
 	" smaller than HIGHER!\nReally, don't mess with this, it could trash your"\
 	" hardware.\n", file, num, line
@@ -98,14 +96,17 @@
 #define MSG_ERR_FANFILE_IBM "Error opening " IBM_FAN ". Is this a computer " \
 	"really Thinkpad? Is the thinkpad_acpi module loaded? Are you running thi" \
 	"nkfan with root privileges?\n"
-#define MSG_ERR_FANFILE_SYSFS(file) "Error opening %s. Maybe the file " \
-	"doesn't exist or you have no rights to write to it.\n", file
 #define MSG_ERR_CONF_MIX(file, num, line) "%s:%d: %sThinkfan can't use " \
 	"sysfs sensors together with thinkpad_acpi sensors. Please choose one.\n" \
 	, file, num, line
 #define MSG_INF_DEPULSE(delay, time) "Disengaging the fan controller for " \
 	"%.3f seconds every %d seconds\n", time, delay
-#define MSG_WRN_FANLVL(lvl) "You are using the sysfs PWM fan control, but " \
-	"the maximum fan level is %d. This looks dangerous.\n", lvl
+#define MSG_ERR_T_PARSE(str) "Error parsing temperatures: %s\n", str
+#define MSG_WRN_SENSOR_DEFAULT "WARNING: Using default temperature inputs in" \
+	" /proc/acpi/ibm/thermal. This comes with a risk of overheating your " \
+	"hard disk. Please check out the new example configurations to learn " \
+	"how to prevent that.\n"
+#define MSG_ERR_CONF_PARSE(file, num, line) "%s:%d: %sSyntax error.\n", file, \
+	num, line
 
 #endif

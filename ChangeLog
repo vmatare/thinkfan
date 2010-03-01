@@ -1,3 +1,17 @@
+2010-02-28	Victor Mataré
+		* parser.h, parser.c: This is the new config parser. It extends the
+		config syntax to allow specifying correction values for all sensors.
+		* config.c: Major rewrite to use new parser instead of sscanf.
+		* system.c: Use the new parser for reading the temperatures from
+		/proc/acpi/ibm/thermal, fix some memory leaks.
+		* message.h: Remove some redundant messaging, add new messages for new
+		error conditions.
+		* globaldefs.h: Redesign struct tf_config to accomodate new
+		functionality, add global buffer to reduce cyclic malloc()ing.
+		* thinkfan.c: Minor changes for consistency.
+		* README: Update to explain sensor correction values.
+		* NOTES: New file. Explain important changes in v0.7.
+
 2009-11-21	Victor Mataré
 		* README: Reduce burble, update to reflect new behaviour
 		* thinkfan.conf.example: Split into thinkfan.conf.sysfs and

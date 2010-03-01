@@ -1,5 +1,5 @@
 /***************************************************************
- * thinkfan version 0.6.5 -- copyleft 11-2009, Victor Mataré   *
+ * thinkfan version 0.7 -- copyleft 3-2010, Victor Mataré      *
  ***************************************************************/
 
  This program is provided to you AS-IS. It is licensed under a Creative Commons
@@ -57,7 +57,10 @@
 ================
  Thinkfan sets your fan speed according to predefined temperature limits that
  are specified in the config file. It always reads all temperatures it knows
- about, but uses only the highest temperature it can find.
+ about, but uses only the highest temperature it can find. This is potentially
+ dangerous for devices with a low temperature rating like hard drives. For
+ these devices, you should specify a correction value that's added to the
+ actual temperature.
 
  Thinkfan works in a single loop that repeats the following steps:
  1. Read temperature
@@ -100,28 +103,35 @@
 	echo
  done
 
- On a Thinkpad, you don't have to do any configuration except for some
- sensible fan speed settings. You can skip to section (2.3) now, as we have
- all temperature sensors and the fan control in two well-known files.
- You can also just stick with the shipped example config. It'll work out of
- the box on any Thinkpad.
+ You should find out which value in /proc/acpi/ibm/thermal has the temperature
+ of your harddrive, because harddrives have a much lower temperature rating
+ than CPUs. Check out http://www.thinkwiki.org/wiki/Thermal_Sensors .
+ Once you know which sensor belongs to your harddrive, you should specify a
+ correction value for it. See the example config for details.
 
 (2.2b) Configure hardware interface (any system)
 -------------------------------------------------------
- On all systems other that IBM/Lenovo Thinkpads, you need to provide thinkfan
+ On all systems other than IBM/Lenovo Thinkpads, you need to provide thinkfan
  with the path(s) of all sysfs temperature sensor files you want to use. You
  may find them by doing something like this:
  # find -L /sys/class/hwmon -maxdepth 5 -name "temp*_input" \
-        -print -exec cat \{\} \;
+        -print -exec cat \{\} \; 2>/dev/null
  
  Now put all file names into the config file that give you a sensible
  temperature reading, each one on a separate "sensor" line. Example:
  sensor /sys/class/hwmon/hwmon3/device/temp10_input
  ...
 
+ Note that you should specify a correction value for the temperature of your
+ harddisk, because it's much more sensitive to high temperatures than your
+ CPU:
+ sensor /path/to/harddisk/temp_input (15)
+ This will add 15°C to the temperature read from your harddisk and thus keep
+ it from heating up to the upper limit of your first fan level.
+
  Next you need to find the PWM control file of your fan:
  # find -L /sys/class/hwmon -maxdepth 3 -name "pwm?" \
-        -print -exec cat \{\} \;
+        -print -exec cat \{\} \; 2>/dev/null
  
  At the moment, thinkfan can control only one fan. Support for multiple fans
  may be added in a later release. Put your PWM control file on a "fan" line

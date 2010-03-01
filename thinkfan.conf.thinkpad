@@ -1,5 +1,5 @@
 ######################################################################
-# thinkfan 0.6.5 example config file
+# thinkfan 0.7 example config file
 # ================================
 #
 # ATTENTION: There is only very basic sanity checking on the configuration.
@@ -8,16 +8,25 @@
 #
 ######################################################################
 #
-# 1) IBM/Lenovo Thinkpads (thinkpad_acpi, /proc/acpi/ibm)
-# =======================================================
-# All you need to do is set the temperature limits or stick with these
-# defaults. So this config should work unmodified on any Thinkpad.
+# IBM/Lenovo Thinkpads (thinkpad_acpi, /proc/acpi/ibm)
+# ====================================================
 #
-# It's also possible to specify sysfs temperature inputs, but you can't use
-# /proc/acpi/ibm/thermal along with them.
-# You could also explicitly specify "fan /proc/acpi/ibm/fan", but it's the
-# default anyway.
+# IMPORTANT:
 #
+# To keep your HD from overheating, you have to specify a correction value for
+# the sensor that has the HD's temperature. You need to do this because
+# thinkfan uses only the highest temperature it can find in the system, and
+# that'll most likely never be your HD, as most HDs are already out of spec
+# when they reach 55 °C.
+# Correction values are applied from left to right in the same order as the
+# temperatures are read from the file.
+#
+# For example:
+# sensor /proc/acpi/ibm/thermal (0, 0, 10)
+# will add a fixed value of 10 °C the 3rd value read from that file. Check out
+# http://www.thinkwiki.org/wiki/Thermal_Sensors to find out how much you may
+# want to add to certain temperatures.
+
 #  Syntax:
 #  (LEVEL, LOW, HIGH)
 #  LEVEL is the fan level to use (0-7 with thinkpad_acpi)
@@ -25,6 +34,10 @@
 #  HIGH is the temperature at which to step up to the next level
 #  All numbers are integers.
 #
+
+# I use this on my T61p:
+#sensor /proc/acpi/ibm/thermal (0, 10, 10, 2, 10, 5, 0, 3, 0, 3)
+
 (0,	0,	55)
 (1,	48,	60)
 (2,	50,	61)

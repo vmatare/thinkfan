@@ -8,7 +8,7 @@
  * This file is part of thinkfan. See thinkfan.c for further info.
  * ******************************************************************/
 #include "config.h"
-#include "config_parser.h"
+#include "parser.h"
 #include <syslog.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -25,7 +25,7 @@
  **********************************************************************/
 struct tf_config *readconfig(char* fname) {
 	FILE *cfg_file;
-	int line_count=0, err, max_lvl = 0;
+	int line_count=0, err;
 	ssize_t line_len;
 	size_t ll;
 	struct tf_config *cfg_local;
@@ -40,43 +40,44 @@ struct tf_config *readconfig(char* fname) {
 
 	if ((cfg_file = fopen(fname, "r")) == NULL) {
 		showerr(fname);
-		goto end;
+		goto fail;
 	}
 	while ((line_len = getdelim(&input, &ll, delim, cfg_file)) >= 0) {
 		s_input = input;
 		line_count++;
 		if ((ret = (void *) parse_sensor(&input))) {
-			if ((err = add_sensor(cfg_local, (char *) ret)) == ERR_CONF_MIX)
+			if ((err = add_sensor(cfg_local, (struct sensor *) ret)) == ERR_CONF_MIX) {
 				message(LOG_ERR, MSG_ERR_CONF_MIX(fname, line_count, input))
-			else if (err) goto end;
+				goto fail;
+			}
+			else if (err) goto fail;
 		}
 		else if ((ret = (void *) parse_fan(&input))) {
 			if (cfg_local->fan == NULL) cfg_local->fan = ret;
 			else {
 				message(LOG_WARNING, MSG_ERR_CONF_FAN(fname, line_count, input));
-				goto end;
+				goto fail;
 			}
 		}
-		else if ((ret = (void *) parse_limit(&input))) {
-			if ((err = add_limit(cfg_local, (struct thm_tuple *) ret))
-					== ERR_CONF_ORDER) {
-				message(LOG_ERR, MSG_ERR_CONF_ORDER(fname, line_count, input));
-				goto end;
-			}
-			else if (err == ERR_CONF_LOWHIGH) {
+		else if ((ret = (void *) parse_fan_level(&input))) {
+			if ((err = add_limit(cfg_local, (struct limit *) ret))
+					==  ERR_CONF_LOWHIGH) {
 				message(LOG_ERR, MSG_ERR_CONF_LOWHIGH(fname, line_count, input));
-				goto end;
+				goto fail;
 			}
-			else if (err == WARN_CONF_ORDER)
-				message(LOG_WARNING, MSG_ERR_CONF_ORDER(fname, line_count, input))
-			else if (err == WARN_CONF_ORDER)
+			else if (err == WARN_CONF_LOWHIGH)
 				message(LOG_WARNING, MSG_ERR_CONF_LOWHIGH(fname, line_count, input))
-			else if (err) goto end;
+			else if (err) goto fail;
 			free(ret);
-
-			// remember highest fan level for sanity checking
-			if (cfg_local->limits[cfg_local->num_limits - 1].level > max_lvl)
-				max_lvl = cfg_local->limits[cfg_local->num_limits - 1].level;
+		}
+		else if ((ret = (void *) parse_comment(&input))) free(ret);
+		else if (!parse_blankline(&input)) {
+			if (chk_sanity) {
+				message(LOG_ERR, MSG_ERR_CONF_PARSE(fname, line_count, s_input));
+				goto fail;
+			}
+			else message(LOG_WARNING, MSG_ERR_CONF_PARSE(
+					fname, line_count, s_input))
 		}
 		free(s_input);
 		input = NULL;
@@ -85,21 +86,13 @@ struct tf_config *readconfig(char* fname) {
 	free(input);
 	input = NULL;
 	if (cfg_local->num_limits <= 0) {
-		message(LOG_ERR, MSG_ERR_CONF_PARSE);
-		goto end;
+		message(LOG_ERR, MSG_ERR_CONF_NOFAN);
+		goto fail;
 	}
 	fclose(cfg_file);
 
 	if (cfg_local->fan != NULL && strcmp(cfg_local->fan, IBM_FAN)) {
 		// a sysfs PWM fan was specified in the config file
-		if (max_lvl <= 7) {
-			message(LOG_WARNING, MSG_WRN_FANLVL(max_lvl));
-			if (chk_sanity) {
-				message(LOG_INFO, MSG_INF_SANITY);
-				goto end;
-			}
-			else message(LOG_INFO, MSG_INF_INSANITY);
-		}
 		if (resume_is_safe) {
 			cfg_local->setfan = setfan_sysfs;
 		}
@@ -121,7 +114,7 @@ struct tf_config *readconfig(char* fname) {
 	}
 
 	if (cfg_local->num_sensors > 0 &&
-	 strcmp(cfg_local->sensors[cfg_local->num_sensors - 1], IBM_TEMP)) {
+	 strcmp(cfg_local->sensors[cfg_local->num_sensors - 1].path, IBM_TEMP)) {
 		// one or more sysfs sensors were specified in the config file
 		if (depulse) cfg_local->get_temp = depulse_and_get_temp_sysfs;
 		else cfg_local->get_temp = get_temp_sysfs;
@@ -129,65 +122,68 @@ struct tf_config *readconfig(char* fname) {
 	else {
 		if (depulse) cfg_local->get_temp = depulse_and_get_temp_ibm;
 		else cfg_local->get_temp = get_temp_ibm;
+		message(LOG_WARNING, MSG_WRN_SENSOR_DEFAULT);
+		cfg_local->sensors = malloc(sizeof(struct sensor));
+		cfg_local->sensors = memset(cfg_local->sensors, 0,
+				sizeof(struct sensor));
+		cfg_local->sensors->path = (char *) calloc(
+				strlen(IBM_TEMP)+1, sizeof(char));
+		strcpy(cfg_local->sensors->path, IBM_TEMP);
+		cfg_local->num_sensors++;
 	}
 
 	return cfg_local;
 
-end:
+fail:
 	if (cfg_file) fclose(cfg_file);
-	free(input);
+	free(s_input);
 	free_config(cfg_local);
 	return NULL;
 }
 
-int add_sensor(struct tf_config *cfg, char* sensor) {
-	if (cfg->num_sensors > 1 && !strcmp(sensor, IBM_TEMP)) return ERR_CONF_MIX;
-	if ( !( (cfg->sensors = (char **) realloc(cfg->sensors,
-			(cfg->num_sensors+2) * sizeof(char *))))) {
+int add_sensor(struct tf_config *cfg, struct sensor *sensor) {
+	if (cfg->num_sensors >= 1 && !strcmp(sensor->path, IBM_TEMP)) {
+		if (!strcmp(sensor->path, cfg->sensors[cfg->num_sensors - 1].path))
+			return 0;
+		else return ERR_CONF_MIX;
+	}
+	if (!(cfg->sensors = (struct sensor *) realloc(cfg->sensors,
+			(cfg->num_sensors+1) * sizeof(struct sensor)))) {
 		showerr("Allocating memory for config");
 		free(sensor);
 		return ERR_MALLOC;
 	}
-	cfg->sensors[cfg->num_sensors] = sensor;
-	cfg->sensors[++(cfg->num_sensors)] = NULL;
+	cfg->sensors[cfg->num_sensors++] = *sensor;
+	free(sensor);
 	return 0;
 }
 
-int add_limit(struct tf_config *cfg, struct thm_tuple *limit) {
+int add_limit(struct tf_config *cfg, struct limit *limit) {
 	int rv = 0;
 
-	// check for correct ordering of fan levels in config
-	if ((cfg->num_limits >= 1) && (limit->level <=
-			cfg->limits[cfg->num_limits - 1].level)) {
-		if (chk_sanity) return ERR_CONF_ORDER;
-		else rv = WARN_CONF_ORDER;
-	}
 	if (limit->high <= limit->low) {
 		if (chk_sanity) return ERR_CONF_LOWHIGH;
 		else rv = WARN_CONF_LOWHIGH;
 	}
-
-	if (!(cfg->limits = (struct thm_tuple *) realloc(
-			cfg->limits, sizeof(struct thm_tuple) * (cfg->num_limits + 1)))) {
+	if (!(cfg->limits = (struct limit *) realloc(cfg->limits,
+			sizeof(struct limit) * (cfg->num_limits + 1)))) {
 		showerr("Allocating memory for config");
 		return ERR_MALLOC;
 	}
 
-	cfg->limits[cfg->num_limits] = *limit;
-	cfg->num_limits++;
+	cfg->limits[cfg->num_limits++] = *limit;
 	return rv;
 }
 
 void free_config(struct tf_config *cfg) {
+	int j;
 	free(cfg->fan);
 	if (cfg->num_sensors > 0) {
-		int j;
 		for (j=0; j < cfg->num_sensors; j++)
-			free(cfg->sensors[j]);
+			free(cfg->sensors[j].path);
 		free(cfg->sensors);
 	}
 	free(cfg->limits);
 	free(cfg);
 }
-
 

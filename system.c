@@ -25,41 +25,49 @@
 #include <time.h>
 #include "message.h"
 #include "system.h"
+#include "parser.h"
+
+const char temperatures[] = "temperatures:";
 
 /*******************************************************************
  * get_temp_ibm reads temperatures from /proc/acpi/ibm/thermal and
  * returns the highest one found.
  *******************************************************************/
 int get_temp_ibm() {
-	int i=0, res, retval=0;
-	int *t = malloc(16 * sizeof(int));
-	int ibm_temp;
+	int i=0, res, retval=0, ibm_temp, *tmp;
 	ssize_t r;
-	char buf[128];
+	char *input, *ignore;
+	input = rbuf;
 
-	memset(t, 0, 16 * sizeof(int));
 	if (unlikely(((ibm_temp = open(IBM_TEMP, O_RDONLY)) < 0)
-			|| ((r = read(ibm_temp, &buf, 128)) < 14)
+			|| ((r = read(ibm_temp, rbuf, 128)) < 14)
 			|| (close(ibm_temp) < 0))) {
 		showerr(IBM_TEMP);
-		free(t);
 		errcnt++;
-		return INT_MIN;
+		return ERR_T_GET;
 	}
-	buf[r] = 0;
-	res = sscanf(buf,
-	 "temperatures: %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i",
-	 &t[0], &t[1], &t[2], &t[3], &t[4], &t[5], &t[6], &t[7], &t[8], &t[9],
-	 &t[10], &t[11], &t[12], &t[13], &t[14], &t[15]);
-	if (unlikely(res < 2)) {
-		message(LOG_ERR, MSG_ERR_T_GET);
-		free(t);
+	rbuf[r] = 0;
+
+	skip_space(&input);
+	if (likely((ignore = parse_keyword(&input, temperatures)) != NULL)) {
+		skip_space(&input);
+		for (i = 0; (tmp = parse_int(&input)); i++) {
+			res = *tmp + config->sensors->bias[i];
+			if (res > retval) retval = res;
+			free(tmp);
+			skip_space(&input);
+		}
+		if (unlikely(i < 2)) {
+			message(LOG_ERR, MSG_ERR_T_GET);
+			errcnt++;
+			retval = ERR_T_GET;
+		}
+	}
+	else {
+		message(LOG_ERR, MSG_ERR_T_PARSE(rbuf));
 		errcnt++;
-		return INT_MIN;
+		retval = ERR_T_GET;
 	}
-	for (i=0; i < 16; i++)
-		if (t[i] > retval) retval = t[i];
-	free(t);
 	return retval;
 }
 
@@ -68,14 +76,15 @@ int get_temp_ibm() {
  ***********************************************************/
 void setfan_ibm() {
 	int ibm_fan;
-	char *buf = malloc(9 * sizeof(char));
+	char *buf = malloc(18 * sizeof(char));
 
 	if (unlikely((ibm_fan = open(IBM_FAN, O_RDWR, O_TRUNC)) < 0)) {
 		showerr(IBM_FAN);
 		errcnt++;
 	}
 	else {
-		snprintf(buf, 9, "level %d\n", cur_lvl);
+		if (unlikely(cur_lvl == INT_MIN)) strcpy(buf, "level disengaged\n");
+		else snprintf(buf, 10, "level %d\n", cur_lvl);
 		if (unlikely(write(ibm_fan, buf, 8) != 8)) {
 			showerr(IBM_FAN);
 			message(LOG_ERR, MSG_ERR_FANCTRL);
@@ -156,6 +165,7 @@ void disengage() {
 
 int depulse_and_get_temp_ibm() {
 	if (cur_lvl >= DEPULSE_MIN_LVL && cur_lvl <= DEPULSE_MAX_LVL) {
+		setfan_ibm();
 		disengage();
 		setfan_ibm();
 	}
@@ -163,6 +173,7 @@ int depulse_and_get_temp_ibm() {
 }
 int depulse_and_get_temp_sysfs() {
 	if (cur_lvl >= DEPULSE_MIN_LVL && cur_lvl <= DEPULSE_MAX_LVL) {
+		setfan_sysfs();
 		disengage();
 		setfan_sysfs();
 	}
@@ -179,20 +190,19 @@ int get_temp_sysfs() {
 	long int rv = 0, tmp;
 	char buf[7];
 	char *endptr;
-	while(config->sensors[idx] != NULL) {
-		if (unlikely((fd = open(config->sensors[idx], O_RDONLY)) == -1
+	while(idx < config->num_sensors) {
+		if (unlikely((fd = open(config->sensors[idx].path, O_RDONLY)) == -1
 				|| (num = read(fd, &buf, 6)) == -1
 				|| close(fd) < 0)) {
-			showerr(config->sensors[idx]);
+			showerr(config->sensors[idx].path);
 			errcnt++;
 			return INT_MIN;
 		}
 		buf[num] = 0;
-		tmp = strtol(buf, &endptr, 10);
+		tmp = config->sensors[idx].bias[0] + strtol(buf, &endptr, 10)/1000;
 		if (tmp > rv) rv = tmp;
 		idx++;
 	}
-	rv = rv/1000;
 	if (unlikely(rv < 1)) {
 		message(LOG_ERR, MSG_ERR_T_GET);
 		errcnt++;
@@ -245,7 +255,6 @@ int init_fan_sysfs_once() {
 int preinit_fan_sysfs() {
 	char *fan_enable = (char *) malloc((strlen(config->fan) + 8) * sizeof(char));
 	FILE *fan = NULL;
-	oldpwm = NULL;
 	size_t s;
 	ssize_t r = 0;
 
@@ -255,10 +264,10 @@ int preinit_fan_sysfs() {
 	if ((fan = fopen(fan_enable, "r")) == NULL) {
 		showerr(fan_enable);
 		errcnt++;
-		message(LOG_ERR, MSG_ERR_FANFILE_SYSFS(fan_enable));
 		free(fan_enable);
 		return -1;
 	}
+	free(oldpwm);
 	if ((r = getline(&oldpwm, &s, fan)) < 2) showerr(fan_enable);
 	fclose(fan);
 	free(fan_enable);
@@ -284,7 +293,6 @@ int init_fan_sysfs() {
 	if ((fd = open(fan_enable, O_WRONLY)) < 0) {
 		showerr(fan_enable);
 		errcnt++;
-		message(LOG_ERR, MSG_ERR_FANFILE_SYSFS(fan_enable));
 		free(fan_enable);
 		return -1;
 	}
