@@ -1,0 +1,60 @@
+.TH THINKFAN "1" "January 2010" "thinkfan 0.7" "thinkfan"
+.SH NAME
+thinkfan \- minimalist fan control program
+.SH SYNOPSIS
+.B thinkfan
+[\fB-hnqzD\fR [\fB-b \fIBIAS\fR] [\fB-c \fICONFIG\fR] [\fB-s \fISECONDS\fR] \
+[\fB-p \fI[DELAY]\fR]]
+.SH DESCRIPTION
+A minimalist fan control program.
+Supports most hardware trough the generic sysfs hwmon interface.
+It also supports the Thinkpad-specific thinkpad_acpi interface.
+.HP
+\fBWARNING\fR: This program does only very basic sanity checking on the
+configuration. That means that you can set your temperature limits as insane
+as you like.
+.P
+It uses only the highest temperature found in the system. That
+may be dangerous, e.g. for hard disks, but since version 0.7 you can add a
+fixed value to any sensor and thus make your hard disk eligible for turning up
+the fan, too.
+.SH CONFIGURATION
+Two example configurations are provided with the source package. For detailed
+explanations please read the README file. If you installed thinkfan from a
+distribution package, you may find them under \fI/usr/share/doc\fR or wherever
+your package manager puts documentation.
+.SH OPTIONS
+.TP
+\fB\-h\fR
+Show a short help message
+.TP
+\fB\-s\fR
+Maximum seconds between temperature updates (default: 5)
+.TP
+\fB\-b\fR
+Floating point number (0 <= BIAS <= 20) to control rising edge
+temperature biasing strength (see README). Default 5.
+.TP
+\fB\-c\fR
+Load different configuration file (default: /etc/thinkfan.conf)
+.TP
+\fB\-n\fR
+Do not become a daemon and log to terminal instead of syslog
+.TP
+\fB\-q\fR
+Be quiet (no status info on terminal)
+.TP
+\fB\-z\fR
+Assume we don't have to worry about resuming when using the sysfs
+interface (see README!)
+.TP
+\fB\-p\fR
+Use the pulsing-fan workaround (for older Thinkpads). Takes an optional
+floating-point argument (0-10s) as depulsing duration. Default 0.5s.
+.TP
+\fB\-D\fR
+DANGEROUS mode: Disable all sanity checks. May damage your hardware!!
+.SH BUGS
+If you have any problems with thinkfan, please go to the help forum at sf.net:
+http://sourceforge.net/projects/thinkfan/forums/forum/905019
+
