@@ -18,10 +18,11 @@
 # Syntax:
 #    sensor SENSOR_PATH [(BIAS)]
 #    [sensor ...]
+#    ...
 # The (BIAS) value that may be specified after SENSOR_PATH is an integer
-# number that's added to the value read from the file. This can be used to
-# make thinkfan react to devices with a lower temperature ratings, such as
-# hard disks.
+# number that's added to the value read from the file. This can (and should!)
+# be used to make thinkfan react to devices with lower temperature ratings,
+# such as hard disks.
 #
 # Example:
 #    sensor /sys/class/hwmon/hwmon3/device/temp1_input
@@ -39,7 +40,7 @@
 # 3) Fan speed config
 # ===================
 #  Syntax:
-#  [GROUP] (LEVEL, LOW, HIGH)
+#  (LEVEL, LOW, HIGH)
 #  LEVEL is the PWM modulation value
 #  LOW is the temperature at which to step down to the previous level
 #  HIGH is the temperature at which to step up to the next level

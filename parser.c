@@ -39,6 +39,7 @@ const char dblquote[] = "\"";
  * in **input. No memory is allocated, so returned chars should be copied
  * before using them. */
 char *char_alt(char **input, const char *items, const char invert) {
+	if (! **input) return NULL;
 	while (*items)
 		if (**input == *(items++)) return invert ? NULL : (*input)++;
 	return invert ? (*input)++ : NULL;
@@ -55,23 +56,6 @@ char *char_cat(char **input, const char *items, const char invert) {
 		strncpy(ret, start, *input - start);
 	}
 	return ret;
-}
-
-char *parse_comment(char **input) {
-	if (!char_alt(input, comment, 0)) return NULL;
-	char *tmp = char_cat(input, newline, 1);
-	skip_space(input);
-	return tmp;
-}
-
-char *parse_filename(char **input) {
-	return char_cat(input, space, 1);
-}
-
-
-void skip_space(char **input) {
-	char *tmp = char_cat(input, space, 0);
-	free(tmp);
 }
 
 /* Match an integer expression and return it as a int */
@@ -105,6 +89,24 @@ char *parse_keyword(char **input, const char *keyword) {
 	return NULL;
 }
 
+void skip_space(char **input) {
+	char *tmp = char_cat(input, space, 0);
+	free(tmp);
+}
+
+char *parse_comment(char **input) {
+	skip_space(input);
+	if (!char_alt(input, comment, 0)) return NULL;
+	char *tmp = char_cat(input, newline, 1);
+	skip_space(input);
+	return tmp;
+}
+
+char *parse_filename(char **input) {
+	return char_cat(input, space, 1);
+}
+
+
 int parse_blankline(char **input) {
 	skip_space(input);
 	return **input == 0;
@@ -124,7 +126,6 @@ char *parse_statement(char **input, const char *keyword) {
 char *parse_fan(char **input) {
 	char *start = *input;
 	char *rv = parse_statement(input, fan_keyword);
-	skip_space(input);
 	char *tmp = parse_comment(input);
 	free(tmp);
 	if (**input || !rv) {
@@ -181,7 +182,6 @@ struct sensor *parse_sensor(char **input) {
 			free(tmp[i]);
 		}
 	free(tmp);
-	skip_space(input);
 	char *ignore = parse_comment(input);
 	free(ignore);
 	if (**input || !rv) {

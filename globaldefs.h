@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <limits.h>
 
-#define VERSION "0.6.9"
+#define VERSION "0.7"
 
 #define ERR_T_GET     	INT_MIN
 #define ERR_FAN_INIT   	-2
@@ -24,11 +24,12 @@
 #define ERR_CONF_LOST	-4
 #define ERR_CONF_RELOAD	-5
 #define ERR_PIDFILE	   	-6
-#define RV_PIDFILE		-4
 #define ERR_CONF_MIX	-8
 #define ERR_MALLOC		-9
 #define ERR_CONF_LOWHIGH -11
-#define WARN_CONF_LOWHIGH 16
+#define ERR_CONF_LEVEL	-12
+#define ERR_CONF_ORDERLOW -13
+#define ERR_CONF_ORDERHIGH -14
 
 #ifndef DUMMYRUN
 #define PID_FILE "/var/run/thinkfan.pid"
@@ -69,11 +70,12 @@ struct tf_config {
 
 
 struct tf_config *config;
-int quiet, nodaemon, errcnt, resume_is_safe, cur_lvl;
+int errcnt, cur_lvl;
 unsigned int chk_sanity, watchdog_timeout;
-char *config_file, *prefix, *rbuf;
+char *config_file, *prefix, *rbuf,
+	quiet, nodaemon, resume_is_safe,
+	*oldpwm; // old contents of pwm*_enable, used for uninit_fan
 float bias_level, depulse_tmp;
-char *oldpwm; // old contents of pwm*_enable, used for uninit_fan
 struct timespec *depulse;
 #define DEPULSE_MIN_LVL 1
 #define DEPULSE_MAX_LVL 4

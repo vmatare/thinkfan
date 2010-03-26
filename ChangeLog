@@ -1,3 +1,11 @@
+2010-03-25	Victor Mataré
+		* config.c: Put the check for level ordering back in place.
+		* thinkfan.c: Finally fix the watchdog's border conditions
+		* NOTES: rename to NEWS
+
+2010-03-21	Victor Mataré
+		* thinkfan.c: Tweak watchdog handling to deal with border conditions.
+
 2010-02-28	Victor Mataré
 		* parser.h, parser.c: This is the new config parser. It extends the
 		config syntax to allow specifying correction values for all sensors.

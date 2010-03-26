@@ -25,11 +25,11 @@
  **********************************************************************/
 struct tf_config *readconfig(char* fname) {
 	FILE *cfg_file;
-	int line_count=0, err;
+	int line_count=0, err, i, j;
 	ssize_t line_len;
 	size_t ll;
 	struct tf_config *cfg_local;
-	char *s_input, *input = NULL;
+	char *s_input = NULL, *input = NULL;
 	void *ret = NULL;
 	int delim = '\n';
 
@@ -47,7 +47,8 @@ struct tf_config *readconfig(char* fname) {
 		line_count++;
 		if ((ret = (void *) parse_sensor(&input))) {
 			if ((err = add_sensor(cfg_local, (struct sensor *) ret)) == ERR_CONF_MIX) {
-				message(LOG_ERR, MSG_ERR_CONF_MIX(fname, line_count, input))
+				message(LOG_ERR, MSG_FILE_HDR(fname, line_count, input));
+				message(LOG_ERR, MSG_ERR_CONF_MIX)
 				goto fail;
 			}
 			else if (err) goto fail;
@@ -55,29 +56,34 @@ struct tf_config *readconfig(char* fname) {
 		else if ((ret = (void *) parse_fan(&input))) {
 			if (cfg_local->fan == NULL) cfg_local->fan = ret;
 			else {
-				message(LOG_WARNING, MSG_ERR_CONF_FAN(fname, line_count, input));
+				message(LOG_ERR, MSG_FILE_HDR(fname, line_count, input));
+				message(LOG_ERR, MSG_ERR_CONF_FAN);
 				goto fail;
 			}
 		}
 		else if ((ret = (void *) parse_fan_level(&input))) {
 			if ((err = add_limit(cfg_local, (struct limit *) ret))
 					==  ERR_CONF_LOWHIGH) {
-				message(LOG_ERR, MSG_ERR_CONF_LOWHIGH(fname, line_count, input));
-				goto fail;
+				message(chk_sanity ? LOG_ERR : LOG_WARNING,
+						MSG_FILE_HDR(fname, line_count, input));
+				message(chk_sanity ? LOG_ERR : LOG_WARNING,	MSG_ERR_CONF_LOWHIGH);
+				if (chk_sanity) goto fail;
 			}
-			else if (err == WARN_CONF_LOWHIGH)
-				message(LOG_WARNING, MSG_ERR_CONF_LOWHIGH(fname, line_count, input))
+			else if (err == ERR_CONF_LEVEL) {
+				message(chk_sanity ? LOG_ERR : LOG_WARNING,
+						MSG_FILE_HDR(fname, line_count, input));
+				message(chk_sanity ? LOG_ERR : LOG_WARNING,	MSG_ERR_CONF_LEVEL);
+				if (chk_sanity) goto fail;
+			}
 			else if (err) goto fail;
 			free(ret);
 		}
 		else if ((ret = (void *) parse_comment(&input))) free(ret);
 		else if (!parse_blankline(&input)) {
-			if (chk_sanity) {
-				message(LOG_ERR, MSG_ERR_CONF_PARSE(fname, line_count, s_input));
-				goto fail;
-			}
-			else message(LOG_WARNING, MSG_ERR_CONF_PARSE(
-					fname, line_count, s_input))
+				message(chk_sanity ? LOG_ERR : LOG_WARNING,
+						MSG_FILE_HDR(fname, line_count, input));
+				message(chk_sanity ? LOG_ERR : LOG_WARNING,	MSG_ERR_CONF_PARSE);
+				if (chk_sanity) goto fail;
 		}
 		free(s_input);
 		input = NULL;
@@ -122,16 +128,24 @@ struct tf_config *readconfig(char* fname) {
 	else {
 		if (depulse) cfg_local->get_temp = depulse_and_get_temp_ibm;
 		else cfg_local->get_temp = get_temp_ibm;
-		message(LOG_WARNING, MSG_WRN_SENSOR_DEFAULT);
-		cfg_local->sensors = malloc(sizeof(struct sensor));
-		cfg_local->sensors = memset(cfg_local->sensors, 0,
-				sizeof(struct sensor));
-		cfg_local->sensors->path = (char *) calloc(
-				strlen(IBM_TEMP)+1, sizeof(char));
-		strcpy(cfg_local->sensors->path, IBM_TEMP);
-		cfg_local->num_sensors++;
+		if (cfg_local->num_sensors == 0) {
+			message(LOG_WARNING, MSG_WRN_SENSOR_DEFAULT);
+			cfg_local->sensors = malloc(sizeof(struct sensor));
+			cfg_local->sensors = memset(cfg_local->sensors, 0,
+					sizeof(struct sensor));
+			cfg_local->sensors->path = (char *) calloc(
+					strlen(IBM_TEMP)+1, sizeof(char));
+			strcpy(cfg_local->sensors->path, IBM_TEMP);
+			cfg_local->num_sensors++;
+		}
 	}
 
+	if (chk_sanity && cfg_local->limits[0].high > 48) {
+		for (i=0; i < cfg_local->num_sensors; i++)
+			for (j=0; j < 16; j++)
+				if (cfg_local->sensors[i].bias[j] != 0) return cfg_local;
+		message(LOG_WARNING, MSG_WRN_CONF_NOBIAS(cfg_local->limits[0].high));
+	}
 	return cfg_local;
 
 fail:
@@ -161,9 +175,14 @@ int add_sensor(struct tf_config *cfg, struct sensor *sensor) {
 int add_limit(struct tf_config *cfg, struct limit *limit) {
 	int rv = 0;
 
+	if (cfg->num_limits > 0 && cfg->limits[cfg->num_limits-1].level
+			>= limit->level) {
+		if (chk_sanity) return ERR_CONF_LEVEL;
+		else rv = ERR_CONF_LEVEL;
+	}
 	if (limit->high <= limit->low) {
 		if (chk_sanity) return ERR_CONF_LOWHIGH;
-		else rv = WARN_CONF_LOWHIGH;
+		else rv = ERR_CONF_LOWHIGH;
 	}
 	if (!(cfg->limits = (struct limit *) realloc(cfg->limits,
 			sizeof(struct limit) * (cfg->num_limits + 1)))) {

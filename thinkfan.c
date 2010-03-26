@@ -71,6 +71,16 @@ int fancontrol() {
 		// depending on the command line, this might also call depulse()
 		temp = config->get_temp();
 
+		// Write current fan level to IBM_FAN one cycle before the watchdog
+		// timeout ends, to let it know we're alive.
+		if (unlikely((wt -= st) <= sleeptime)) {
+#ifdef DEBUG
+			message(LOG_DEBUG, MSG_DBG_T_STAT);
+#endif
+			config->setfan();
+			wt = watchdog_timeout;
+		}
+
 		// If temperature increased by more than 2 °C since the
 		// last cycle, we try to react quickly.
 		diff = temp - last_temp;
@@ -97,13 +107,6 @@ int fancontrol() {
 		if (unlikely(bias != 0)) {
 			bias -= (bias_level + 0.1f) * 4;
 			if (unlikely(bias < 0)) bias = 0;
-		}
-
-		// Write current fan level to IBM_FAN one cycle before the watchdog
-		// timeout ends, to let it know we're alive.
-		if (unlikely((wt -= st) <= st)) {
-			config->setfan();
-			wt = watchdog_timeout;
 		}
 	}
 	return errcnt;
@@ -156,7 +159,7 @@ int main(int argc, char **argv) {
 	 || sigaction(SIGINT, &handler, NULL) \
 	 || sigaction(SIGTERM, &handler, NULL)) perror("sigaction");
 
-	while ((opt = getopt(argc, argv, "c:s:b:p::hnqDz")) != -1) {
+	while ((opt = getopt(argc, argv, "c:s:b:p::hnqDzd")) != -1) {
 		switch(opt) {
 		case 'h':
 			fprintf(stderr, MSG_USAGE);
@@ -168,6 +171,15 @@ int main(int argc, char **argv) {
 		case 'c':
 			config_file = optarg;
 			break;
+		case 'q':
+			quiet = 1;
+			break;
+		case 'D':
+			chk_sanity = 0;
+			break;
+		case 'z':
+			resume_is_safe = !0;
+			break;
 		case 's':
 			sleeptime = (unsigned int) strtol(optarg, &invalid, 0);
 			if (*invalid != 0) {
@@ -175,12 +187,6 @@ int main(int argc, char **argv) {
 				message_fg(LOG_INFO, MSG_USAGE);
 				return 1;
 			}
-			break;
-		case 'q':
-			quiet = 1;
-			break;
-		case 'D':
-			chk_sanity = 0;
 			break;
 		case 'b':
 			bias_level = strtof(optarg, &invalid);
@@ -196,9 +202,6 @@ int main(int argc, char **argv) {
 				message_fg(LOG_INFO, MSG_USAGE);
 				return 1;
 			}
-			break;
-		case 'z':
-			resume_is_safe = !0;
 			break;
 		case 'p':
 			if (optarg) {
@@ -247,7 +250,7 @@ int main(int argc, char **argv) {
 	if (chk_sanity && ((fd = fopen(PID_FILE, "r")) != NULL)) {
 		fclose(fd);
 		message_fg(LOG_ERR, MSG_ERR_RUNNING);
-		return RV_PIDFILE;
+		return ERR_PIDFILE;
 	}
 
 	if (nodaemon) ret = run();

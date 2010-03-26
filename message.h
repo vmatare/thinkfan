@@ -53,6 +53,7 @@
  "\n -D  DANGEROUS mode: Disable all sanity checks. May damage your " \
  "hardware!!\n\n"
 
+#define MSG_FILE_HDR(file, num, line) "%s:%d:%s\n", file, num, line
 #define MSG_DBG_T_STAT "sleeptime=%d, temp=%d, last_temp=%d, biased_temp=%d" \
  " -> level=%d\n", st, temp, last_temp, b_temp, cur_lvl
 #define MSG_DBG_CONF_RELOAD "Received SIGHUP: reloading config...\n"
@@ -83,30 +84,28 @@
 #define MSG_ERR_CONF_RELOAD "Error reloading config. Keeping old one.\n"
 #define MSG_ERR_CONF_NOFAN "Could not find any fan speed settings in" \
 	" the config file. Please read the documentation.\n"
-#define MSG_ERR_CONF_LOWHIGH(file, num, line) "%s:%d: %sLOWER limit must be" \
-	" smaller than HIGHER!\nReally, don't mess with this, it could trash your"\
-	" hardware.\n", file, num, line
+#define MSG_ERR_CONF_LOWHIGH "LOWER limit must be smaller than HIGHER! " \
+	"Really, don't mess with this, it could trash your hardware.\n"
 #define MSG_ERR_RUNNING PID_FILE " already exists. Either thinkfan is " \
 	"already running, or it was killed by SIGKILL. If you're sure thinkfan" \
 	" is not running, delete " PID_FILE " manually.\n"
-#define MSG_ERR_CONF_FAN(file, num, line) "%s:%d: %sThinkfan can't use more " \
-	"than one fan in this release.\n", file, num, line
+#define MSG_ERR_CONF_FAN "Thinkfan can't use more than one fan.\n"
 #define MSG_WRN_SYSFS_SAFE "WARNING: Using safe but wasteful way of settin" \
 	"g PWM value. Check README to know more.\n"
 #define MSG_ERR_FANFILE_IBM "Error opening " IBM_FAN ". Is this a computer " \
 	"really Thinkpad? Is the thinkpad_acpi module loaded? Are you running thi" \
 	"nkfan with root privileges?\n"
-#define MSG_ERR_CONF_MIX(file, num, line) "%s:%d: %sThinkfan can't use " \
-	"sysfs sensors together with thinkpad_acpi sensors. Please choose one.\n" \
-	, file, num, line
+#define MSG_ERR_CONF_MIX "Thinkfan can't use sysfs sensors together with " \
+	"thinkpad_acpi sensors. Please choose one.\n"
+#define MSG_ERR_CONF_LEVEL "Fan levels are not ordered correctly."
 #define MSG_INF_DEPULSE(delay, time) "Disengaging the fan controller for " \
 	"%.3f seconds every %d seconds\n", time, delay
 #define MSG_ERR_T_PARSE(str) "Error parsing temperatures: %s\n", str
 #define MSG_WRN_SENSOR_DEFAULT "WARNING: Using default temperature inputs in" \
-	" /proc/acpi/ibm/thermal. This comes with a risk of overheating your " \
-	"hard disk. Please check out the new example configurations to learn " \
-	"how to prevent that.\n"
-#define MSG_ERR_CONF_PARSE(file, num, line) "%s:%d: %sSyntax error.\n", file, \
-	num, line
+	" /proc/acpi/ibm/thermal.\n"
+#define MSG_ERR_CONF_PARSE "Syntax error.\n"
+#define MSG_WRN_CONF_NOBIAS(t) "WARNING: You have not provided any correction" \
+	" values for any sensor, and your fan will only start at %d °C. This can " \
+	"be dangerous for your hard drive.\n", t
 
 #endif
