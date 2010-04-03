@@ -1,3 +1,9 @@
+2010-04-02	Victor Mataré
+		* config.c: Fix another memory leak
+		* NOTES, thinkfan.conf.sysfs, thinkfan.conf.thinkpad, README: some
+		minor corrections and clarifications.
+		* thinkfan-0.7: kind-of release
+
 2010-03-25	Victor Mataré
 		* config.c: Put the check for level ordering back in place.
 		* thinkfan.c: Finally fix the watchdog's border conditions

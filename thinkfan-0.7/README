@@ -1,5 +1,5 @@
 /***************************************************************
- * thinkfan version 0.7 -- copyleft 3-2010, Victor Mataré      *
+ * thinkfan version 0.7 -- copyleft 4-2010, Victor Mataré      *
  ***************************************************************/
 
  This program is provided to you AS-IS. It is licensed under a Creative Commons
@@ -125,7 +125,7 @@
  Note that you should specify a correction value for the temperature of your
  harddisk, because it's much more sensitive to high temperatures than your
  CPU:
- sensor /path/to/harddisk/temp_input (15)
+ sensor /path/to/harddisk's/temp_input (15)
  This will add 15°C to the temperature read from your harddisk and thus keep
  it from heating up to the upper limit of your first fan level.
 
@@ -178,8 +178,8 @@
 Usage: thinkfan [-hnqzD] [-b BIAS ] [-c FILE] [-s SEC] [-p [SEC]]
  -h       This help message
  -s SEC   Maximum seconds between temperature updates (default: 5)
- -b BIAS  Floating point number (0 <= BIAS <= 20) to control rising edge
-          temperature biasing strength (see below). Default 5.
+ -b BIAS  Floating point number (0 ~ 20) to control rising edge
+          temperature biasing strength (see below). Default 5.0
  -c FILE  Load different configuration file (default: /etc/thinkfan.conf)
  -n       Do not become a daemon and log to terminal instead of syslog
  -q       Be quiet (no status info on terminal)
@@ -194,7 +194,7 @@ Usage: thinkfan [-hnqzD] [-b BIAS ] [-c FILE] [-s SEC] [-p [SEC]]
 (3.2) Temperature biasing (the -b option)
 -----------------------------------------
  Thinkfan takes special measures to deal with temperatures rising very
- suddenly (like when you turn on the computer and instantly run a some
+ suddenly (like when you turn on the computer and instantly run some
  CPU/GPU-intensive app).
 
  You can provide a floating point number between 0 and 20 to adjust the
@@ -224,7 +224,8 @@ Usage: thinkfan [-hnqzD] [-b BIAS ] [-c FILE] [-s SEC] [-p [SEC]]
 
 (3.4) Signals
 -------------
- Send a SIGHUP to make thinkfan reload its config file:
+ Send a SIGHUP to make thinkfan reload its config file and reinitialize fan
+ control:
  # kill -HUP $(</var/run/thinkfan.pid)
 
  SIGINT and SIGTERM are caught to make for a clean exit.
@@ -234,9 +235,10 @@ Usage: thinkfan [-hnqzD] [-b BIAS ] [-c FILE] [-s SEC] [-p [SEC]]
 (4) CONTACT / BUG REPORTS
 =========================
 
- If you have anything to say, send a mail to my last name (without the
- accent!) AT lih DOT rwth DASH aachen DOT de. Oh, by the way, all files are
- UTF-8, so upgrade your system if it can't deal with that. And make me a
- coffee, please.
+ If you have questions or a bug report, please try the help forum at sf.net:
+ http://sourceforge.net/projects/thinkfan/forums/forum/905019
 
+ You can also send a mail to my last name (without the accent!) AT lih DOT rwth
+ DASH aachen DOT de. Oh, by the way, all files are UTF-8, so upgrade your
+ system if it can't deal with that. And make me a coffee, please.
 
