@@ -47,7 +47,7 @@ struct tf_config *readconfig(char* fname) {
 		line_count++;
 		if ((ret = (void *) parse_sensor(&input))) {
 			if ((err = add_sensor(cfg_local, (struct sensor *) ret)) == ERR_CONF_MIX) {
-				message(LOG_ERR, MSG_FILE_HDR(fname, line_count, input));
+				message(LOG_ERR, MSG_FILE_HDR(fname, line_count, s_input));
 				message(LOG_ERR, MSG_ERR_CONF_MIX)
 				goto fail;
 			}
@@ -56,7 +56,7 @@ struct tf_config *readconfig(char* fname) {
 		else if ((ret = (void *) parse_fan(&input))) {
 			if (cfg_local->fan == NULL) cfg_local->fan = ret;
 			else {
-				message(LOG_ERR, MSG_FILE_HDR(fname, line_count, input));
+				message(LOG_ERR, MSG_FILE_HDR(fname, line_count, s_input));
 				message(LOG_ERR, MSG_ERR_CONF_FAN);
 				goto fail;
 			}
@@ -65,23 +65,22 @@ struct tf_config *readconfig(char* fname) {
 			if ((err = add_limit(cfg_local, (struct limit *) ret))
 					==  ERR_CONF_LOWHIGH) {
 				message(chk_sanity ? LOG_ERR : LOG_WARNING,
-						MSG_FILE_HDR(fname, line_count, input));
+						MSG_FILE_HDR(fname, line_count, s_input));
 				message(chk_sanity ? LOG_ERR : LOG_WARNING,	MSG_ERR_CONF_LOWHIGH);
 				if (chk_sanity) goto fail;
 			}
 			else if (err == ERR_CONF_LEVEL) {
 				message(chk_sanity ? LOG_ERR : LOG_WARNING,
-						MSG_FILE_HDR(fname, line_count, input));
+						MSG_FILE_HDR(fname, line_count, s_input));
 				message(chk_sanity ? LOG_ERR : LOG_WARNING,	MSG_ERR_CONF_LEVEL);
 				if (chk_sanity) goto fail;
 			}
 			else if (err) goto fail;
-			free(ret);
 		}
 		else if ((ret = (void *) parse_comment(&input))) free(ret);
 		else if (!parse_blankline(&input)) {
 				message(chk_sanity ? LOG_ERR : LOG_WARNING,
-						MSG_FILE_HDR(fname, line_count, input));
+						MSG_FILE_HDR(fname, line_count, s_input));
 				message(chk_sanity ? LOG_ERR : LOG_WARNING,	MSG_ERR_CONF_PARSE);
 				if (chk_sanity) goto fail;
 		}
@@ -176,14 +175,8 @@ int add_limit(struct tf_config *cfg, struct limit *limit) {
 	int rv = 0;
 
 	if (cfg->num_limits > 0 && cfg->limits[cfg->num_limits-1].level
-			>= limit->level) {
-		if (chk_sanity) return ERR_CONF_LEVEL;
-		else rv = ERR_CONF_LEVEL;
-	}
-	if (limit->high <= limit->low) {
-		if (chk_sanity) return ERR_CONF_LOWHIGH;
-		else rv = ERR_CONF_LOWHIGH;
-	}
+			>= limit->level) rv = ERR_CONF_LEVEL;
+	if (limit->high <= limit->low) rv = ERR_CONF_LOWHIGH;
 	if (!(cfg->limits = (struct limit *) realloc(cfg->limits,
 			sizeof(struct limit) * (cfg->num_limits + 1)))) {
 		showerr("Allocating memory for config");
@@ -191,6 +184,7 @@ int add_limit(struct tf_config *cfg, struct limit *limit) {
 	}
 
 	cfg->limits[cfg->num_limits++] = *limit;
+	free(limit);
 	return rv;
 }
 

@@ -40,9 +40,9 @@
  "\nthinkfan " VERSION ": A minimalist fan control program\n" \
  "\nUsage: thinkfan [-hnqzD [-b BIAS] [-c CONFIG] [-s SECONDS] [-p [SECONDS]]]" \
  "\n -h  This help message" \
- "\n -s  Maximum cycle time (Integer. Default: 5)" \
+ "\n -s  Maximum cycle time in seconds (Integer. Default: 5)" \
  "\n -b  Floating point number (0 ~ 20) to control rising edge" \
- "\n     temperature biasing strength (see README). Default 5." \
+ "\n     temperature biasing strength (see README). Default: 5.0" \
  "\n -c  Load different configuration file (default: /etc/thinkfan.conf)" \
  "\n -n  Do not become a daemon and log to terminal & syslog" \
  "\n -q  Be quiet (no status info on terminal)" \
@@ -97,7 +97,7 @@
 	"nkfan with root privileges?\n"
 #define MSG_ERR_CONF_MIX "Thinkfan can't use sysfs sensors together with " \
 	"thinkpad_acpi sensors. Please choose one.\n"
-#define MSG_ERR_CONF_LEVEL "Fan levels are not ordered correctly."
+#define MSG_ERR_CONF_LEVEL "Fan levels are not ordered correctly.\n"
 #define MSG_INF_DEPULSE(delay, time) "Disengaging the fan controller for " \
 	"%.3f seconds every %d seconds\n", time, delay
 #define MSG_ERR_T_PARSE(str) "Error parsing temperatures: %s\n", str

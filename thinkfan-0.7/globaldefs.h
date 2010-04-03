@@ -74,7 +74,7 @@ int errcnt, cur_lvl;
 unsigned int chk_sanity, watchdog_timeout;
 char *config_file, *prefix, *rbuf,
 	quiet, nodaemon, resume_is_safe,
-	*oldpwm; // old contents of pwm*_enable, used for uninit_fan
+	*oldpwm; // old contents of pwm*_enable, used for uninit_fan()
 float bias_level, depulse_tmp;
 struct timespec *depulse;
 #define DEPULSE_MIN_LVL 1

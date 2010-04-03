@@ -58,7 +58,7 @@ char *char_cat(char **input, const char *items, const char invert) {
 	return ret;
 }
 
-/* Match an integer expression and return it as a int */
+/* Match an integer expression and return it as an int */
 int *parse_int(char **input) {
 	char *tmp, *invalid = "";
 	int *rv = NULL;
@@ -135,6 +135,7 @@ char *parse_fan(char **input) {
 	}
 	return rv;
 }
+
 char *skip_parse(char **input, const char *items, const char invert) {
 	skip_space(input);
 	return char_alt(input, items, invert);

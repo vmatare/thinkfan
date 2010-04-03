@@ -11,20 +11,20 @@ system, but that'll most likely never be your harddisk. Thus you can now
 specify a correction value for any sensor. This value is added to the actual
 temperature and can be used to give that sensor a greater chance of being
 considered in the fan speed decision.
-I know this is quite an unintuitive way of handling this, but anything else
-would have required a major redesign which would have resulted in much more
-CPU usage in the main loop.
+I know this is quite unintuitive, but it's the least intrusive way of handling
+this (for now). In a later release, I might extend the config syntax to allow
+for sensor-specific temperature limits.
 
 So please do check out the updated README and example configs, and modify your
-config to keep thinkfan from slowly killing your harddisk :-/
+config to save your harddisk from premature death. :-/
 
 2) Config Syntax
 ----------------
 Thinkfan now has a shiny new (as in cheesy, but better than scanf) parser for
 the config files. It was actually already used in 0.6.5. However in this
-release it was changed to be much tighter on config syntax. In all previous
-releases, it just skipped anything it didn't reconize. You could thus have
-arbitrary garbage in your config file and thinkfan would just ignore it.
+release it was changed to be much tighter on the config syntax. In all
+previous releases, it just skipped anything it didn't reconize. You could thus
+have arbitrary garbage in your config file and thinkfan would just ignore it.
 These times are over. Thinkfan now rejects anything that isn't a proper
 statement or a comment. You can get the old behaviour back by using the -D
 (DANGEROUS) option.
