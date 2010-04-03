@@ -32,20 +32,20 @@ Show a short help message
 Maximum seconds between temperature updates (default: 5)
 .TP
 \fB\-b\fR
-Floating point number (0 <= BIAS <= 20) to control rising edge
-temperature biasing strength (see README). Default 5.
+Floating point number (0 ~ 20) to control rising edge temperature biasing
+strength (see README). Default 5.0
 .TP
 \fB\-c\fR
 Load different configuration file (default: /etc/thinkfan.conf)
 .TP
 \fB\-n\fR
-Do not become a daemon and log to terminal instead of syslog
+Do not become a daemon and log to terminal as well as syslog
 .TP
 \fB\-q\fR
 Be quiet (no status info on terminal)
 .TP
 \fB\-z\fR
-Assume we don't have to worry about resuming when using the sysfs
+Assume we don't have to worry about resuming from standby when using the sysfs
 interface (see README!)
 .TP
 \fB\-p\fR

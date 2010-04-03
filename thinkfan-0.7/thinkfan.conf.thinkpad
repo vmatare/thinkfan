@@ -36,7 +36,7 @@
 #
 
 # I use this on my T61p:
-#sensor /proc/acpi/ibm/thermal (0, 10, 10, 2, 10, 5, 0, 3, 0, 3)
+#sensor /proc/acpi/ibm/thermal (0, 10, 15, 2, 10, 5, 0, 3, 0, 3)
 
 (0,	0,	55)
 (1,	48,	60)

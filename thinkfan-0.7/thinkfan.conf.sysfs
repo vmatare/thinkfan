@@ -1,5 +1,5 @@
 ######################################################################
-#        thinkfan 0.6.5
+#        thinkfan 0.7
 # ================================
 #       sysfs interface
 #
@@ -8,6 +8,7 @@
 # can easily break your hardware with this, so be careful.
 #
 ######################################################################
+#
 #
 # 1) Temperature inputs
 # =====================
@@ -20,13 +21,21 @@
 #    [sensor ...]
 #    ...
 # The (BIAS) value that may be specified after SENSOR_PATH is an integer
-# number that's added to the value read from the file. This can (and should!)
-# be used to make thinkfan react to devices with lower temperature ratings,
-# such as hard disks.
+# number that's added to the value read from the file.
+#
+# !! ATTENTION !!
+#
+# To keep your HD from overheating, you have to specify a correction value for
+# the sensor that has the HD's temperature. You need to do this because
+# thinkfan uses only the highest temperature it can find in the system, and
+# that'll most likely never be your HD, as most HDs are already out of spec
+# when they reach 55 °C.
 #
 # Example:
 #    sensor /sys/class/hwmon/hwmon3/device/temp1_input
-#    sensor /sys/class/hwmon/hwmon3/device/temp2_input (10)
+#    sensor /sys/class/hwmon/hwmon3/device/temp2_input (10) # adds 10°C on
+#                                                           # this sensor
+#
 #
 # 2) Fan control file
 # ===================
@@ -37,6 +46,8 @@
 # Example:
 #    fan /sys/class/hwmon/hwmon3/device/pwm1
 # 
+#
+#
 # 3) Fan speed config
 # ===================
 #  Syntax:
