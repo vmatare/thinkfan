@@ -36,7 +36,7 @@ const char temperatures[] = "temperatures:";
 int get_temp_ibm() {
 	int i=0, res, retval=0, ibm_temp, *tmp;
 	ssize_t r;
-	char *input, *ignore;
+	char *input;
 	input = rbuf;
 
 	if (unlikely(((ibm_temp = open(IBM_TEMP, O_RDONLY)) < 0)
@@ -49,13 +49,11 @@ int get_temp_ibm() {
 	rbuf[r] = 0;
 
 	skip_space(&input);
-	if (likely((ignore = parse_keyword(&input, temperatures)) != NULL)) {
-		skip_space(&input);
-		for (i = 0; (tmp = parse_int(&input)); i++) {
+	if (likely(parse_keyword(&input, temperatures) != NULL)) {
+		for (i = 0; ((tmp = parse_int(&input)) && (i < 16)); i++) {
 			res = *tmp + config->sensors->bias[i];
 			if (res > retval) retval = res;
 			free(tmp);
-			skip_space(&input);
 		}
 		if (unlikely(i < 2)) {
 			message(LOG_ERR, MSG_ERR_T_GET);
@@ -109,14 +107,14 @@ int init_fan_ibm() {
 		showerr(IBM_FAN);
 		errcnt++;
 		message(LOG_ERR, MSG_ERR_FANFILE_IBM);
-		return -1;
+		return ERR_FAN_INIT;
 	}
 	while (getline(&line, &count, ibm_fan) != -1)
 		if (!strncmp("commands:", line, 9)) module_valid = 1;
 	if (!module_valid) {
 		message(LOG_ERR, MSG_ERR_MODOPTS);
 		errcnt++;
-		return -1;
+		return ERR_FAN_INIT;
 	}
 	fprintf(ibm_fan, "watchdog %d\n", watchdog_timeout);
 	fclose(ibm_fan);
@@ -165,7 +163,6 @@ void disengage() {
 
 int depulse_and_get_temp_ibm() {
 	if (cur_lvl >= DEPULSE_MIN_LVL && cur_lvl <= DEPULSE_MAX_LVL) {
-		setfan_ibm();
 		disengage();
 		setfan_ibm();
 	}
@@ -173,7 +170,6 @@ int depulse_and_get_temp_ibm() {
 }
 int depulse_and_get_temp_sysfs() {
 	if (cur_lvl >= DEPULSE_MIN_LVL && cur_lvl <= DEPULSE_MAX_LVL) {
-		setfan_sysfs();
 		disengage();
 		setfan_sysfs();
 	}
@@ -196,7 +192,7 @@ int get_temp_sysfs() {
 				|| close(fd) < 0)) {
 			showerr(config->sensors[idx].path);
 			errcnt++;
-			return INT_MIN;
+			return ERR_T_GET;
 		}
 		buf[num] = 0;
 		tmp = config->sensors[idx].bias[0] + strtol(buf, &endptr, 10)/1000;
@@ -265,16 +261,17 @@ int preinit_fan_sysfs() {
 		showerr(fan_enable);
 		errcnt++;
 		free(fan_enable);
-		return -1;
+		return ERR_FAN_INIT;
 	}
 	free(oldpwm);
+	oldpwm = NULL;
 	if ((r = getline(&oldpwm, &s, fan)) < 2) showerr(fan_enable);
 	fclose(fan);
 	free(fan_enable);
 	if (r < 2) {
 		errcnt++;
 		message(LOG_ERR, MSG_ERR_FAN_INIT);
-		return -1;
+		return ERR_FAN_INIT;
 	}
 	return 0;
 }
@@ -294,7 +291,7 @@ int init_fan_sysfs() {
 		showerr(fan_enable);
 		errcnt++;
 		free(fan_enable);
-		return -1;
+		return ERR_FAN_INIT;
 	}
 	if ((r = write(fd, "1\n", 2)) < 2) showerr(fan_enable);
 	close(fd);
@@ -302,7 +299,7 @@ int init_fan_sysfs() {
 	if (r < 2) {
 		errcnt++;
 		message(LOG_ERR, MSG_ERR_FAN_INIT);
-		return -1;
+		return ERR_FAN_INIT;
 	}
 	return 0;
 }

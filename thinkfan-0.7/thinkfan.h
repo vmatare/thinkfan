@@ -1,5 +1,5 @@
 /********************************************************************
- * thinkfan.h: Global stuff.
+ * thinkfan.h: Top-level definitions.
  *
  * This work is licensed under a Creative Commons Attribution-Share Alike 3.0
  * United States License. See http://creativecommons.org/licenses/by-sa/3.0/us/

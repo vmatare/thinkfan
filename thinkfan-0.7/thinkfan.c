@@ -1,5 +1,5 @@
 /*************************************************************************
- * thinkfan version 0.6.9 -- copyleft 11-2009, Victor Mataré
+ * thinkfan version 0.7.1 -- copyleft 5-2010, Victor Mataré
  *
  * This work is licensed under a Creative Commons Attribution-Share Alike 3.0
  * United States License.
@@ -38,18 +38,7 @@ int fancontrol() {
 	int wt = watchdog_timeout, st = sleeptime;
 
 	prefix = "\n"; // makes the output more readable
-	if(config->init_fan()) return errcnt;
-
-	if (!quiet) {
-		int i;
-		message(LOG_INFO, MSG_INF_CONFIG);
-		for (i=0; i < config->num_limits; i++) {
-			message(LOG_INFO, MSG_INF_CONF_ITEM(
-			 config->limits[i].level, config->limits[i].low,
-			 config->limits[i].high));
-		}
-	}
-	if (depulse) message(LOG_INFO, MSG_INF_DEPULSE(sleeptime, depulse_tmp));
+	if(config->init_fan()) return ERR_FAN_INIT;
 
 	prefix = "\n"; // It is set to "" by the output macros
 
@@ -112,6 +101,8 @@ int fancontrol() {
 	return errcnt;
 }
 
+
+
 void sigHandler(int signum) {
 	switch(signum) {
 	case SIGHUP:
@@ -130,10 +121,11 @@ void sigHandler(int signum) {
  * Scan for arguments, set options and initialize signal handler
  ***************************************************************/
 int main(int argc, char **argv) {
-	int opt, ret, fork_ret;
+	int opt, ret;
 	char *invalid = "";
 	struct sigaction handler;
 
+	rbuf = NULL;
 	depulse_tmp = 0;
 	sleeptime = 5;
 	quiet = 0;
@@ -145,9 +137,9 @@ int main(int argc, char **argv) {
 	errcnt = 0;
 	resume_is_safe = 0;
 	depulse = NULL;
-	FILE *fd;
 	prefix = "\n";
 	oldpwm = NULL;
+	cur_lvl = -1;
 
 	openlog("thinkfan", LOG_CONS, LOG_USER);
 	syslog(LOG_INFO, "thinkfan " VERSION " starting...");
@@ -247,22 +239,11 @@ int main(int argc, char **argv) {
 	}
 	watchdog_timeout = sleeptime * 6;
 
-	if (chk_sanity && ((fd = fopen(PID_FILE, "r")) != NULL)) {
-		fclose(fd);
-		message_fg(LOG_ERR, MSG_ERR_RUNNING);
-		return ERR_PIDFILE;
-	}
+	ret = run();
 
-	if (nodaemon) ret = run();
-	else {
-		if ((fork_ret = fork()) == 0) ret = run();
-		else if (!quiet)
-			fprintf(stderr, "Daemon PID: %d\n", fork_ret);
-		if (fork_ret < 0) {
-			perror("fork()");
-			ret = 1;
-		}
-	}
+	free(rbuf);
+	free(depulse);
+	free(oldpwm);
 	return ret;
 }
 
@@ -271,22 +252,56 @@ int main(int argc, char **argv) {
  * reloading
  ********************************************************************/
 int run() {
-	int ret = 0;
+	int ret = 0, childpid;
 	struct tf_config *newconfig=NULL;
 	FILE *pidfile;
 	rbuf = malloc(sizeof(char) * 128);
 
+	prefix = "\n";
+
 	if ((config = readconfig(config_file)) == NULL) {
 		message(LOG_ERR, MSG_ERR_CONF_NOFILE);
-		ret = -1;
-		goto kapott1;
+		return ERR_CONF_NOFILE;
 	}
 
-	prefix = "\n";
+	if (config->init_fan()) {
+		ret = ERR_FAN_INIT;
+		goto bail;
+	}
+
+	if (config->get_temp() == ERR_T_GET) {
+		ret = ERR_T_GET;
+		goto bail;
+	}
+
+	if (chk_sanity && ((pidfile = fopen(PID_FILE, "r")) != NULL)) {
+		fclose(pidfile);
+		message_fg(LOG_ERR, MSG_ERR_RUNNING);
+		ret = ERR_PIDFILE;
+		goto bail;
+	}
+
+	if (depulse) message(LOG_INFO, MSG_INF_DEPULSE(sleeptime, depulse_tmp));
+
+	// So we try to detect most errors before forking...
+
+	if (!nodaemon) {
+		if ((childpid = fork()) != 0) {
+			if (!quiet) fprintf(stderr, "Daemon PID: %d\n", childpid);
+			ret = 0;
+			goto bail;
+		}
+		if (childpid < 0) {
+			perror("fork()");
+			ret = ERR_FORK;
+			goto bail;
+		}
+	}
+
 	if ((pidfile = fopen(PID_FILE, "w+")) == NULL) {
 		showerr(PID_FILE);
-		ret = -2;
-		goto kapott;
+		ret = ERR_PIDFILE;
+		goto bail;
 	}
 	fprintf(pidfile, "%d\n", getpid());
 	fclose(pidfile);
@@ -310,13 +325,11 @@ int run() {
 
 	message(LOG_WARNING, MSG_INF_TERM);
 	config->uninit_fan();
-kapott:
-	free_config(config);
-kapott1:
-	free(depulse);
-	free(rbuf);
-	free(oldpwm);
+
 	unlink(PID_FILE);
+
+bail:
+	free_config(config);
 	return ret;
 }
 

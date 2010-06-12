@@ -4,7 +4,9 @@
 #
 # ATTENTION: There is only very basic sanity checking on the configuration.
 # That means you can set your temperature limits as insane as you like. You
-# can easily break your hardware with this, so be careful.
+# can do anything stupid, e.g. turn off your fan when your CPU reaches 70°C.
+#
+# That's why this program is called THINKfan: You gotta think for yourself.
 #
 ######################################################################
 #

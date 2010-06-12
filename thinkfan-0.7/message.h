@@ -13,24 +13,26 @@
 
 #define showerr(cause) { \
 	int lasterr = errno; \
-	if (nodaemon) { \
+	if (nodaemon || isatty(fileno(stderr))) { \
 		fputs(prefix, stderr); \
 		fprintf(stderr, "%s: %s\n", cause, strerror(lasterr)); \
 	} \
 	syslog(LOG_ERR, "%s: %s\n", cause, strerror(lasterr)); \
 	prefix = ""; \
 }
-#define message(loglevel, message) { \
-	if (nodaemon && (!quiet || loglevel > LOG_WARNING)) { \
+
+#define message(lvl, message) { \
+	if ( (nodaemon || isatty(fileno(stderr))) \
+			&& (!quiet || lvl > LOG_WARNING) ) { \
 		fputs(prefix, stderr); \
 		fprintf(stderr, message); \
 	} \
-	else syslog(loglevel, message); \
+	else syslog(lvl, message); \
 	prefix = ""; \
 }
 
-#define message_fg(loglevel, message) \
-	if (!quiet || loglevel > LOG_WARNING) { \
+#define message_fg(lvl, message) \
+	if (!quiet || lvl > LOG_WARNING) { \
 		fputs(prefix, stderr); \
 		fprintf(stderr, message); \
 	} \

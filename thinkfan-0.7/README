@@ -175,7 +175,7 @@
 
 (3.1) Invocation
 ----------------
-Usage: thinkfan [-hnqzD] [-b BIAS ] [-c FILE] [-s SEC] [-p [SEC]]
+Usage: thinkfan [-hnqzD] [-b BIAS ] [-c FILE] [-s SEC] [-p[SEC]]
  -h       This help message
  -s SEC   Maximum seconds between temperature updates (default: 5)
  -b BIAS  Floating point number (0 ~ 20) to control rising edge

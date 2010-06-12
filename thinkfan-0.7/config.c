@@ -142,9 +142,20 @@ struct tf_config *readconfig(char* fname) {
 	if (chk_sanity && cfg_local->limits[0].high > 48) {
 		for (i=0; i < cfg_local->num_sensors; i++)
 			for (j=0; j < 16; j++)
-				if (cfg_local->sensors[i].bias[j] != 0) return cfg_local;
+				if (cfg_local->sensors[i].bias[j] != 0) goto done;
 		message(LOG_WARNING, MSG_WRN_CONF_NOBIAS(cfg_local->limits[0].high));
 	}
+
+done:
+	if (!quiet) {
+		message(LOG_INFO, MSG_INF_CONFIG);
+		for (i=0; i < cfg_local->num_limits; i++) {
+			message(LOG_INFO, MSG_INF_CONF_ITEM(
+			 cfg_local->limits[i].level, cfg_local->limits[i].low,
+			 cfg_local->limits[i].high));
+		}
+	}
+
 	return cfg_local;
 
 fail:

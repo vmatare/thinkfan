@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <limits.h>
 
-#define VERSION "0.7"
+#define VERSION "0.7.1"
 
 #define ERR_T_GET     	INT_MIN
 #define ERR_FAN_INIT   	-2
@@ -24,6 +24,7 @@
 #define ERR_CONF_LOST	-4
 #define ERR_CONF_RELOAD	-5
 #define ERR_PIDFILE	   	-6
+#define ERR_FORK		-7
 #define ERR_CONF_MIX	-8
 #define ERR_MALLOC		-9
 #define ERR_CONF_LOWHIGH -11

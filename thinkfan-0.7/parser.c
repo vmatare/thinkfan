@@ -20,13 +20,9 @@ const char sensor_keyword[] = "sensor";
 const char left_bracket[] = "({";
 const char right_bracket[] = ")}";
 const char comma[] = ",;";
-const char digit[] = "-0123456789";
 const char nonword[] = " \t\n\r\f,";
 const char comment[] = "#";
-
-// Not used atm...
-const char snglquote[] = "\'";
-const char dblquote[] = "\"";
+const char nonfilename[] = "\n\n{[";
 
 
 /*
@@ -60,33 +56,29 @@ char *char_cat(char **input, const char *items, const char invert) {
 
 /* Match an integer expression and return it as an int */
 int *parse_int(char **input) {
-	char *tmp, *invalid = "";
+	char *end = *input;
 	int *rv = NULL;
 	long int l;
 
-	if (!(tmp = char_cat(input, digit, 0))) return NULL;
-	rv = (int *) malloc(sizeof(int));
-	l = strtol(tmp, &invalid, 0);
-	if (*invalid != 0 || l > INT_MAX || l < INT_MIN) {
-		free(rv);
-		rv = NULL;
+	l = strtol(*input, &end, 0);
+	if (end > *input && l <= INT_MAX && l >= INT_MIN) {
+		*input = end;
+		rv = (int *) malloc(sizeof(int));
+		*rv = (int) l;
 	}
-	*rv = l;
-	free(tmp);
 	return rv;
 }
 
 /* Match a single string (keyword) */
 char *parse_keyword(char **input, const char *keyword) {
 	int l = strlen(keyword);
-	char *ret;
+	char *ret = NULL;
 
 	if (!strncasecmp(*input, keyword, l)) {
 		ret = *input;
 		*input += l;
-		return ret;
 	}
-	return NULL;
+	return ret;
 }
 
 void skip_space(char **input) {
@@ -149,7 +141,6 @@ int **parse_int_tuple(char **input) {
 
 	if (!skip_parse(input, left_bracket, 0)) return NULL;
 	do {
-		skip_space(input);
 		if (!(tmp = parse_int(input))) goto fail;
 		rv = realloc(rv, sizeof(int *) * (i+2));
 		rv[i++] = tmp;
