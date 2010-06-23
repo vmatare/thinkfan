@@ -1,3 +1,7 @@
+2010-06-14	Victor Mataré
+		* config.c: Add check for overlapping fan levels.
+		* message.h: Add error message.
+
 2010-05-13	Victor Mataré
 		* parser.c: Make int parsing cheaper.
 		* system.c: Remove duplicate set_fan.

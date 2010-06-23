@@ -1,15 +1,15 @@
 /***************************************************************
- * thinkfan version 0.7 -- copyleft 4-2010, Victor Mataré      *
+ * thinkfan version 0.7.1 -- copyleft 6-2010, Victor Mataré    *
  ***************************************************************/
 
  This program is provided to you AS-IS. It is licensed under a Creative Commons
  Attribution-Share Alike 3.0 United States License. See
  http://creativecommons.org/licenses/by-sa/3.0/us/ for details.
 
- A minimalist, lightweight fan control program. Originally designed
- specifically for IBM/Lenovo Thinkpads, it now supports any kind of system via
- the sysfs hwmon interface (/sys/class/hwmon). It is designed to eat as little
- CPU power as possible.
+ A simple, lightweight fan control program. Originally designed specifically
+ for IBM/Lenovo Thinkpads, it now supports any kind of system via the sysfs
+ hwmon interface (/sys/class/hwmon). It is designed to eat as little CPU power
+ as possible.
  
  
  
@@ -20,7 +20,7 @@
 
 (1) HOW IT WORKS
 
-(2) HOW TO INSTALL
+(2) INSTALL AND CONFIGURE
  (2.1)  Build
  (2.2a) Configure hardware interface (IBM/Lenovo Thinkpads)
  (2.2b) Configure hardware interface (any system)

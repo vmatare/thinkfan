@@ -1,23 +1,24 @@
 .TH THINKFAN "1" "January 2010" "thinkfan 0.7" "thinkfan"
 .SH NAME
-thinkfan \- minimalist fan control program
+thinkfan \- A simple fan control program
 .SH SYNOPSIS
 .B thinkfan
 [\fB-hnqzD\fR [\fB-b \fIBIAS\fR] [\fB-c \fICONFIG\fR] [\fB-s \fISECONDS\fR] \
 [\fB-p \fI[DELAY]\fR]]
 .SH DESCRIPTION
-A minimalist fan control program.
-Supports most hardware trough the generic sysfs hwmon interface.
-It also supports the Thinkpad-specific thinkpad_acpi interface.
+Thinkfan supports most hardware trough the generic sysfs hwmon interface in
+/sys/class/hwmon. By default, it tries to use the Thinkpad-specific
+thinkpad_acpi interface in /proc/acpi/ibm.
 .HP
 \fBWARNING\fR: This program does only very basic sanity checking on the
 configuration. That means that you can set your temperature limits as insane
 as you like.
 .P
 It uses only the highest temperature found in the system. That
-may be dangerous, e.g. for hard disks, but since version 0.7 you can add a
-fixed value to any sensor and thus make your hard disk eligible for turning up
-the fan, too.
+may be dangerous, e.g. for hard disks. That's why you should provide a
+correction value (i.e. add 10\-15 \°C) for the sensor that has the temperature
+of your hard disk (or battery...). See the example config files for details
+about that.
 .SH CONFIGURATION
 Two example configurations are provided with the source package. For detailed
 explanations please read the README file. If you installed thinkfan from a

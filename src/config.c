@@ -75,6 +75,12 @@ struct tf_config *readconfig(char* fname) {
 				message(chk_sanity ? LOG_ERR : LOG_WARNING,	MSG_ERR_CONF_LEVEL);
 				if (chk_sanity) goto fail;
 			}
+			else if (err == ERR_CONF_OVERLAP) {
+				message(chk_sanity ? LOG_ERR : LOG_WARNING,
+						MSG_FILE_HDR(fname, line_count, s_input));
+				message(chk_sanity ? LOG_ERR : LOG_WARNING, MSG_ERR_CONF_OVERLAP);
+				if (chk_sanity) goto fail;
+			}
 			else if (err) goto fail;
 		}
 		else if ((ret = (void *) parse_comment(&input))) free(ret);
@@ -185,8 +191,12 @@ int add_sensor(struct tf_config *cfg, struct sensor *sensor) {
 int add_limit(struct tf_config *cfg, struct limit *limit) {
 	int rv = 0;
 
-	if (cfg->num_limits > 0 && cfg->limits[cfg->num_limits-1].level
-			>= limit->level) rv = ERR_CONF_LEVEL;
+	if (cfg->num_limits > 0) {
+		if (cfg->limits[cfg->num_limits-1].level >= limit->level)
+			rv = ERR_CONF_LEVEL;
+		if (cfg->limits[cfg->num_limits-1].high < limit->low)
+			rv = ERR_CONF_OVERLAP;
+	}
 	if (limit->high <= limit->low) rv = ERR_CONF_LOWHIGH;
 	if (!(cfg->limits = (struct limit *) realloc(cfg->limits,
 			sizeof(struct limit) * (cfg->num_limits + 1)))) {

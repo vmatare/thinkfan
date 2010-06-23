@@ -31,6 +31,7 @@
 #define ERR_CONF_LEVEL	-12
 #define ERR_CONF_ORDERLOW -13
 #define ERR_CONF_ORDERHIGH -14
+#define ERR_CONF_OVERLAP	-15
 
 #ifndef DUMMYRUN
 #define PID_FILE "/var/run/thinkfan.pid"
