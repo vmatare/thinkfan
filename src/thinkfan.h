@@ -16,7 +16,7 @@
 #include <time.h>
 
 #define set_fan cur_lvl = config->limits[lvl_idx].level; \
-		if (!quiet && nodaemon) message(LOG_DEBUG, MSG_DBG_T_STAT); \
+		if (!quiet && nodaemon) report(LOG_DEBUG, LOG_DEBUG, MSG_DBG_T_STAT); \
 		config->setfan();
 
 volatile int interrupted;

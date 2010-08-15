@@ -1,5 +1,5 @@
 /*************************************************************************
- * thinkfan version 0.7.1 -- copyleft 5-2010, Victor Mataré
+ * thinkfan version 0.7.2 -- copyleft 08-2010, Victor Mataré
  *
  * This work is licensed under a Creative Commons Attribution-Share Alike 3.0
  * United States License.
@@ -64,7 +64,7 @@ int fancontrol() {
 		// timeout ends, to let it know we're alive.
 		if (unlikely((wt -= st) <= sleeptime)) {
 #ifdef DEBUG
-			message(LOG_DEBUG, MSG_DBG_T_STAT);
+			report(LOG_DEBUG, LOG_DEBUG, MSG_DBG_T_STAT);
 #endif
 			config->setfan();
 			wt = watchdog_timeout;
@@ -140,6 +140,7 @@ int main(int argc, char **argv) {
 	prefix = "\n";
 	oldpwm = NULL;
 	cur_lvl = -1;
+	config = NULL;
 
 	openlog("thinkfan", LOG_CONS, LOG_USER);
 	syslog(LOG_INFO, "thinkfan " VERSION " starting...");
@@ -175,33 +176,37 @@ int main(int argc, char **argv) {
 		case 's':
 			sleeptime = (unsigned int) strtol(optarg, &invalid, 0);
 			if (*invalid != 0) {
-				message_fg(LOG_ERR, MSG_ERR_OPT_S);
-				message_fg(LOG_INFO, MSG_USAGE);
-				return 1;
+				report(LOG_ERR, LOG_ERR, MSG_ERR_OPT_S);
+				report(LOG_ERR, LOG_INFO, MSG_USAGE);
+				ret = 1;
+				goto fail;
 			}
 			break;
 		case 'b':
 			bias_level = strtof(optarg, &invalid);
 			if (*invalid != 0) {
-				message_fg(LOG_ERR, MSG_ERR_OPT_B);
-				message_fg(LOG_INFO, MSG_USAGE);
-				return 1;
+				report(LOG_ERR, LOG_ERR, MSG_ERR_OPT_B);
+				report(LOG_ERR, LOG_INFO, MSG_USAGE);
+				ret = 1;
+				goto fail;
 			}
 			if (bias_level >= 0 && bias_level <= 20)
 				bias_level = 0.1f * bias_level;
 			else {
-				message_fg(LOG_ERR, MSG_ERR_OPT_B);
-				message_fg(LOG_INFO, MSG_USAGE);
-				return 1;
+				report(LOG_ERR, LOG_ERR, MSG_ERR_OPT_B);
+				report(LOG_ERR, LOG_INFO, MSG_USAGE);
+				ret = 1;
+				goto fail;
 			}
 			break;
 		case 'p':
 			if (optarg) {
 				depulse_tmp = strtof(optarg, &invalid);
 				if (*invalid != 0 || depulse_tmp > 10 || depulse_tmp < 0) {
-					message_fg(LOG_ERR, MSG_ERR_OPT_P)
-					message_fg(LOG_INFO, MSG_USAGE);
-					return 1;
+					report(LOG_ERR, LOG_ERR, MSG_ERR_OPT_P);
+					report(LOG_ERR, LOG_INFO, MSG_USAGE);
+					ret = 1;
+					goto fail;
 				}
 			}
 			else depulse_tmp = 0.5f;
@@ -216,31 +221,27 @@ int main(int argc, char **argv) {
 	}
 
 	if (sleeptime > 15) {
+		report(LOG_ERR, LOG_WARNING, MSG_WRN_SLEEPTIME_15);
+		report(LOG_ERR, LOG_INFO, MSG_INF_SANITY);
 		if (chk_sanity) {
-			message_fg(LOG_ERR, MSG_WRN_SLEEPTIME_15);
-			message_fg(LOG_ERR, MSG_INF_SANITY);
-			return 1;
-		}
-		else {
-			message_fg(LOG_WARNING, MSG_WRN_SLEEPTIME_15);
-			message_fg(LOG_WARNING, MSG_INF_INSANITY);
+			ret = 1;
+			goto fail;
 		}
 	}
 	else if (sleeptime < 1) {
+		report(LOG_ERR, LOG_WARNING, MSG_WRN_SLEEPTIME_1);
+		report(LOG_ERR, LOG_INFO, MSG_INF_SANITY);
 		if (chk_sanity) {
-			message_fg(LOG_ERR, MSG_WRN_SLEEPTIME_1);
-			message_fg(LOG_ERR, MSG_INF_SANITY);
-			return 1;
-		}
-		else {
-			message_fg(LOG_WARNING, MSG_WRN_SLEEPTIME_1);
-			message_fg(LOG_WARNING, MSG_INF_INSANITY);
+			ret = 1;
+			goto fail;
 		}
 	}
 	watchdog_timeout = sleeptime * 6;
 
 	ret = run();
 
+fail:
+	free_config(config);
 	free(rbuf);
 	free(depulse);
 	free(oldpwm);
@@ -260,48 +261,36 @@ int run() {
 	prefix = "\n";
 
 	if ((config = readconfig(config_file)) == NULL) {
-		message(LOG_ERR, MSG_ERR_CONF_NOFILE);
+		report(LOG_ERR, LOG_ERR, MSG_ERR_CONF_NOFILE);
 		return ERR_CONF_NOFILE;
 	}
-
-	if (config->init_fan()) {
-		ret = ERR_FAN_INIT;
-		goto bail;
-	}
-
-	if (config->get_temp() == ERR_T_GET) {
-		ret = ERR_T_GET;
-		goto bail;
-	}
+	if (config->init_fan()) return ERR_FAN_INIT;
+	if (config->get_temp() == ERR_T_GET) return ERR_T_GET;
 
 	if (chk_sanity && ((pidfile = fopen(PID_FILE, "r")) != NULL)) {
 		fclose(pidfile);
-		message_fg(LOG_ERR, MSG_ERR_RUNNING);
-		ret = ERR_PIDFILE;
-		goto bail;
+		report(LOG_ERR, LOG_WARNING, MSG_ERR_RUNNING);
+		if (chk_sanity) return ERR_PIDFILE;
 	}
 
-	if (depulse) message(LOG_INFO, MSG_INF_DEPULSE(sleeptime, depulse_tmp));
+	if (depulse) report(LOG_INFO, LOG_DEBUG, MSG_INF_DEPULSE(sleeptime, depulse_tmp));
 
-	// So we try to detect most errors before forking...
+	// So we try to detect most errors before forking.
 
 	if (!nodaemon) {
 		if ((childpid = fork()) != 0) {
 			if (!quiet) fprintf(stderr, "Daemon PID: %d\n", childpid);
-			ret = 0;
-			goto bail;
+			return 0;
 		}
 		if (childpid < 0) {
 			perror("fork()");
-			ret = ERR_FORK;
-			goto bail;
+			return ERR_FORK;
 		}
 	}
 
 	if ((pidfile = fopen(PID_FILE, "w+")) == NULL) {
-		showerr(PID_FILE);
-		ret = ERR_PIDFILE;
-		goto bail;
+		report(LOG_ERR, LOG_WARNING, PID_FILE ": %s", strerror(errno));
+		return ERR_PIDFILE;
 	}
 	fprintf(pidfile, "%d\n", getpid());
 	fclose(pidfile);
@@ -310,26 +299,24 @@ int run() {
 		interrupted = 0;
 		if ((ret = fancontrol())) break;
 		else if (interrupted == SIGHUP) {
-			message(LOG_DEBUG, MSG_DBG_CONF_RELOAD);
+			report(LOG_DEBUG, LOG_DEBUG, MSG_DBG_CONF_RELOAD);
 			if ((newconfig = readconfig(config_file)) != NULL) {
 				free_config(config);
 				config = newconfig;
 			}
-			else message(LOG_ERR, MSG_ERR_CONF_RELOAD);
+			else report(LOG_ERR, LOG_ERR, MSG_ERR_CONF_RELOAD);
 		}
 		else if (SIGINT <= interrupted && interrupted <= SIGTERM) {
-			message(LOG_WARNING, "\nCaught deadly signal. ");
+			report(LOG_WARNING, LOG_INFO, "\nCaught deadly signal. ");
 			break;
 		}
 	}
 
-	message(LOG_WARNING, MSG_INF_TERM);
+	report(LOG_WARNING, LOG_INFO, MSG_INF_TERM);
 	config->uninit_fan();
 
 	unlink(PID_FILE);
 
-bail:
-	free_config(config);
 	return ret;
 }
 

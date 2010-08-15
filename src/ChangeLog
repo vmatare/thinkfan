@@ -1,3 +1,10 @@
+2010-08-15	Victor Mataré
+		* message.h, message.c, config.c, system.c, thinkfan.c: Rewrite
+		messaging and logging functionality.
+
+2010-06-25	Victor Mataré
+		* config.c: Error if first LOWER limit > 0.
+
 2010-06-14	Victor Mataré
 		* config.c: Add check for overlapping fan levels.
 		* message.h: Add error message.

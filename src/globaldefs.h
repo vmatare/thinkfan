@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <limits.h>
 
-#define VERSION "0.7.1"
+#define VERSION "0.7.2"
 
 #define ERR_T_GET     	INT_MIN
 #define ERR_FAN_INIT   	-2
@@ -32,6 +32,7 @@
 #define ERR_CONF_ORDERLOW -13
 #define ERR_CONF_ORDERHIGH -14
 #define ERR_CONF_OVERLAP	-15
+#define ERR_CONF_LVL0	-16
 
 #ifndef DUMMYRUN
 #define PID_FILE "/var/run/thinkfan.pid"
@@ -74,7 +75,7 @@ struct tf_config {
 struct tf_config *config;
 int errcnt, cur_lvl;
 unsigned int chk_sanity, watchdog_timeout;
-char *config_file, *prefix, *rbuf,
+char *config_file, *prefix, *rbuf, errmsg[1024],
 	quiet, nodaemon, resume_is_safe,
 	*oldpwm; // old contents of pwm*_enable, used for uninit_fan()
 float bias_level, depulse_tmp;

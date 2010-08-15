@@ -8,35 +8,10 @@
  * This file is part of thinkfan. See thinkfan.c for further info.
  * ******************************************************************/
 
-#ifndef MESSAGE_C
-#define MESSAGE_C
+#ifndef MESSAGE_H
+#define MESSAGE_H
 
-#define showerr(cause) { \
-	int lasterr = errno; \
-	if (nodaemon || isatty(fileno(stderr))) { \
-		fputs(prefix, stderr); \
-		fprintf(stderr, "%s: %s\n", cause, strerror(lasterr)); \
-	} \
-	syslog(LOG_ERR, "%s: %s\n", cause, strerror(lasterr)); \
-	prefix = ""; \
-}
-
-#define message(lvl, message) { \
-	if ( (nodaemon || isatty(fileno(stderr))) \
-			&& (!quiet || lvl > LOG_WARNING) ) { \
-		fputs(prefix, stderr); \
-		fprintf(stderr, message); \
-	} \
-	else syslog(lvl, message); \
-	prefix = ""; \
-}
-
-#define message_fg(lvl, message) \
-	if (!quiet || lvl > LOG_WARNING) { \
-		fputs(prefix, stderr); \
-		fprintf(stderr, message); \
-	} \
-	prefix = "";
+void report(int nlevel, int dlevel, char *format, ...);
 
 #define MSG_USAGE \
  "\nthinkfan " VERSION ": A minimalist fan control program\n" \
@@ -86,7 +61,7 @@
 #define MSG_ERR_T_GET "Error getting temperature.\n"
 #define MSG_ERR_MODOPTS \
  "Module thinkpad_acpi doesn't seem to support fan_control\n"
-#define MSG_ERR_FANCTRL "Error writing to %s.\n", config->fan
+#define MSG_ERR_FANCTRL "Error writing to %s: %s\n", config->fan, strerror(errno)
 #define MSG_ERR_FAN_INIT "Error initializing fan control.\n"
 #define MSG_ERR_OPT_S "ERROR: option -s requires an int argument!\n"
 #define MSG_ERR_OPT_B "ERROR: option -b requires a float argument!\n"
@@ -108,6 +83,7 @@
 	"thinkpad_acpi sensors. Please choose one.\n"
 #define MSG_ERR_CONF_LEVEL "Fan levels are not ordered correctly.\n"
 #define MSG_ERR_CONF_PARSE "Syntax error.\n"
+#define MSG_ERR_CONF_LVL0 "The LOWER limit of the first fan level must be 0!\n"
 
 #define MSG_ERR_RUNNING PID_FILE " already exists. Either thinkfan is " \
 	"already running, or it was killed by SIGKILL. If you're sure thinkfan" \

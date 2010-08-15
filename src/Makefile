@@ -2,10 +2,13 @@
 
 .DEFAULT_GOAL := thinkfan
 
-thinkfan:	system.o parser.o config.o thinkfan.o
+thinkfan:	system.o parser.o config.o thinkfan.o message.o
 			gcc $(CFLAGS) -Wall -o thinkfan system.o config.o parser.o \
-			thinkfan.o
-			
+			thinkfan.o message.o
+
+message.o:	message.c globaldefs.h
+			gcc $(CFLAGS) -Wall -c message.c
+
 system.o:	system.c system.h message.h globaldefs.h parser.h
 			gcc $(CFLAGS) -Wall -c system.c
 
