@@ -83,7 +83,7 @@ void setfan_ibm() {
 	else {
 		if (unlikely(cur_lvl == INT_MIN)) strcpy(buf, "level disengaged\n");
 		else snprintf(buf, 10, "level %d\n", cur_lvl);
-		if (unlikely(write(ibm_fan, buf, 8) != 8)) {
+		if (unlikely(write(ibm_fan, buf, strlen(buf)) < 8)) {
 			report(LOG_ERR, LOG_ERR, MSG_ERR_FANCTRL);
 			errcnt++;
 		}
