@@ -1,34 +1,49 @@
 /********************************************************************
  * config_parser.c: Some cheesy recursive descent parser for the config file
  *
- * This work is licensed under a Creative Commons Attribution-Share Alike 3.0
- * United States License. See http://creativecommons.org/licenses/by-sa/3.0/us/
- * for details.
+ * this file is part of thinkfan. See thinkfan.c for further information.
  *
- * This file is part of thinkfan. See thinkfan.c for further info.
+ * thinkfan is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * thinkfan is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with thinkfan.  If not, see <http://www.gnu.org/licenses/>.
+ *
  * ******************************************************************/
 
 #include "parser.h"
 #include "globaldefs.h"
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
-const char space[] = " \t\n\r\f";
+const char space[] = " \t\f\n\r";
 const char newline[] = "\n\r";
 const char fan_keyword[] = "fan";
 const char sensor_keyword[] = "sensor";
 const char left_bracket[] = "({";
 const char right_bracket[] = ")}";
 const char comma[] = ",;";
-const char nonword[] = " \t\n\r\f,";
+const char nonword[] = " \t\n\r\f,;#({})";
 const char comment[] = "#";
 const char nonfilename[] = "\n\n{[";
+const char digit[] = "0123456789";
+const char quote[] = "\"";
 
 
 /*
  * All these functions allocate memory only for the matching result, with the
  * exception of char_alt(), which never allocates memory and instead returns a
  * pointer to the last char that has been read from **input.
+ * All advance the **input pointer to point to the first char that has not been
+ * parsed. If parsing was unsuccessful, **input is reset to where it started.
  */
 
 /* Match any single char out of *items. Returns a pointer to the last read char
@@ -37,20 +52,32 @@ const char nonfilename[] = "\n\n{[";
 char *char_alt(char **input, const char *items, const char invert) {
 	if (! **input) return NULL;
 	while (*items)
-		if (**input == *(items++)) return invert ? NULL : (*input)++;
-	return invert ? (*input)++ : NULL;
+		if (**input == *(items++)) {
+			if (invert) return NULL;
+			else {
+				if (**input == '\n') line_count++;
+				return (*input)++;
+			}
+		}
+	if (invert) {
+		if (**input == '\n') line_count++;
+		return (*input)++;
+	}
+	return NULL;
 }
 
 /* Match an arbitrary sequence of any chars out of *items */
 char *char_cat(char **input, const char *items, const char invert) {
 	char *ret = NULL;
 	char *start = *input;
+	int oldlc = line_count;
 
 	while (char_alt(input, items, invert));
 	if (*input > start) {
 		ret = (char*) calloc(*input - start + 2, sizeof(char));
 		strncpy(ret, start, *input - start);
 	}
+	else line_count = oldlc;
 	return ret;
 }
 
@@ -63,7 +90,7 @@ int *parse_int(char **input) {
 	l = strtol(*input, &end, 0);
 	if (end > *input && l <= INT_MAX && l >= INT_MIN) {
 		*input = end;
-		rv = (int *) malloc(sizeof(int));
+		rv = (int *) calloc(2, sizeof(int));
 		*rv = (int) l;
 	}
 	return rv;
@@ -90,39 +117,59 @@ char *parse_comment(char **input) {
 	skip_space(input);
 	if (!char_alt(input, comment, 0)) return NULL;
 	char *tmp = char_cat(input, newline, 1);
+	if (tmp == NULL) {
+		tmp = malloc(sizeof(char));
+		*tmp = 0;
+	}
 	skip_space(input);
 	return tmp;
+}
+
+void skip_comment(char **input) {
+	char *tmp = parse_comment(input);
+	free(tmp);
 }
 
 char *parse_filename(char **input) {
 	return char_cat(input, space, 1);
 }
 
+char *parse_newline(char **input) {
+	if (char_alt(input, newline, 0)) {
+		line_count++;
+		return *input;
+	}
+	return NULL;
+}
 
-int parse_blankline(char **input) {
+char *parse_blankline(char **input) {
 	skip_space(input);
-	return **input == 0;
+	return parse_newline(input);
 }
 
 /* Return the string following a keyword. Matching ends at \n */
 char *parse_statement(char **input, const char *keyword) {
 	char *tmp, *ret = NULL;
+	int oldlc = line_count;
 
 	skip_space(input);
  	if (!(tmp = parse_keyword(input, keyword))) return NULL;
 	skip_space(input);
 	ret = parse_filename(input);
+	if (!ret) line_count = oldlc;
 	return ret;
 }
 
 char *parse_fan(char **input) {
 	char *start = *input;
 	char *rv = parse_statement(input, fan_keyword);
-	char *tmp = parse_comment(input);
-	free(tmp);
+	int oldlc = line_count;
+
+	skip_comment(input);
 	if (**input || !rv) {
 		free(rv);
 		*input = start;
+		line_count = oldlc;
 		return NULL;
 	}
 	return rv;
@@ -133,96 +180,120 @@ char *skip_parse(char **input, const char *items, const char invert) {
 	return char_alt(input, items, invert);
 }
 
-/* Match an arbitrary-length tuple of int. Returns a NULL-terminated
- * array of pointers. */
-int **parse_int_tuple(char **input) {
-	int **rv = NULL, i = 0, j;
+/* Match an arbitrary-length tuple of int. Returns an array of int,
+ * terminated by INT_MIN. */
+int *parse_int_tuple(char **input) {
+	int *rv = NULL, i = 0;
 	int *tmp = NULL;
+	int oldlc = line_count;
 
-	if (!skip_parse(input, left_bracket, 0)) return NULL;
+	if (!skip_parse(input, left_bracket, 0)) goto fail;
 	do {
 		if (!(tmp = parse_int(input))) goto fail;
-		rv = realloc(rv, sizeof(int *) * (i+2));
-		rv[i++] = tmp;
-	} while(skip_parse(input, comma, 0));
-	rv[i] = NULL;
-	if (!skip_parse(input, right_bracket, 0)) goto fail;
+		rv = realloc(rv, sizeof(int) * (i+2));
+		rv[i++] = *tmp;
+		skip_parse(input, comma, 0);
+	} while(!skip_parse(input, right_bracket, 0));
+	rv[i] = INT_MIN;
+	skip_comment(input);
 	return rv;
 
 fail:
-	for (j = 0; j < i; j++) free(rv[j]);
+	line_count = oldlc;
 	free(rv);
+	return NULL;
+}
+
+struct limit *parse_level(char **input) {
+	struct limit *rv = NULL;
+	char *start = *input;
+	int oldlc = line_count;
+
+	if (!skip_parse(input, left_bracket, 0)) goto fail2;
+	skip_space(input);
+
+	rv = (struct limit *) malloc (sizeof(struct limit));
+
+	// OK, fan levels are strings now.
+	if ( !((rv->level = char_cat(input, digit, 0))
+			|| (rv->level = parse_quotation(input, quote))) )
+		goto fail2;
+
+	skip_parse(input, comma, 0);
+
+	if ((rv->low = parse_int(input))) {
+		rv->low = (int *) realloc(rv->low, 2 * sizeof(int));
+		rv->low[1] = INT_MIN;
+	}
+	else if (!(rv->low = parse_int_tuple(input)))
+		goto fail2;
+
+	skip_parse(input, comma, 0);
+
+	if ((rv->high = parse_int(input))) {
+		rv->high = (int *) realloc(rv->high, 2 * sizeof(int));
+		rv->high[1] = INT_MIN;
+	}
+	else if(!(rv->high = parse_int_tuple(input)))
+		goto fail1;
+
+	if (!skip_parse(input, right_bracket, 0)) goto fail;
+	skip_space(input);
+	return rv;
+
+fail:
+	free(rv->high);
+fail1:
+	free(rv->low);
+fail2:
+	free(rv);
+	line_count = oldlc;
+	*input = start;
 	return NULL;
 }
 
 /* Parse a sensor statement followed by an optional bias tuple */
 struct sensor *parse_sensor(char **input) {
 	struct sensor *rv = (struct sensor *) malloc(sizeof(struct sensor));
-	int **tmp, i;
+	int *tmp, i, oldlc = line_count;
 	char *start = *input;
 
 	if (!(rv->path = parse_statement(input, sensor_keyword))) {
 		free(rv);
 		*input = start;
+		line_count = oldlc;
 		return NULL;
 	}
 	memset(rv->bias, 0, 16 * sizeof(int));
 	skip_space(input);
 	if ((tmp = parse_int_tuple(input)))
-		for (i = 0; tmp[i] && i < 16; i++) {
-			rv->bias[i] = *(tmp[i]);
-			free(tmp[i]);
+		for (i = 0; (tmp[i] != INT_MIN) && i < 16; i++) {
+			rv->bias[i] = tmp[i];
 		}
 	free(tmp);
-	char *ignore = parse_comment(input);
-	free(ignore);
-	if (**input || !rv) {
-		free(rv->path);
-		free(rv);
-		rv = NULL;
-		*input = start;
-	}
-	return rv;
-}
-
-/* Match a tuple of the form ( int , int , int ) */
-struct limit *parse_fan_level(char **input) {
-	struct limit *rv = NULL;
-	char *start = *input;
-	int **tmp, i;
-
-	if (!(tmp = parse_int_tuple(input))) goto fail;
-	for (i = 0; i < 3; i++) if (!tmp[i]) goto fail;
-	if (tmp[3]) goto fail;
-
-	rv = malloc(sizeof(struct limit));
-	rv->level = *(tmp[0]);
-	rv->low = *(tmp[1]);
-	rv->high = *(tmp[2]);
+	skip_comment(input);
 	skip_space(input);
-	char *ignore = parse_comment(input);
-	free(ignore);
-
-fail:
-	if (**input || !rv) {
-		free(rv);
-		rv = NULL;
-		*input = start;
-	}
-	for (i=0; tmp && tmp[i]; i++) free(tmp[i]);
-	free(tmp);
 	return rv;
 }
 
-/*
-char *parse_quotation(char **input, char *mark) {
+
+char *parse_quotation(char **input, const char *mark) {
 	char *ret = NULL;
 	char *start;
-	if (!char_alt(input, mark, 0)) return NULL;
+	int oldlc = line_count;
+
 	start = *input;
-	ret = char_cat(input, mark, 1);
 	if (!char_alt(input, mark, 0)) return NULL;
-	if (!ret) ret = "";
+	ret = char_cat(input, mark, 1);
+	if (!ret) {
+		ret = malloc(sizeof(char));
+		*ret = 0;
+	}
+	if (!char_alt(input, mark, 0)) {
+		free(ret);
+		ret = NULL;
+		line_count = oldlc;
+	}
 	return ret;
-}//*/
+}
 

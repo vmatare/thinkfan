@@ -1,11 +1,21 @@
 /********************************************************************
  * message.h
  *
- * This work is licensed under a Creative Commons Attribution-Share Alike 3.0
- * United States License. See http://creativecommons.org/licenses/by-sa/3.0/us/
- * for details.
+ * this file is part of thinkfan. See thinkfan.c for further information.
  *
- * This file is part of thinkfan. See thinkfan.c for further info.
+ * thinkfan is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * thinkfan is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with thinkfan.  If not, see <http://www.gnu.org/licenses/>.
+ *
  * ******************************************************************/
 
 #ifndef MESSAGE_H
@@ -30,17 +40,17 @@ void report(int nlevel, int dlevel, char *format, ...);
  "\n -D  DANGEROUS mode: Disable all sanity checks. May damage your " \
  "hardware!!\n\n"
 
-#define MSG_FILE_HDR(file, num, line) "%s:%d:%s\n", file, num, line
+#define MSG_FILE_HDR(file, line) "%s:%d:%s\n", file, line_count, line
 
 #define MSG_DBG_T_STAT "sleeptime=%d, temp=%d, last_temp=%d, biased_temp=%d" \
- " -> level=%d\n", st, temp, last_temp, b_temp, cur_lvl
+ " -> level=%s\n", tmp_sleeptime, tmax, last_tmax, b_tmax, cur_lvl
 #define MSG_DBG_CONF_RELOAD "Received SIGHUP: reloading config...\n"
 
 #define MSG_INF_SANITY "Sanity checks are on. Exiting.\n"
 #define MSG_INF_INSANITY "Sanity checks are off. Continuing.\n"
 #define MSG_INF_CONFIG \
  "Config as read from %s:\nFan level\tLow\tHigh\n", config_file
-#define MSG_INF_CONF_ITEM(level, low, high) " %d\t\t%d\t%d\n", level, low, high
+#define MSG_INF_CONF_ITEM(level, low, high) " %s\t\t%d\t%d\n", level, low, high
 #define MSG_INF_TERM \
  "Cleaning up and resetting fan control.\n"
 #define MSG_INF_DEPULSE(delay, time) "Disengaging the fan controller for " \
@@ -57,6 +67,10 @@ void report(int nlevel, int dlevel, char *format, ...);
 #define MSG_WRN_CONF_NOBIAS(t) "WARNING: You have not provided any correction" \
 	" values for any sensor, and your fan will only start at %d °C. This can " \
 	"be dangerous for your hard drive.\n", t
+#define MSG_WRN_LVL_DISENGAGED "WARNING: You're using INT_MIN as a fan level." \
+	" Fan levels are strings now, so please replace it by \"level disengaged\"."
+#define MSG_WRN_NUM_TEMPS(n, i) "WARNING: You have %d sensors but your temper" \
+	"ature limits only have %d entries. Excess sensors will be ignored.\n", n, i
 
 #define MSG_ERR_T_GET "Error getting temperature.\n"
 #define MSG_ERR_MODOPTS \
@@ -74,16 +88,19 @@ void report(int nlevel, int dlevel, char *format, ...);
 #define MSG_ERR_CONF_RELOAD "Error reloading config. Keeping old one.\n"
 #define MSG_ERR_CONF_NOFAN "Could not find any fan speed settings in" \
 	" the config file. Please read AND UNDERSTAND the documentation!\n"
-#define MSG_ERR_CONF_LOWHIGH "LOWER limit must be smaller than HIGHER! " \
-	"Really, don't mess with this, it could trash your hardware.\n"
+#define MSG_ERR_CONF_LOWHIGH "Your LOWER limit is not lesser than your " \
+	"UPPER limit. That doesn't make sense.\n"
 #define MSG_ERR_CONF_OVERLAP "LOWER limit doesn't overlap with previous UPPER" \
 	" limit.\n"
 #define MSG_ERR_CONF_FAN "Thinkfan can't use more than one fan.\n"
 #define MSG_ERR_CONF_MIX "Thinkfan can't use sysfs sensors together with " \
 	"thinkpad_acpi sensors. Please choose one.\n"
-#define MSG_ERR_CONF_LEVEL "Fan levels are not ordered correctly.\n"
+#define MSG_ERR_CONF_LVLORDER "Fan levels are not ordered correctly.\n"
 #define MSG_ERR_CONF_PARSE "Syntax error.\n"
-#define MSG_ERR_CONF_LVL0 "The LOWER limit of the first fan level must be 0!\n"
+#define MSG_ERR_CONF_LVL0 "The LOWER limit of the first fan level cannot con" \
+	"tain any values greater than 0!\n"
+#define MSG_ERR_CONF_LVLFORMAT "Invalid fan level string. This check can" \
+	" be disabled by using DANGEROUS mode.\n"
 
 #define MSG_ERR_RUNNING PID_FILE " already exists. Either thinkfan is " \
 	"already running, or it was killed by SIGKILL. If you're sure thinkfan" \
@@ -92,5 +109,10 @@ void report(int nlevel, int dlevel, char *format, ...);
 	"really Thinkpad? Is the thinkpad_acpi module loaded? Are you running thi" \
 	"nkfan with root privileges?\n"
 #define MSG_ERR_T_PARSE(str) "Error parsing temperatures: %s\n", str
+#define MSG_ERR_LCOUNT "The number of limits must either be 1 or equal to the" \
+	" number of temperatures.\n"
+#define MSG_ERR_LONG_LIMIT "One of your temperature limits has more entries " \
+	"than the system has sensors. That doesn't make sense.\n"
+#define MSG_ERR_LIMITLEN "Inconsistent limit length.\n"
 
 #endif

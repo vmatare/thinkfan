@@ -1,4 +1,4 @@
-# Yep. Really trying to stick with minimalism...
+# Now this is still minimalistic ;-)
 
 .DEFAULT_GOAL := thinkfan
 

@@ -1,15 +1,25 @@
 /********************************************************************
  * system.c: Anything that interfaces with the operating system
  *
- * This work is licensed under a Creative Commons Attribution-Share Alike 3.0
- * United States License. See http://creativecommons.org/licenses/by-sa/3.0/us/
- * for details.
+ * this file is part of thinkfan. See thinkfan.c for further information.
+ *
+ * thinkfan is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * thinkfan is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with thinkfan.  If not, see <http://www.gnu.org/licenses/>.
+ *
  *
  * This file contains all functions that are specific to dealing with
  * either /sys/class/hwmon or the /proc/acpi/ibm interface. They are
  * referenced in the main program via function pointers.
- *
- * This file is part of thinkfan. See thinkfan.c for further info.
  *
  * I know there's a lot of code redundancy in here, but that's expected
  * to save us some memory access in the main loop.
@@ -31,42 +41,48 @@ const char temperatures[] = "temperatures:";
 
 /*******************************************************************
  * get_temp_ibm reads temperatures from /proc/acpi/ibm/thermal and
- * returns the highest one found.
+ * returns the number of temperatures read.
  *******************************************************************/
-int get_temp_ibm() {
-	int i=0, res, retval=0, ibm_temp, *tmp;
+int get_temps_ibm() {
+	int i, ibm_temp;
 	ssize_t r;
-	char *input;
+	char *input, *end;
 	input = rbuf;
+	end = input;
+	long int tmp;
 
 	if (unlikely(((ibm_temp = open(IBM_TEMP, O_RDONLY)) < 0)
 			|| ((r = read(ibm_temp, rbuf, 128)) < 14)
 			|| (close(ibm_temp) < 0))) {
 		report(LOG_ERR, LOG_ERR, IBM_TEMP ": %s", strerror(errno));
-		errcnt++;
-		return ERR_T_GET;
+		errcnt |= ERR_T_GET;
+		return 0;
 	}
 	rbuf[r] = 0;
 
 	skip_space(&input);
 	if (likely(parse_keyword(&input, temperatures) != NULL)) {
-		for (i = 0; ((tmp = parse_int(&input)) && (i < 16)); i++) {
-			res = *tmp + config->sensors->bias[i];
-			if (res > retval) retval = res;
-			free(tmp);
-		}
+		i = 0;
+		do {
+			tmp = strtol(input, &end, 0);
+			if (tmp < INT_MIN || tmp > INT_MAX) {
+				errcnt |= ERR_T_GET;
+				return i;
+			}
+			temps[i] = (int)tmp + config->sensors->bias[i];
+			i++;
+		} while (end > input);
+
 		if (unlikely(i < 2)) {
 			report(LOG_ERR, LOG_ERR, MSG_ERR_T_GET);
-			errcnt++;
-			retval = ERR_T_GET;
+			errcnt |= ERR_T_GET;
 		}
 	}
 	else {
 		report(LOG_ERR, LOG_ERR, MSG_ERR_T_PARSE(rbuf));
-		errcnt++;
-		retval = ERR_T_GET;
+		errcnt |= ERR_T_GET;
 	}
-	return retval;
+	return i;
 }
 
 /***********************************************************
@@ -78,14 +94,13 @@ void setfan_ibm() {
 
 	if (unlikely((ibm_fan = open(IBM_FAN, O_RDWR, O_TRUNC)) < 0)) {
 		report(LOG_ERR, LOG_ERR, IBM_FAN ": %s", strerror(errno));
-		errcnt++;
+		errcnt |= ERR_FAN_SET;
 	}
 	else {
-		if (unlikely(cur_lvl == INT_MIN)) strcpy(buf, "level disengaged\n");
-		else snprintf(buf, 10, "level %d\n", cur_lvl);
+		snprintf(buf, 1024, "%s\n", cur_lvl);
 		if (unlikely(write(ibm_fan, buf, 8) != 8)) {
 			report(LOG_ERR, LOG_ERR, MSG_ERR_FANCTRL);
-			errcnt++;
+			errcnt |= ERR_FAN_SET;
 		}
 		close(ibm_fan);
 	}
@@ -96,7 +111,7 @@ void setfan_ibm() {
  * Checks for fan_control support in thinkpad_acpi and
  * activates the fan watchdog.
  *********************************************************/
-int init_fan_ibm() {
+void init_fan_ibm() {
 	char *line = NULL;
 	size_t count = 0;
 	FILE *ibm_fan;
@@ -105,20 +120,17 @@ int init_fan_ibm() {
 	if ((ibm_fan = fopen(IBM_FAN, "r+")) == NULL) {
 		report(LOG_ERR, LOG_ERR, IBM_FAN ": %s\n"
 				MSG_ERR_FANFILE_IBM, strerror(errno));
-		errcnt++;
-		return ERR_FAN_INIT;
+		errcnt |= ERR_FAN_SET;
 	}
 	while (getline(&line, &count, ibm_fan) != -1)
 		if (!strncmp("commands:", line, 9)) module_valid = 1;
 	if (!module_valid) {
 		report(LOG_ERR, LOG_ERR, MSG_ERR_MODOPTS);
-		errcnt++;
-		return ERR_FAN_INIT;
+		errcnt |= ERR_FAN_SET;
 	}
 	fprintf(ibm_fan, "watchdog %d\n", watchdog_timeout);
 	fclose(ibm_fan);
 	free(line);
-	return 0;
 }
 
 /*********************************************************
@@ -129,7 +141,7 @@ void uninit_fan_ibm() {
 
 	if ((fan = fopen(IBM_FAN, "r+")) == NULL) {
 		report(LOG_ERR, LOG_ERR, IBM_FAN ": %s", strerror(errno));
-		errcnt++;
+		errcnt |= ERR_FAN_SET;
 	}
 	else {
 		fprintf(fan, "level auto\n");
@@ -145,65 +157,59 @@ void disengage() {
 	int ibm_fan;
 	if (unlikely((ibm_fan = open(IBM_FAN, O_RDWR)) < 0)) {
 		report(LOG_ERR, LOG_ERR, IBM_FAN ": %s", strerror(errno));
-		errcnt++;
+		errcnt |= ERR_FAN_SET;
 	}
 	else {
 		if (write(ibm_fan, "level disengaged", 16) < 16) {
 			report(LOG_ERR, LOG_ERR, IBM_FAN ": %s", strerror(errno));
-			errcnt++;
+			errcnt |= ERR_FAN_SET;
 		}
 		close(ibm_fan);
 	}
 	if (nanosleep(depulse, NULL)) {
 		report(LOG_ERR, LOG_ERR, "nanosleep(): %s", strerror(errno));
-		errcnt++;
+		errcnt |= ERR_FAN_SET;
 	}
 }
 
-int depulse_and_get_temp_ibm() {
-	if (cur_lvl >= DEPULSE_MIN_LVL && cur_lvl <= DEPULSE_MAX_LVL) {
-		disengage();
-		setfan_ibm();
-	}
-	return get_temp_ibm();
+int depulse_and_get_temps_ibm() {
+	disengage();
+	setfan_ibm();
+	return get_temps_ibm();
 }
-int depulse_and_get_temp_sysfs() {
-	if (cur_lvl >= DEPULSE_MIN_LVL && cur_lvl <= DEPULSE_MAX_LVL) {
-		disengage();
-		setfan_sysfs();
-	}
-	return get_temp_sysfs();
+int depulse_and_get_temps_sysfs() {
+	disengage();
+	setfan_sysfs();
+	return get_temps_sysfs();
 }
 
 /****************************************************************
- * get_temp_sysfs() reads the temperature from all files that
- * were specified as "sensor ..." in the config file and returns
- * the highest temperature.
+ * get_temps_sysfs() reads the temperature from all files that
+ * were specified as "sensor ..." in the config file and stores
+ * them in the global variable "temps".
  ****************************************************************/
-int get_temp_sysfs() {
-	int num, fd, idx = 0;
-	long int rv = 0, tmp;
-	char buf[7];
-	char *endptr;
-	while(idx < config->num_sensors) {
-		if (unlikely((fd = open(config->sensors[idx].path, O_RDONLY)) == -1
-				|| (num = read(fd, &buf, 6)) == -1
+int get_temps_sysfs() {
+	int i, num, fd;
+	long int tmp;
+	char buf[8];
+	char *input = buf, *end;
+
+	for (i = 0; i < config->num_sensors; i++) {
+		if (unlikely((fd = open(config->sensors[i].path, O_RDONLY)) == -1
+				|| (num = read(fd, &buf, 7)) == -1
 				|| close(fd) < 0)) {
-			report(LOG_ERR, LOG_ERR, "%s: %s", config->sensors[idx].path,
+			report(LOG_ERR, LOG_ERR, "%s: %s", config->sensors[i].path,
 					strerror(errno));
-			errcnt++;
-			return ERR_T_GET;
+			errcnt |= ERR_T_GET;
 		}
-		buf[num] = 0;
-		tmp = config->sensors[idx].bias[0] + strtol(buf, &endptr, 10)/1000;
-		if (tmp > rv) rv = tmp;
-		idx++;
+		tmp = strtol(input, &end, 0);
+		if (tmp < INT_MIN || tmp > INT_MAX) {
+			errcnt |= ERR_T_GET;
+			return i;
+		}
+		temps[i] = config->sensors[i].bias[0] + (int)(tmp / 1000);
 	}
-	if (unlikely(rv < 1)) {
-		report(LOG_ERR, LOG_ERR, MSG_ERR_T_GET);
-		errcnt++;
-	}
-	return rv;
+	return i;
 }
 
 /***********************************************************
@@ -212,15 +218,15 @@ int get_temp_sysfs() {
 void setfan_sysfs() {
 	int fan, r;
 	ssize_t ret;
-	char *buf = malloc(5 * sizeof(char));
-	memset(buf, 0, 5);
+	char *buf = malloc(8 * sizeof(char));
+	memset(buf, 0, 8);
 
 	if (unlikely((fan = open(config->fan, O_WRONLY)) < 0)) {
 		report(LOG_ERR, LOG_ERR, "%s: %s", config->fan, strerror(errno));
 		errcnt++;
 	}
 	else {
-		r = snprintf(buf, 5, "%d\n", cur_lvl);
+		r = snprintf(buf, 1024, "%s\n", cur_lvl);
 		ret = (int)r + write(fan, buf, 5);
 		close(fan);
 		if (unlikely(ret < 2)) {
@@ -235,20 +241,20 @@ void setfan_sysfs() {
  * Suspend/Resume-safe way of setting fan speed
  ***********************************************************/
 void setfan_sysfs_safe() {
-	if(!init_fan_sysfs()) setfan_sysfs();
+	init_fan_sysfs();
+	setfan_sysfs();
 }
 
-int init_fan_sysfs_once() {
-	int rv;
-	if (!(rv = preinit_fan_sysfs())) return init_fan_sysfs();
-	return rv;
+void init_fan_sysfs_once() {
+	preinit_fan_sysfs();
+	init_fan_sysfs();
 }
 
 
 /***********************************************************
  * Store old pwm_enable value to cleanly reset it when exiting
  ***********************************************************/
-int preinit_fan_sysfs() {
+void preinit_fan_sysfs() {
 	char *fan_enable = (char *) malloc((strlen(config->fan) + 8) * sizeof(char));
 	FILE *fan = NULL;
 	size_t s;
@@ -259,9 +265,8 @@ int preinit_fan_sysfs() {
 
 	if ((fan = fopen(fan_enable, "r")) == NULL) {
 		report(LOG_ERR, LOG_ERR, "%s: %s", fan_enable, strerror(errno));
-		errcnt++;
 		free(fan_enable);
-		return ERR_FAN_INIT;
+		errcnt |= ERR_FAN_INIT;
 	}
 	free(oldpwm);
 	oldpwm = NULL;
@@ -270,17 +275,15 @@ int preinit_fan_sysfs() {
 	fclose(fan);
 	free(fan_enable);
 	if (r < 2) {
-		errcnt++;
 		report(LOG_ERR, LOG_ERR, MSG_ERR_FAN_INIT);
-		return ERR_FAN_INIT;
+		errcnt |= ERR_FAN_INIT;
 	}
-	return 0;
 }
 
 /*********************************************************
  * This activates userspace PWM control.
  *********************************************************/
-int init_fan_sysfs() {
+void init_fan_sysfs() {
 	int fd;
 	char *fan_enable = (char *) malloc((strlen(config->fan) + 8) * sizeof(char));
 	ssize_t r;
@@ -290,20 +293,17 @@ int init_fan_sysfs() {
 
 	if ((fd = open(fan_enable, O_WRONLY)) < 0) {
 		report(LOG_ERR, LOG_ERR, "%s: %s", fan_enable, strerror(errno));
-		errcnt++;
 		free(fan_enable);
-		return ERR_FAN_INIT;
+		errcnt |= ERR_FAN_INIT;
 	}
 	if ((r = write(fd, "1\n", 2)) < 2)
 		report(LOG_ERR, LOG_ERR, "%s: %s", fan_enable, strerror(errno));
 	close(fd);
 	free(fan_enable);
 	if (r < 2) {
-		errcnt++;
 		report(LOG_ERR, LOG_ERR, MSG_ERR_FAN_INIT);
-		return ERR_FAN_INIT;
+		errcnt |= ERR_FAN_INIT;
 	}
-	return 0;
 }
 
 /*********************************************************

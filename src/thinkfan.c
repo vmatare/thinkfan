@@ -1,15 +1,19 @@
 /*************************************************************************
- * thinkfan version 0.7.2 -- copyleft 08-2010, Victor Mataré
+ * thinkfan version 0.8 -- copyleft 04-2011, Victor Mataré
  *
- * This work is licensed under a Creative Commons Attribution-Share Alike 3.0
- * United States License.
- * See http://creativecommons.org/licenses/by-sa/3.0/us/ for details.
+ * thinkfan is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * A minimalist, lightweight fan control program for modern Thinkpads.
+ * thinkfan is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * This program is provided to you AS-IS. No warranties whatsoever.
- * If this program steals your car, kills your horse, smokes your dope
- * or pees on your carpet... too bad, you're on your own.
+ * You should have received a copy of the GNU General Public License
+ * along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+ *
  *
  * Although it's generally considered bad style, I do make heavy use of
  * global variables, hoping to minimize memory access in the inner loop.
@@ -24,72 +28,111 @@
 #include <signal.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <time.h>
 #include "thinkfan.h"
 #include "message.h"
 #include "config.h" // The system interface is part of the config now...
 
+volatile int interrupted;
+unsigned int sleeptime, tmp_sleeptime;
+
+#define set_fan cur_lvl = config->limits[lvl_idx].level; \
+		if (!quiet && nodaemon) report(LOG_DEBUG, LOG_DEBUG, MSG_DBG_T_STAT); \
+		config->setfan();
+
+int run();
+
+/* Return TRUE if *at least one* upper limit has been reached */
+int complex_lvl_up(int *limit) {
+	int i;
+
+	for (i=0; i < num_temps; i++)
+		if (temps[i] >= limit[i]) return TRUE;
+	return FALSE;
+}
+
+/* Return TRUE if *all* lower limits have been reached */
+int complex_lvl_down(int *limit) {
+	int i;
+
+	for (i=0; i < num_temps && temps[i] <= limit[i]; i++);
+	if (i >= config->num_limits) return TRUE;
+	return FALSE;
+}
+
+int simple_lvl_up(int *limit) {
+	if (unlikely(b_tmax >= *limit)) return TRUE;
+	return FALSE;
+}
+
+int simple_lvl_down(int *limit) {
+	if (unlikely(b_tmax <= *limit)) return TRUE;
+	return FALSE;
+}
+
+
+void set_lvl() {
+	if (unlikely(config->lvl_up())) {
+		while (likely(config->lvl_up())) lvl_idx++;
+		set_fan;
+		return;
+	}
+	if (unlikely(config->lvl_down())) {
+		while (likely(config->lvl_down())) lvl_idx--;
+		set_fan;
+		tmp_sleeptime = sleeptime;
+	}
+}
 
 /***********************************************************
  * This is the main routine which periodically checks
  * temperatures and adjusts the fan according to config.
  ***********************************************************/
 int fancontrol() {
-	int last_temp=0, temp, lvl_idx=0, bias=0, diff=0, b_temp;
-	int wt = watchdog_timeout, st = sleeptime;
+	int bias=0, diff=0, i;
+	int wt = watchdog_timeout;
+
+	tmp_sleeptime = sleeptime;
 
 	prefix = "\n"; // makes the output more readable
-	if(config->init_fan()) return ERR_FAN_INIT;
+	config->init_fan();
+	if (errcnt) return errcnt;
 
 	prefix = "\n"; // It is set to "" by the output macros
 
 	// Set initial fan level...
 	lvl_idx = config->num_limits - 1;
-	b_temp = temp = config->get_temp();
-	if (errcnt) return errcnt;
-	while ((temp <= config->limits[lvl_idx].low) \
-	 && (lvl_idx > 0)) lvl_idx--;
-	set_fan;
 
 	/**********************************************
 	 * Main loop. This is the actual fan control.
 	 **********************************************/
 	while(likely(!interrupted && !errcnt)) {
-		last_temp = temp; // detect temperature jumps
-		sleep(st); // st is the state-dependant sleeptime
 
 		// depending on the command line, this might also call depulse()
-		temp = config->get_temp();
+		config->get_temps();
+
+		last_tmax = tmax;
+		for (i=0; temps[i] < INT_MIN; i++)
+			if (temps[i] > tmax) tmax = temps[i];
+		// If temperature increased by more than 2 °C since the
+		// last cycle, we try to react quickly.
+		diff = tmax - last_tmax;
+		if (unlikely(diff >= 2)) {
+			bias = (tmp_sleeptime * (diff-1)) * bias_level;
+			if (tmp_sleeptime > 2) tmp_sleeptime = 2;
+		}
+		else if (unlikely(tmp_sleeptime < sleeptime)) tmp_sleeptime++;
+		b_tmax = tmax + bias;
+
+		set_lvl(); // determine appropriate fan level and activate it
+
+		sleep(tmp_sleeptime); // state-dependant sleeptime
 
 		// Write current fan level to IBM_FAN one cycle before the watchdog
 		// timeout ends, to let it know we're alive.
-		if (unlikely((wt -= st) <= sleeptime)) {
-#ifdef DEBUG
-			report(LOG_DEBUG, LOG_DEBUG, MSG_DBG_T_STAT);
-#endif
+		if (unlikely((wt -= tmp_sleeptime) <= sleeptime)) {
 			config->setfan();
 			wt = watchdog_timeout;
-		}
-
-		// If temperature increased by more than 2 °C since the
-		// last cycle, we try to react quickly.
-		diff = temp - last_temp;
-		if (unlikely(diff >= 2)) {
-			bias = (st * (diff-1)) * bias_level;
-			if (st > 2) st = 2;
-		}
-		else if (unlikely(st < sleeptime)) st++;
-		b_temp = temp + bias;
-
-		if (unlikely(b_temp >= config->limits[lvl_idx].high)) {
-			while (likely((b_temp >= config->limits[lvl_idx].high) \
-			 && (lvl_idx < config->num_limits-1))) lvl_idx++;
-			set_fan;
-		}
-		if (unlikely(b_temp <= config->limits[lvl_idx].low)) {
-			while (likely((b_temp <= config->limits[lvl_idx].low) \
-			 && (lvl_idx > 0))) lvl_idx--;
-			set_fan;
-			st = sleeptime;
 		}
 
 		// slowly reduce the bias
@@ -139,8 +182,11 @@ int main(int argc, char **argv) {
 	depulse = NULL;
 	prefix = "\n";
 	oldpwm = NULL;
-	cur_lvl = -1;
+	cur_lvl = NULL;
 	config = NULL;
+	lvl_idx = 0;
+	last_tmax = 0;
+	tmax = 0;
 
 	openlog("thinkfan", LOG_CONS, LOG_USER);
 	syslog(LOG_INFO, "thinkfan " VERSION " starting...");
@@ -264,8 +310,10 @@ int run() {
 		report(LOG_ERR, LOG_ERR, MSG_ERR_CONF_NOFILE);
 		return ERR_CONF_NOFILE;
 	}
-	if (config->init_fan()) return ERR_FAN_INIT;
-	if (config->get_temp() == ERR_T_GET) return ERR_T_GET;
+
+	config->init_fan();
+	config->get_temps();
+	if (errcnt) return errcnt;
 
 	if (chk_sanity && ((pidfile = fopen(PID_FILE, "r")) != NULL)) {
 		fclose(pidfile);

@@ -1,11 +1,21 @@
 /********************************************************************
  * config.c: Anything that deals with reading the config file
  *
- * This work is licensed under a Creative Commons Attribution-Share Alike 3.0
- * United States License. See http://creativecommons.org/licenses/by-sa/3.0/us/
- * for details.
+ * this file is part of thinkfan. See thinkfan.c for further information.
  *
- * This file is part of thinkfan. See thinkfan.c for further info.
+ * thinkfan is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * thinkfan is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with thinkfan.  If not, see <http://www.gnu.org/licenses/>.
+ *
  * ******************************************************************/
 #include "config.h"
 #include "parser.h"
@@ -14,94 +24,138 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "message.h"
 #include "system.h"
+#include "thinkfan.h"
+
+static int find_min(int *l);
+static int add_sensor(struct tf_config *cfg, struct sensor *sensor);
+static int add_limit(struct tf_config *cfg, struct limit *limit);
+
 
 /***********************************************************************
  * readconfig(char *fname) reads the config file and
  * returns a pointer to a struct tf_config. Returns NULL if there's any
  * problem with the config.
- * Non-matching lines are skipped.
  **********************************************************************/
 struct tf_config *readconfig(char* fname) {
-	FILE *cfg_file;
-	int line_count=0, err, i, j;
-	ssize_t line_len;
-	size_t ll;
-	struct tf_config *cfg_local;
+	int err, i, j, lcount, hcount, fd;
+	struct tf_config *cfg_local, *rv = NULL;
 	char *s_input = NULL, *input = NULL;
-	void *ret = NULL;
-	int delim = '\n';
+	void *ret = NULL, *map_start;
+	struct stat sb;
+
+	line_count = 0;
 
 	prefix = "\n";
 
 	cfg_local = (struct tf_config *) malloc(sizeof(struct tf_config));
 	cfg_local = (struct tf_config *) memset(cfg_local, 0, sizeof(struct tf_config));
 
-	if ((cfg_file = fopen(fname, "r")) == NULL) {
+	fd = open(fname, O_RDONLY);
+	if (fd < 0) {
 		report(LOG_ERR, LOG_ERR, "%s: %s", fname, strerror(errno));
 		goto fail;
 	}
-	while ((line_len = getdelim(&input, &ll, delim, cfg_file)) >= 0) {
+	if (fstat(fd, &sb) < 0) {
+		report(LOG_ERR, LOG_ERR, "%s: %s", fname, strerror(errno));
+		goto fail;
+	}
+
+	map_start = (char *) mmap(NULL, sb.st_size,
+			PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
+	if (map_start == MAP_FAILED) {
+		report(LOG_ERR, LOG_ERR, "%s: %s", fname, strerror(errno));
+		goto fail;
+	}
+	input = (char *) map_start;
+
+	while (*input != 0) {
 		s_input = input;
-		line_count++;
+
+		// all sanity checking and n00b catering...
+
 		if ((ret = (void *) parse_sensor(&input))) {
+			*(input-sizeof(char)) = 0;
 			if ((err = add_sensor(cfg_local, (struct sensor *) ret)) == ERR_CONF_MIX) {
-				report(LOG_ERR, LOG_ERR, MSG_FILE_HDR(fname, line_count, s_input));
+				report(LOG_ERR, LOG_ERR, MSG_FILE_HDR(fname, s_input));
 				report(LOG_ERR, LOG_ERR, MSG_ERR_CONF_MIX);
 				goto fail;
 			}
 			else if (err) goto fail;
 		}
 		else if ((ret = (void *) parse_fan(&input))) {
+			*(input-sizeof(char)) = 0;
 			if (cfg_local->fan == NULL) cfg_local->fan = ret;
 			else {
-				report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, line_count, s_input));
+				report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
 				report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_FAN);
 				if (chk_sanity) goto fail;
 			}
 		}
-		else if ((ret = (void *) parse_fan_level(&input))) {
-			if ((err = add_limit(cfg_local, (struct limit *) ret))
-					==  ERR_CONF_LOWHIGH) {
-				report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, line_count, s_input));
-				report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_LOWHIGH);
-				if (chk_sanity) goto fail;
-			}
-			else if (err == ERR_CONF_LEVEL) {
-				report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, line_count, s_input));
-				report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_LEVEL);
-				if (chk_sanity) goto fail;
-			}
-			else if (err == ERR_CONF_OVERLAP) {
-				report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, line_count, s_input));
-				report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_OVERLAP);
-				if (chk_sanity) goto fail;
-			}
-			else if (err == ERR_CONF_LVL0) {
-				report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, line_count, s_input));
-				report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_LVL0);
-				if (chk_sanity) goto fail;
+		else if ((ret = (void *) parse_level(&input))) {
+			*(input-sizeof(char)) = 0;
+			if ((err = add_limit(cfg_local, (struct limit *) ret))) {
+				if (err & ERR_CONF_LOWHIGH) {
+					report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
+					report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_LOWHIGH);
+					err ^= ERR_CONF_LOWHIGH;
+					if (chk_sanity) goto fail;
+				}
+				if (err & ERR_CONF_LVLORDER) {
+					report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
+					report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_LVLORDER);
+					err ^= ERR_CONF_LVLORDER;
+					if (chk_sanity) goto fail;
+				}
+				if (err & ERR_CONF_OVERLAP) {
+					report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
+					report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_OVERLAP);
+					err ^= ERR_CONF_OVERLAP;
+					if (chk_sanity) goto fail;
+				}
+				if (err & ERR_CONF_LVL0) {
+					report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
+					report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_LVL0);
+					err ^= ERR_CONF_LVL0;
+					if (chk_sanity) goto fail;
+				}
+				if (err & WRN_CONF_INTMIN_LVL) {
+					report(LOG_WARNING, LOG_INFO, MSG_FILE_HDR(fname, s_input));
+					report(LOG_WARNING, LOG_INFO, MSG_WRN_LVL_DISENGAGED);
+					err ^= WRN_CONF_INTMIN_LVL;
+				}
+				if (err & ERR_CONF_LVLFORMAT) {
+					report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
+					report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_LVLFORMAT);
+					err ^= ERR_CONF_LVLFORMAT;
+					if (chk_sanity) goto fail;
+				}
+				if (err & ERR_CONF_LIMITLEN) {
+					report(LOG_ERR, LOG_ERR, MSG_FILE_HDR(fname, s_input));
+					report(LOG_ERR, LOG_ERR, MSG_ERR_LIMITLEN);
+					err ^= ERR_CONF_LIMITLEN;
+					goto fail;
+				}
 			}
 			else if (err) goto fail;
 		}
 		else if ((ret = (void *) parse_comment(&input))) free(ret);
 		else if (!parse_blankline(&input)) {
-				report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, line_count, s_input));
-				report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_PARSE);
-				if (chk_sanity) goto fail;
+			*(input-sizeof(char)) = 0;
+			report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
+			report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_PARSE);
+			if (chk_sanity) goto fail;
 		}
-		free(s_input);
-		input = NULL;
-		s_input = NULL;
 	}
-	free(input);
-	input = NULL;
 	if (cfg_local->num_limits <= 0) {
 		report(LOG_ERR, LOG_ERR, MSG_ERR_CONF_NOFAN);
 		goto fail;
 	}
-	fclose(cfg_file);
+
 
 	if (cfg_local->fan != NULL && strcmp(cfg_local->fan, IBM_FAN)) {
 		// a sysfs PWM fan was specified in the config file
@@ -128,12 +182,12 @@ struct tf_config *readconfig(char* fname) {
 	if (cfg_local->num_sensors > 0 &&
 	 strcmp(cfg_local->sensors[cfg_local->num_sensors - 1].path, IBM_TEMP)) {
 		// one or more sysfs sensors were specified in the config file
-		if (depulse) cfg_local->get_temp = depulse_and_get_temp_sysfs;
-		else cfg_local->get_temp = get_temp_sysfs;
+		if (depulse) cfg_local->get_temps = depulse_and_get_temps_sysfs;
+		else cfg_local->get_temps = get_temps_sysfs;
 	}
 	else {
-		if (depulse) cfg_local->get_temp = depulse_and_get_temp_ibm;
-		else cfg_local->get_temp = get_temp_ibm;
+		if (depulse) cfg_local->get_temps = depulse_and_get_temps_ibm;
+		else cfg_local->get_temps = get_temps_ibm;
 		if (cfg_local->num_sensors == 0) {
 			report(LOG_WARNING, LOG_NOTICE, MSG_WRN_SENSOR_DEFAULT);
 			cfg_local->sensors = malloc(sizeof(struct sensor));
@@ -146,12 +200,49 @@ struct tf_config *readconfig(char* fname) {
 		}
 	}
 
-	if (chk_sanity && cfg_local->limits[0].high > 48) {
+	if (cfg_local->limits[0].low[1] == INT_MIN) {
+		num_temps = 1;
+		cfg_local->lvl_up = simple_lvl_up;
+		cfg_local->lvl_down = simple_lvl_down;
+	}
+	else {
+		num_temps = cfg_local->get_temps();
+		for (i = 0; cfg_local->limits[0].low[i] != INT_MIN; i++);
+		if (i < num_temps) {
+			report(LOG_WARNING, LOG_INFO, MSG_WRN_NUM_TEMPS(num_temps, i));
+			num_temps = i;
+		}
+		if (i > num_temps) {
+			report(LOG_ERR, LOG_ERR, MSG_ERR_LONG_LIMIT);
+			goto fail;
+		}
+		cfg_local->lvl_up = complex_lvl_up;
+		cfg_local->lvl_down = complex_lvl_down;
+	}
+
+	if (errcnt & ERR_T_GET) {
+		report(LOG_ERR, LOG_ERR, MSG_ERR_T_GET);
+		goto fail;
+	}
+
+	// Verify that upper & lower limits have the correct length
+	for (i = 0; i < cfg_local->num_limits; i++) {
+		lcount = hcount = 0;
+		while (cfg_local->limits[i].low[lcount] != INT_MIN) lcount++;
+		while (cfg_local->limits[i].high[hcount] != INT_MIN) hcount++;
+		if (hcount != num_temps || lcount != num_temps) {
+			report(LOG_ERR, LOG_WARNING, MSG_ERR_LCOUNT);
+			if (chk_sanity) goto fail;
+		}
+	}
+
+	if (chk_sanity && (find_min(cfg_local->limits[0].high) > 48)) {
 		for (i=0; i < cfg_local->num_sensors; i++)
 			for (j=0; j < 16; j++)
 				if (cfg_local->sensors[i].bias[j] != 0) goto done;
 		report(LOG_WARNING, LOG_NOTICE, MSG_WRN_CONF_NOBIAS(cfg_local->limits[0].high));
 	}
+
 done:
 
 	if (!quiet) {
@@ -163,16 +254,30 @@ done:
 		}
 	}
 
-	return cfg_local;
+	rv = cfg_local;
 
 fail:
-	if (cfg_file) fclose(cfg_file);
-	free(s_input);
+	munmap(map_start, sb.st_size);
+	close(fd);
 	free_config(cfg_local);
-	return NULL;
+	return rv;
 }
 
-int add_sensor(struct tf_config *cfg, struct sensor *sensor) {
+static int find_min(int *l) {
+	int i, rv = INT_MAX;
+	for (i = 0; l[i] != INT_MIN; i++)
+		if (l[i] < rv) rv = l[i];
+	return rv;
+}
+
+static int find_max(int *l) {
+	int i, rv = INT_MIN;
+	for (i = 0; l[i] != INT_MIN; i++)
+		if (l[i] > rv) rv = l[i];
+	return rv;
+}
+
+static int add_sensor(struct tf_config *cfg, struct sensor *sensor) {
 	if (cfg->num_sensors >= 1 && !strcmp(sensor->path, IBM_TEMP)) {
 		if (!strcmp(sensor->path, cfg->sensors[cfg->num_sensors - 1].path))
 			return 0;
@@ -190,34 +295,75 @@ int add_sensor(struct tf_config *cfg, struct sensor *sensor) {
 	return 0;
 }
 
-int add_limit(struct tf_config *cfg, struct limit *limit) {
-	int rv = 0;
+/* Yep, this is mostly sanity checking... */
+static int add_limit(struct tf_config *cfg, struct limit *limit) {
+	int rv = 0, nl, nh, i;
+	long int tmp;
+	char *end, *conv_lvl;
 
-	if (cfg->num_limits > 0) {
-		if (cfg->limits[cfg->num_limits-1].level >= limit->level) {
-			rv = ERR_CONF_LEVEL;
-			report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_LEVEL);
-			if (chk_sanity) goto fail;
-		}
-		if (cfg->limits[cfg->num_limits-1].high < limit->low) {
-			rv = ERR_CONF_OVERLAP;
-			report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_OVERLAP);
-			if (chk_sanity) goto fail;
-		}
+	// Check formatting of level string...
+	tmp = strtol(limit->level, &end, 0);
+	if (tmp < INT_MIN || tmp > INT_MAX) {
+		rv |= ERR_CONF_LVLFORMAT;
 	}
-	else if (limit->low > 0) rv = ERR_CONF_LVL0;
-	if (limit->high <= limit->low) rv = ERR_CONF_LOWHIGH;
+	else if (tmp == INT_MIN) {
+		free(limit->level);
+		limit->level = "level disengaged";
+		limit->nlevel = (int)tmp;
+		rv |= WRN_CONF_INTMIN_LVL;
+	}
+	else if (*end == 0) {
+		conv_lvl = calloc(7 + strlen(limit->level), sizeof(char));
+		snprintf(conv_lvl, 7 + strlen(limit->level), "level %d", (int)tmp);
+		free(limit->level);
+		limit->level = conv_lvl;
+		limit->nlevel = (int)tmp;
+	}
+	else if (!sscanf(limit->level, "level %d", (int * )&tmp )
+			&& strcmp(limit->level, "level disengaged")
+			&& strcmp(limit->level, "level auto")) {
+		rv |= ERR_CONF_LVLFORMAT;
+		limit->nlevel = INT_MAX;
+	}
+	else limit->nlevel = (int)tmp;
+
+	// Check length of limits...
+	for (nl = 0; cfg->limits[0].low[nl] != INT_MIN; nl++);
+	for (nh = 0; cfg->limits[0].high[nh] != INT_MIN; nh++);
+	if (cfg->limit_len <= 0) cfg->limit_len = nl;
+	if (nh != cfg->limit_len || nl != cfg->limit_len) {
+		rv |= ERR_CONF_LIMITLEN;
+		goto bail;
+	}
+
+	// Check level border values...
+	if (cfg->num_limits <= 0) {
+		if (find_max(limit->low) > 0)
+			rv |= ERR_CONF_LVL0;
+	}
+	else {
+		if (limit->nlevel != INT_MAX &&
+				cfg->limits[cfg->num_limits-1].nlevel >= limit->nlevel)
+			rv |= ERR_CONF_LVLORDER;
+		for (i = 0; i < cfg->num_limits; i++)
+			if (cfg->limits[cfg->num_limits-1].high[i] <
+					limit->low[i])
+				rv |= ERR_CONF_OVERLAP;
+	}
+	if (find_min(limit->high) <= find_max(limit->low))
+		rv |= ERR_CONF_LOWHIGH;
+
+	// ... and FINALLY add the limit
 	if (!(cfg->limits = (struct limit *) realloc(cfg->limits,
 			sizeof(struct limit) * (cfg->num_limits + 1)))) {
 		report(LOG_ERR, LOG_ERR, "Allocating memory for config: %s",
 				strerror(errno));
-		rv = ERR_MALLOC;
-		goto fail;
+		rv |= ERR_MALLOC;
+		goto bail;
 	}
-
 	cfg->limits[cfg->num_limits++] = *limit;
 
-fail:
+bail:
 	free(limit);
 	return rv;
 }
