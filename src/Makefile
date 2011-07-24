@@ -1,5 +1,3 @@
-# Yep. Really trying to stick with minimalism...
-
 .DEFAULT_GOAL := thinkfan
 
 thinkfan:	system.o parser.o config.o thinkfan.o message.o

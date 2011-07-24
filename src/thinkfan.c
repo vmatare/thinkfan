@@ -1,9 +1,7 @@
 /*************************************************************************
- * thinkfan version 0.7.2 -- copyleft 08-2010, Victor Mataré
+ * thinkfan version 0.7.2 -- copyleft 07-2011, Victor Mataré
  *
- * This work is licensed under a Creative Commons Attribution-Share Alike 3.0
- * United States License.
- * See http://creativecommons.org/licenses/by-sa/3.0/us/ for details.
+ * This file is part of thinkfan.
  *
  * A minimalist, lightweight fan control program for modern Thinkpads.
  *
@@ -15,6 +13,20 @@
  * global variables, hoping to minimize memory access in the inner loop.
  * If you know better, please drop me a line. I haven't yet bothered looking
  * at the difference it makes in machine language.
+
+
+ * thinkfan is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * thinkfan is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with thinkfan.  If not, see <http://www.gnu.org/licenses/>.
  *************************************************************************/
 #include "globaldefs.h"
 #include <string.h>
