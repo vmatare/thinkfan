@@ -1,5 +1,5 @@
 /*************************************************************************
- * thinkfan version 0.8 -- copyleft 04-2011, Victor Mataré
+ * thinkfan version 0.8 -- copyleft 07-2011, Victor Mataré
  *
  * thinkfan is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,46 +43,33 @@ unsigned int sleeptime, tmp_sleeptime;
 int run();
 
 /* Return TRUE if *at least one* upper limit has been reached */
-int complex_lvl_up(int *limit) {
+int complex_lvl_up() {
 	int i;
 
 	for (i=0; i < num_temps; i++)
-		if (temps[i] >= limit[i]) return TRUE;
+		if (temps[i] >= config->limits[lvl_idx].high[i]) return TRUE;
 	return FALSE;
 }
 
 /* Return TRUE if *all* lower limits have been reached */
-int complex_lvl_down(int *limit) {
+int complex_lvl_down() {
 	int i;
 
-	for (i=0; i < num_temps && temps[i] <= limit[i]; i++);
-	if (i >= config->num_limits) return TRUE;
+	for (i=0; i < num_temps && temps[i] <= config->limits[lvl_idx].low[i]; i++);
+	if (i >= config->limit_len) return TRUE;
 	return FALSE;
 }
 
-int simple_lvl_up(int *limit) {
-	if (unlikely(b_tmax >= *limit)) return TRUE;
+int simple_lvl_up() {
+	if (unlikely(b_tmax >= config->limits[lvl_idx].high[0])) return TRUE;
 	return FALSE;
 }
 
-int simple_lvl_down(int *limit) {
-	if (unlikely(b_tmax <= *limit)) return TRUE;
+int simple_lvl_down() {
+	if (unlikely(b_tmax <= config->limits[lvl_idx].low[0])) return TRUE;
 	return FALSE;
 }
 
-
-void set_lvl() {
-	if (unlikely(config->lvl_up())) {
-		while (likely(config->lvl_up())) lvl_idx++;
-		set_fan;
-		return;
-	}
-	if (unlikely(config->lvl_down())) {
-		while (likely(config->lvl_down())) lvl_idx--;
-		set_fan;
-		tmp_sleeptime = sleeptime;
-	}
-}
 
 /***********************************************************
  * This is the main routine which periodically checks
@@ -103,17 +90,18 @@ int fancontrol() {
 	// Set initial fan level...
 	lvl_idx = config->num_limits - 1;
 
+	for (i=0; i < num_temps; i++)
+		if (temps[i] > tmax) tmax = temps[i];
+
 	/**********************************************
 	 * Main loop. This is the actual fan control.
 	 **********************************************/
 	while(likely(!interrupted && !errcnt)) {
 
+		last_tmax = tmax;
 		// depending on the command line, this might also call depulse()
 		config->get_temps();
 
-		last_tmax = tmax;
-		for (i=0; temps[i] < INT_MIN; i++)
-			if (temps[i] > tmax) tmax = temps[i];
 		// If temperature increased by more than 2 °C since the
 		// last cycle, we try to react quickly.
 		diff = tmax - last_tmax;
@@ -124,7 +112,16 @@ int fancontrol() {
 		else if (unlikely(tmp_sleeptime < sleeptime)) tmp_sleeptime++;
 		b_tmax = tmax + bias;
 
-		set_lvl(); // determine appropriate fan level and activate it
+		// determine appropriate fan level and activate it
+		if (unlikely(lvl_idx < config->num_limits - 1 && config->lvl_up())) {
+			while (likely(config->lvl_up())) lvl_idx++;
+			set_fan;
+		}
+		else if (unlikely(lvl_idx > 0 && config->lvl_down())) {
+			while (likely(config->lvl_down())) lvl_idx--;
+			set_fan;
+			tmp_sleeptime = sleeptime;
+		}
 
 		sleep(tmp_sleeptime); // state-dependant sleeptime
 
@@ -179,7 +176,6 @@ int main(int argc, char **argv) {
 	nodaemon = 0;
 	errcnt = 0;
 	resume_is_safe = 0;
-	depulse = NULL;
 	prefix = "\n";
 	oldpwm = NULL;
 	cur_lvl = NULL;
@@ -187,6 +183,7 @@ int main(int argc, char **argv) {
 	lvl_idx = 0;
 	last_tmax = 0;
 	tmax = 0;
+	temps = NULL;
 
 	openlog("thinkfan", LOG_CONS, LOG_USER);
 	syslog(LOG_INFO, "thinkfan " VERSION " starting...");
@@ -256,9 +253,7 @@ int main(int argc, char **argv) {
 				}
 			}
 			else depulse_tmp = 0.5f;
-			depulse = (struct timespec *) malloc(sizeof(struct timespec));
-			depulse->tv_sec = (time_t)depulse_tmp;
-			depulse->tv_nsec = 1000*1000*1000 * (depulse_tmp - depulse->tv_sec);
+			depulse = (useconds_t) (1000*1000 * depulse_tmp);
 			break;
 		default:
 			fprintf(stderr, MSG_USAGE);
@@ -289,8 +284,8 @@ int main(int argc, char **argv) {
 fail:
 	free_config(config);
 	free(rbuf);
-	free(depulse);
 	free(oldpwm);
+	free(temps);
 	return ret;
 }
 
@@ -336,7 +331,7 @@ int run() {
 		}
 	}
 
-	if ((pidfile = fopen(PID_FILE, "w+")) == NULL) {
+	if (chk_sanity && (pidfile = fopen(PID_FILE, "w+")) == NULL) {
 		report(LOG_ERR, LOG_WARNING, PID_FILE ": %s", strerror(errno));
 		return ERR_PIDFILE;
 	}

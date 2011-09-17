@@ -43,7 +43,7 @@ void report(int nlevel, int dlevel, char *format, ...);
 #define MSG_FILE_HDR(file, line) "%s:%d:%s\n", file, line_count, line
 
 #define MSG_DBG_T_STAT "sleeptime=%d, temp=%d, last_temp=%d, biased_temp=%d" \
- " -> level=%s\n", tmp_sleeptime, tmax, last_tmax, b_tmax, cur_lvl
+ " -> level=\"%s\"\n", tmp_sleeptime, tmax, last_tmax, b_tmax, cur_lvl
 #define MSG_DBG_CONF_RELOAD "Received SIGHUP: reloading config...\n"
 
 #define MSG_INF_SANITY "Sanity checks are on. Exiting.\n"
@@ -64,8 +64,8 @@ void report(int nlevel, int dlevel, char *format, ...);
 	"g PWM value. Check README to know more.\n"
 #define MSG_WRN_SENSOR_DEFAULT "WARNING: Using default temperature inputs in" \
 	" /proc/acpi/ibm/thermal.\n"
-#define MSG_WRN_CONF_NOBIAS(t) "WARNING: You have not provided any correction" \
-	" values for any sensor, and your fan will only start at %d °C. This can " \
+#define MSG_WRN_CONF_NOBIAS(t) "WARNING: You're using simple temperature limits" \
+	" without correction values, and your fan will only start at %d °C. This can " \
 	"be dangerous for your hard drive.\n", t
 #define MSG_WRN_LVL_DISENGAGED "WARNING: You're using INT_MIN as a fan level." \
 	" Fan levels are strings now, so please replace it by \"level disengaged\"."
@@ -111,8 +111,8 @@ void report(int nlevel, int dlevel, char *format, ...);
 #define MSG_ERR_T_PARSE(str) "Error parsing temperatures: %s\n", str
 #define MSG_ERR_LCOUNT "The number of limits must either be 1 or equal to the" \
 	" number of temperatures.\n"
-#define MSG_ERR_LONG_LIMIT "One of your temperature limits has more entries " \
-	"than the system has sensors. That doesn't make sense.\n"
+#define MSG_ERR_LONG_LIMIT "You have configured more temperature limits " \
+	"than sensors. That doesn't make sense.\n"
 #define MSG_ERR_LIMITLEN "Inconsistent limit length.\n"
 
 #endif

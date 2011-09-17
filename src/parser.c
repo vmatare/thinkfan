@@ -24,18 +24,19 @@
 #include <string.h>
 #include <ctype.h>
 
-const char space[] = " \t\f\n\r";
-const char newline[] = "\n\r";
-const char fan_keyword[] = "fan";
-const char sensor_keyword[] = "sensor";
-const char left_bracket[] = "({";
-const char right_bracket[] = ")}";
-const char comma[] = ",;";
-const char nonword[] = " \t\n\r\f,;#({})";
-const char comment[] = "#";
-const char nonfilename[] = "\n\n{[";
-const char digit[] = "0123456789";
-const char quote[] = "\"";
+static const char space[] = " \t\f\n\r";
+static const char newline[] = "\n\r";
+static const char fan_keyword[] = "fan";
+static const char sensor_keyword[] = "sensor";
+static const char left_bracket[] = "({";
+static const char right_bracket[] = ")}";
+static const char comma[] = ",;";
+//static const char nonword[] = " \t\n\r\f,;#({})";
+static const char comment[] = "#";
+//static const char nonfilename[] = "\n\n{[";
+static const char digit[] = "0123456789";
+static const char quote[] = "\"";
+static const char period[] = ".";
 
 
 /*
@@ -92,6 +93,7 @@ int *parse_int(char **input) {
 		*input = end;
 		rv = (int *) calloc(2, sizeof(int));
 		*rv = (int) l;
+		rv[1] = INT_MIN;
 	}
 	return rv;
 }
@@ -130,7 +132,7 @@ void skip_comment(char **input) {
 	free(tmp);
 }
 
-char *parse_filename(char **input) {
+char *parse_word(char **input) {
 	return char_cat(input, space, 1);
 }
 
@@ -147,7 +149,8 @@ char *parse_blankline(char **input) {
 	return parse_newline(input);
 }
 
-/* Return the string following a keyword. Matching ends at \n */
+/* Return the string following a keyword. Matching ends at the first space
+ * character. */
 char *parse_statement(char **input, const char *keyword) {
 	char *tmp, *ret = NULL;
 	int oldlc = line_count;
@@ -155,7 +158,8 @@ char *parse_statement(char **input, const char *keyword) {
 	skip_space(input);
  	if (!(tmp = parse_keyword(input, keyword))) return NULL;
 	skip_space(input);
-	ret = parse_filename(input);
+	if (!(ret = parse_quotation(input, quote)))
+		ret = parse_word(input);
 	if (!ret) line_count = oldlc;
 	return ret;
 }
@@ -189,9 +193,16 @@ int *parse_int_tuple(char **input) {
 
 	if (!skip_parse(input, left_bracket, 0)) goto fail;
 	do {
-		if (!(tmp = parse_int(input))) goto fail;
+		if (!(tmp = parse_int(input))) {
+			if (skip_parse(input, period, 0)) {
+				tmp = malloc(sizeof(int));
+				*tmp = INT_MAX;
+			}
+			else goto fail;
+		}
 		rv = realloc(rv, sizeof(int) * (i+2));
 		rv[i++] = *tmp;
+		free(tmp);
 		skip_parse(input, comma, 0);
 	} while(!skip_parse(input, right_bracket, 0));
 	rv[i] = INT_MIN;
@@ -221,21 +232,13 @@ struct limit *parse_level(char **input) {
 
 	skip_parse(input, comma, 0);
 
-	if ((rv->low = parse_int(input))) {
-		rv->low = (int *) realloc(rv->low, 2 * sizeof(int));
-		rv->low[1] = INT_MIN;
-	}
-	else if (!(rv->low = parse_int_tuple(input)))
-		goto fail2;
+	if (!(rv->low = parse_int_tuple(input))
+			&& !(rv->low = parse_int(input))) goto fail2;
 
 	skip_parse(input, comma, 0);
 
-	if ((rv->high = parse_int(input))) {
-		rv->high = (int *) realloc(rv->high, 2 * sizeof(int));
-		rv->high[1] = INT_MIN;
-	}
-	else if(!(rv->high = parse_int_tuple(input)))
-		goto fail1;
+	if(!(rv->high = parse_int_tuple(input))
+			&& !(rv->high = parse_int(input))) goto fail1;
 
 	if (!skip_parse(input, right_bracket, 0)) goto fail;
 	skip_space(input);

@@ -25,6 +25,7 @@
 #ifndef SYSTEM_H
 #define SYSTEM_H
 
+int count_temps_ibm();
 int get_temps_ibm();
 int get_temps_sysfs();
 int depulse_and_get_temps_ibm();

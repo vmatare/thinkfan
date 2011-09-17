@@ -39,39 +39,58 @@
 
 const char temperatures[] = "temperatures:";
 
+#define sensor_file_ibm \
+		int i, ibm_temp; \
+		ssize_t r; \
+		char *input; \
+		input = rbuf; \
+		if (unlikely(((ibm_temp = open(IBM_TEMP, O_RDONLY)) < 0) \
+				|| ((r = read(ibm_temp, rbuf, 128)) < 14) \
+				|| (close(ibm_temp) < 0))) { \
+			report(LOG_ERR, LOG_ERR, IBM_TEMP ": %s\n", strerror(errno)); \
+			errcnt |= ERR_T_GET; \
+			return 0; \
+		} \
+		rbuf[r] = 0;
+
+int count_temps_ibm() {
+
+	int *tmp;
+	sensor_file_ibm
+
+	skip_space(&input);
+	i = 0;
+	if(likely(parse_keyword(&input, temperatures) != NULL))
+		for (i = 0; (tmp = parse_int(&input)); i++) free(tmp);
+	return i;
+}
+
 /*******************************************************************
  * get_temp_ibm reads temperatures from /proc/acpi/ibm/thermal and
  * returns the number of temperatures read.
  *******************************************************************/
 int get_temps_ibm() {
-	int i, ibm_temp;
-	ssize_t r;
-	char *input, *end;
-	input = rbuf;
-	end = input;
-	long int tmp;
 
-	if (unlikely(((ibm_temp = open(IBM_TEMP, O_RDONLY)) < 0)
-			|| ((r = read(ibm_temp, rbuf, 128)) < 14)
-			|| (close(ibm_temp) < 0))) {
-		report(LOG_ERR, LOG_ERR, IBM_TEMP ": %s", strerror(errno));
-		errcnt |= ERR_T_GET;
-		return 0;
-	}
-	rbuf[r] = 0;
+	long int tmp;
+	char *s_input;
+	sensor_file_ibm
+
 
 	skip_space(&input);
 	if (likely(parse_keyword(&input, temperatures) != NULL)) {
 		i = 0;
-		do {
-			tmp = strtol(input, &end, 0);
+		tmax = -128;
+		while(*(s_input = input) && (
+				(tmp = strtol(input, &input, 0))
+				 || (input > s_input) )) {
 			if (tmp < INT_MIN || tmp > INT_MAX) {
 				errcnt |= ERR_T_GET;
 				return i;
 			}
+			if (tmp > tmax) tmax = tmp;
 			temps[i] = (int)tmp + config->sensors->bias[i];
 			i++;
-		} while (end > input);
+		}
 
 		if (unlikely(i < 2)) {
 			report(LOG_ERR, LOG_ERR, MSG_ERR_T_GET);
@@ -121,6 +140,7 @@ void init_fan_ibm() {
 		report(LOG_ERR, LOG_ERR, IBM_FAN ": %s\n"
 				MSG_ERR_FANFILE_IBM, strerror(errno));
 		errcnt |= ERR_FAN_SET;
+		return;
 	}
 	while (getline(&line, &count, ibm_fan) != -1)
 		if (!strncmp("commands:", line, 9)) module_valid = 1;
@@ -158,6 +178,7 @@ void disengage() {
 	if (unlikely((ibm_fan = open(IBM_FAN, O_RDWR)) < 0)) {
 		report(LOG_ERR, LOG_ERR, IBM_FAN ": %s", strerror(errno));
 		errcnt |= ERR_FAN_SET;
+		return;
 	}
 	else {
 		if (write(ibm_fan, "level disengaged", 16) < 16) {
@@ -166,7 +187,7 @@ void disengage() {
 		}
 		close(ibm_fan);
 	}
-	if (nanosleep(depulse, NULL)) {
+	if (usleep(depulse)) {
 		report(LOG_ERR, LOG_ERR, "nanosleep(): %s", strerror(errno));
 		errcnt |= ERR_FAN_SET;
 	}
@@ -201,6 +222,7 @@ int get_temps_sysfs() {
 			report(LOG_ERR, LOG_ERR, "%s: %s", config->sensors[i].path,
 					strerror(errno));
 			errcnt |= ERR_T_GET;
+			return i;
 		}
 		tmp = strtol(input, &end, 0);
 		if (tmp < INT_MIN || tmp > INT_MAX) {
@@ -268,15 +290,15 @@ void preinit_fan_sysfs() {
 		free(fan_enable);
 		errcnt |= ERR_FAN_INIT;
 	}
-	free(oldpwm);
-	oldpwm = NULL;
-	if ((r = getline(&oldpwm, &s, fan)) < 2)
-		report(LOG_ERR, LOG_ERR, "%s: %s", fan_enable, strerror(errno));
-	fclose(fan);
-	free(fan_enable);
-	if (r < 2) {
-		report(LOG_ERR, LOG_ERR, MSG_ERR_FAN_INIT);
-		errcnt |= ERR_FAN_INIT;
+	else {
+		if ((r = getline(&oldpwm, &s, fan)) < 2)
+			report(LOG_ERR, LOG_ERR, "%s: %s", fan_enable, strerror(errno));
+		if (r < 2) {
+			report(LOG_ERR, LOG_ERR, MSG_ERR_FAN_INIT);
+			errcnt |= ERR_FAN_INIT;
+		}
+		fclose(fan);
+		free(fan_enable);
 	}
 }
 
@@ -295,15 +317,17 @@ void init_fan_sysfs() {
 		report(LOG_ERR, LOG_ERR, "%s: %s", fan_enable, strerror(errno));
 		free(fan_enable);
 		errcnt |= ERR_FAN_INIT;
+		goto fail;
 	}
 	if ((r = write(fd, "1\n", 2)) < 2)
 		report(LOG_ERR, LOG_ERR, "%s: %s", fan_enable, strerror(errno));
-	close(fd);
-	free(fan_enable);
 	if (r < 2) {
 		report(LOG_ERR, LOG_ERR, MSG_ERR_FAN_INIT);
 		errcnt |= ERR_FAN_INIT;
 	}
+fail:
+	close(fd);
+	free(fan_enable);
 }
 
 /*********************************************************

@@ -31,7 +31,6 @@
 #include "system.h"
 #include "thinkfan.h"
 
-static int find_min(int *l);
 static int add_sensor(struct tf_config *cfg, struct sensor *sensor);
 static int add_limit(struct tf_config *cfg, struct limit *limit);
 
@@ -42,8 +41,8 @@ static int add_limit(struct tf_config *cfg, struct limit *limit);
  * problem with the config.
  **********************************************************************/
 struct tf_config *readconfig(char* fname) {
-	int err, i, j, lcount, hcount, fd;
-	struct tf_config *cfg_local, *rv = NULL;
+	int err, i, j, fd, *temps_save;
+	struct tf_config *cfg_local, *cfg_save;
 	char *s_input = NULL, *input = NULL;
 	void *ret = NULL, *map_start;
 	struct stat sb;
@@ -76,8 +75,7 @@ struct tf_config *readconfig(char* fname) {
 	while (*input != 0) {
 		s_input = input;
 
-		// all sanity checking and n00b catering...
-
+		// mostly sanity checking and n00b catering...
 		if ((ret = (void *) parse_sensor(&input))) {
 			*(input-sizeof(char)) = 0;
 			if ((err = add_sensor(cfg_local, (struct sensor *) ret)) == ERR_CONF_MIX) {
@@ -156,7 +154,7 @@ struct tf_config *readconfig(char* fname) {
 		goto fail;
 	}
 
-
+	// configure fan interface
 	if (cfg_local->fan != NULL && strcmp(cfg_local->fan, IBM_FAN)) {
 		// a sysfs PWM fan was specified in the config file
 		if (resume_is_safe) {
@@ -179,15 +177,26 @@ struct tf_config *readconfig(char* fname) {
 		cfg_local->uninit_fan = uninit_fan_ibm;
 	}
 
+	// configure sensor interface
 	if (cfg_local->num_sensors > 0 &&
 	 strcmp(cfg_local->sensors[cfg_local->num_sensors - 1].path, IBM_TEMP)) {
 		// one or more sysfs sensors were specified in the config file
 		if (depulse) cfg_local->get_temps = depulse_and_get_temps_sysfs;
 		else cfg_local->get_temps = get_temps_sysfs;
+		num_temps = cfg_local->num_sensors;
+		if (errcnt & ERR_T_GET) {
+			report(LOG_ERR, LOG_ERR, MSG_ERR_T_GET);
+			goto fail;
+		}
 	}
 	else {
 		if (depulse) cfg_local->get_temps = depulse_and_get_temps_ibm;
 		else cfg_local->get_temps = get_temps_ibm;
+		num_temps = count_temps_ibm();
+		if (errcnt & ERR_T_GET) {
+			report(LOG_ERR, LOG_ERR, MSG_ERR_T_GET);
+			goto fail;
+		}
 		if (cfg_local->num_sensors == 0) {
 			report(LOG_WARNING, LOG_NOTICE, MSG_WRN_SENSOR_DEFAULT);
 			cfg_local->sensors = malloc(sizeof(struct sensor));
@@ -200,19 +209,16 @@ struct tf_config *readconfig(char* fname) {
 		}
 	}
 
+	// configure temperature comparison method (new in 0.8)
 	if (cfg_local->limits[0].low[1] == INT_MIN) {
-		num_temps = 1;
 		cfg_local->lvl_up = simple_lvl_up;
 		cfg_local->lvl_down = simple_lvl_down;
 	}
 	else {
-		num_temps = cfg_local->get_temps();
-		for (i = 0; cfg_local->limits[0].low[i] != INT_MIN; i++);
-		if (i < num_temps) {
-			report(LOG_WARNING, LOG_INFO, MSG_WRN_NUM_TEMPS(num_temps, i));
-			num_temps = i;
-		}
-		if (i > num_temps) {
+		if (cfg_local->limit_len < num_temps)
+			report(LOG_WARNING, LOG_INFO, MSG_WRN_NUM_TEMPS(
+					num_temps, cfg_local->limit_len));
+		if (cfg_local->limit_len > num_temps) {
 			report(LOG_ERR, LOG_ERR, MSG_ERR_LONG_LIMIT);
 			goto fail;
 		}
@@ -220,55 +226,45 @@ struct tf_config *readconfig(char* fname) {
 		cfg_local->lvl_down = complex_lvl_down;
 	}
 
-	if (errcnt & ERR_T_GET) {
+	/* Bleh. This is awful.
+	 * Not sure if cheap function calls are worth this kind of crap code.
+	 * See done: and fail: (urgh) */
+	temps_save = temps;
+	temps = (int *) calloc(num_temps, sizeof(int));
+	cfg_save = config;
+	config = cfg_local;
+	if ((num_temps > 1 && cfg_local->get_temps() != num_temps)
+			|| (errcnt & ERR_T_GET)) {
 		report(LOG_ERR, LOG_ERR, MSG_ERR_T_GET);
 		goto fail;
 	}
+	config = cfg_save;
 
-	// Verify that upper & lower limits have the correct length
-	for (i = 0; i < cfg_local->num_limits; i++) {
-		lcount = hcount = 0;
-		while (cfg_local->limits[i].low[lcount] != INT_MIN) lcount++;
-		while (cfg_local->limits[i].high[hcount] != INT_MIN) hcount++;
-		if (hcount != num_temps || lcount != num_temps) {
-			report(LOG_ERR, LOG_WARNING, MSG_ERR_LCOUNT);
-			if (chk_sanity) goto fail;
-		}
-	}
-
-	if (chk_sanity && (find_min(cfg_local->limits[0].high) > 48)) {
+	// check for a sane start temperature
+	if (cfg_local->limit_len == 1 && chk_sanity
+			&& cfg_local->limits[0].high[0] > 48) {
 		for (i=0; i < cfg_local->num_sensors; i++)
 			for (j=0; j < 16; j++)
-				if (cfg_local->sensors[i].bias[j] != 0) goto done;
-		report(LOG_WARNING, LOG_NOTICE, MSG_WRN_CONF_NOBIAS(cfg_local->limits[0].high));
+				if (cfg_local->sensors[i]
+				                       .bias[j] != 0) goto done;
+		report(LOG_WARNING, LOG_NOTICE, MSG_WRN_CONF_NOBIAS(
+				cfg_local->limits[0].high[0]));
 	}
 
 done:
-
-	if (!quiet) {
-		report(LOG_INFO, LOG_DEBUG, MSG_INF_CONFIG);
-		for (i=0; i < cfg_local->num_limits; i++) {
-			report(LOG_INFO, LOG_DEBUG, MSG_INF_CONF_ITEM(
-			 cfg_local->limits[i].level, cfg_local->limits[i].low,
-			 cfg_local->limits[i].high));
-		}
-	}
-
-	rv = cfg_local;
-
-fail:
 	munmap(map_start, sb.st_size);
 	close(fd);
+	free(temps_save);
+	return cfg_local;
+
+fail:
 	free_config(cfg_local);
-	return rv;
+	free(temps);
+	temps = temps_save;
+	return NULL;
 }
 
-static int find_min(int *l) {
-	int i, rv = INT_MAX;
-	for (i = 0; l[i] != INT_MIN; i++)
-		if (l[i] < rv) rv = l[i];
-	return rv;
-}
+
 
 static int find_max(int *l) {
 	int i, rv = INT_MIN;
@@ -276,6 +272,8 @@ static int find_max(int *l) {
 		if (l[i] > rv) rv = l[i];
 	return rv;
 }
+
+
 
 static int add_sensor(struct tf_config *cfg, struct sensor *sensor) {
 	if (cfg->num_sensors >= 1 && !strcmp(sensor->path, IBM_TEMP)) {
@@ -295,6 +293,8 @@ static int add_sensor(struct tf_config *cfg, struct sensor *sensor) {
 	return 0;
 }
 
+
+
 /* Yep, this is mostly sanity checking... */
 static int add_limit(struct tf_config *cfg, struct limit *limit) {
 	int rv = 0, nl, nh, i;
@@ -307,53 +307,66 @@ static int add_limit(struct tf_config *cfg, struct limit *limit) {
 		rv |= ERR_CONF_LVLFORMAT;
 	}
 	else if (tmp == INT_MIN) {
+		// old special value for "level disengaged"
 		free(limit->level);
 		limit->level = "level disengaged";
 		limit->nlevel = (int)tmp;
 		rv |= WRN_CONF_INTMIN_LVL;
 	}
 	else if (*end == 0) {
+		// just a number
 		conv_lvl = calloc(7 + strlen(limit->level), sizeof(char));
 		snprintf(conv_lvl, 7 + strlen(limit->level), "level %d", (int)tmp);
 		free(limit->level);
 		limit->level = conv_lvl;
 		limit->nlevel = (int)tmp;
 	}
-	else if (!sscanf(limit->level, "level %d", (int * )&tmp )
-			&& strcmp(limit->level, "level disengaged")
-			&& strcmp(limit->level, "level auto")) {
+	else if (sscanf(limit->level, "level %d", (int * )&tmp)) {
+		limit->nlevel = (int)tmp;
+	}
+	else if (!strcmp(limit->level, "level disengaged")
+			|| !strcmp(limit->level, "level auto")) {
+		limit->nlevel = INT_MIN;
+	}
+	else {
+		// something broken
 		rv |= ERR_CONF_LVLFORMAT;
 		limit->nlevel = INT_MAX;
 	}
-	else limit->nlevel = (int)tmp;
 
 	// Check length of limits...
-	for (nl = 0; cfg->limits[0].low[nl] != INT_MIN; nl++);
-	for (nh = 0; cfg->limits[0].high[nh] != INT_MIN; nh++);
+	for (nl = 0; limit->low[nl] != INT_MIN; nl++);
+	for (nh = 0; limit->high[nh] != INT_MIN; nh++);
 	if (cfg->limit_len <= 0) cfg->limit_len = nl;
 	if (nh != cfg->limit_len || nl != cfg->limit_len) {
 		rv |= ERR_CONF_LIMITLEN;
 		goto bail;
 	}
 
-	// Check level border values...
+	// Check level ordering and border values...
 	if (cfg->num_limits <= 0) {
 		if (find_max(limit->low) > 0)
 			rv |= ERR_CONF_LVL0;
 	}
 	else {
-		if (limit->nlevel != INT_MAX &&
+		if (limit->nlevel != INT_MAX && limit->nlevel != INT_MIN &&
 				cfg->limits[cfg->num_limits-1].nlevel >= limit->nlevel)
 			rv |= ERR_CONF_LVLORDER;
-		for (i = 0; i < cfg->num_limits; i++)
-			if (cfg->limits[cfg->num_limits-1].high[i] <
-					limit->low[i])
-				rv |= ERR_CONF_OVERLAP;
-	}
-	if (find_min(limit->high) <= find_max(limit->low))
-		rv |= ERR_CONF_LOWHIGH;
 
-	// ... and FINALLY add the limit
+		if (cfg->num_limits > 1)
+			for (i = 0; i < cfg->limit_len; i++)
+				if (cfg->limits[cfg->num_limits-1].high[i] <
+						limit->low[i])
+					rv |= ERR_CONF_OVERLAP;
+
+		for (i = 0; limit->low[i] != INT_MIN; i++) {
+			if (!(limit->low[i] == INT_MAX && limit->high[i] == INT_MAX)
+					&& limit->low[i] >= limit->high[i])
+				rv |= ERR_CONF_LOWHIGH;
+		}
+	}
+
+	// ... and FINALLY do what we came for
 	if (!(cfg->limits = (struct limit *) realloc(cfg->limits,
 			sizeof(struct limit) * (cfg->num_limits + 1)))) {
 		report(LOG_ERR, LOG_ERR, "Allocating memory for config: %s",
@@ -368,6 +381,8 @@ bail:
 	return rv;
 }
 
+
+
 void free_config(struct tf_config *cfg) {
 	int j;
 	if (!cfg) return;
@@ -376,6 +391,11 @@ void free_config(struct tf_config *cfg) {
 		for (j=0; j < cfg->num_sensors; j++)
 			free(cfg->sensors[j].path);
 		free(cfg->sensors);
+	}
+	for (j=0; j < cfg->num_limits; j++) {
+		free(cfg->limits[j].level);
+		free(cfg->limits[j].low);
+		free(cfg->limits[j].high);
 	}
 	free(cfg->limits);
 	free(cfg);

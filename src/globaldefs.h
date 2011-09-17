@@ -25,6 +25,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <time.h>
 
 #define VERSION "0.8"
 
@@ -65,8 +66,8 @@
 
 struct limit {
 	char *level; // this is written to the fan control file.
-	int nlevel;   // A numeric interpretation of the level (if possible)
-	int *low;   // null-terminated int array specifying the LOWER limit.
+	int nlevel;   // A numeric interpretation of the level
+	int *low;   // int array specifying the LOWER limit, terminated by INT_MIN
 	int *high;  // dito for UPPER limit.
 };
 
@@ -88,6 +89,7 @@ struct tf_config {
 	void (*uninit_fan)();
 	int (*lvl_up)();
 	int (*lvl_down)();
+	int (*cmp_lvl)();
 };
 
 
@@ -99,8 +101,9 @@ char *config_file, *prefix, *rbuf, *cur_lvl, errmsg[1024],
 	quiet, nodaemon, resume_is_safe,
 	*oldpwm; // old contents of pwm*_enable, used for uninit_fan()
 float bias_level, depulse_tmp;
-struct timespec *depulse;
+useconds_t depulse;
 #define FALSE 0
 #define TRUE !FALSE
+
 
 #endif
