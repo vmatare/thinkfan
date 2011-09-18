@@ -37,8 +37,9 @@ volatile int interrupted;
 unsigned int sleeptime, tmp_sleeptime;
 
 #define set_fan cur_lvl = config->limits[lvl_idx].level; \
-		if (!quiet && nodaemon) report(LOG_DEBUG, LOG_DEBUG, MSG_DBG_T_STAT); \
-		config->setfan();
+	if (!quiet && nodaemon) \
+	report(LOG_DEBUG, LOG_DEBUG, MSG_DBG_T_STAT); \
+	config->setfan();
 
 int run();
 
@@ -178,12 +179,12 @@ int main(int argc, char **argv) {
 	resume_is_safe = 0;
 	prefix = "\n";
 	oldpwm = NULL;
-	cur_lvl = NULL;
 	config = NULL;
 	lvl_idx = 0;
 	last_tmax = 0;
 	tmax = 0;
 	temps = NULL;
+	cur_lvl = NULL;
 
 	openlog("thinkfan", LOG_CONS, LOG_USER);
 	syslog(LOG_INFO, "thinkfan " VERSION " starting...");

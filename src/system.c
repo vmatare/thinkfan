@@ -108,22 +108,19 @@ int get_temps_ibm() {
  * Set fan speed (IBM interface).
  ***********************************************************/
 void setfan_ibm() {
-	int ibm_fan;
-	char *buf = malloc(18 * sizeof(char));
+	int ibm_fan, l = strlen(cur_lvl);
 
 	if (unlikely((ibm_fan = open(IBM_FAN, O_RDWR, O_TRUNC)) < 0)) {
 		report(LOG_ERR, LOG_ERR, IBM_FAN ": %s", strerror(errno));
 		errcnt |= ERR_FAN_SET;
 	}
 	else {
-		snprintf(buf, 1024, "%s\n", cur_lvl);
-		if (unlikely(write(ibm_fan, buf, 8) != 8)) {
+		if (unlikely(write(ibm_fan, cur_lvl, l) < l)) {
 			report(LOG_ERR, LOG_ERR, MSG_ERR_FANCTRL);
 			errcnt |= ERR_FAN_SET;
 		}
 		close(ibm_fan);
 	}
-	free(buf);
 }
 
 /*********************************************************
@@ -195,12 +192,12 @@ void disengage() {
 
 int depulse_and_get_temps_ibm() {
 	disengage();
-	setfan_ibm();
+	config->setfan();
 	return get_temps_ibm();
 }
 int depulse_and_get_temps_sysfs() {
 	disengage();
-	setfan_sysfs();
+	config->setfan();
 	return get_temps_sysfs();
 }
 
@@ -238,25 +235,19 @@ int get_temps_sysfs() {
  * Set fan speed (sysfs interface).
  ***********************************************************/
 void setfan_sysfs() {
-	int fan, r;
-	ssize_t ret;
-	char *buf = malloc(8 * sizeof(char));
-	memset(buf, 0, 8);
+	int fan, l = strlen(cur_lvl);
 
 	if (unlikely((fan = open(config->fan, O_WRONLY)) < 0)) {
 		report(LOG_ERR, LOG_ERR, "%s: %s", config->fan, strerror(errno));
 		errcnt++;
 	}
 	else {
-		r = snprintf(buf, 1024, "%s\n", cur_lvl);
-		ret = (int)r + write(fan, buf, 5);
-		close(fan);
-		if (unlikely(ret < 2)) {
+		if (unlikely(write(fan, cur_lvl, l) < l)) {
 			report(LOG_ERR, LOG_ERR, MSG_ERR_FANCTRL);
 			errcnt++;
 		}
+		close(fan);
 	}
-	free(buf);
 }
 
 /***********************************************************

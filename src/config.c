@@ -228,7 +228,7 @@ struct tf_config *readconfig(char* fname) {
 
 	/* Bleh. This is awful.
 	 * Not sure if cheap function calls are worth this kind of crap code.
-	 * See done: and fail: (urgh) */
+	 * See the done: and fail: labels (urgh) */
 	temps_save = temps;
 	temps = (int *) calloc(num_temps, sizeof(int));
 	cfg_save = config;

@@ -1,4 +1,4 @@
-.TH THINKFAN "1" "January 2010" "thinkfan 0.7" "thinkfan"
+.TH THINKFAN "1" "September 2011" "thinkfan 0.8" "thinkfan"
 .SH NAME
 thinkfan \- A simple fan control program
 .SH SYNOPSIS
@@ -6,21 +6,31 @@ thinkfan \- A simple fan control program
 [\fB-hnqzD\fR [\fB-b \fIBIAS\fR] [\fB-c \fICONFIG\fR] [\fB-s \fISECONDS\fR] \
 [\fB-p \fI[DELAY]\fR]]
 .SH DESCRIPTION
-Thinkfan supports most hardware trough the generic sysfs hwmon interface in
-/sys/class/hwmon. By default, it tries to use the Thinkpad-specific
-thinkpad_acpi interface in /proc/acpi/ibm.
+Thinkfan can use temperature inputs and one PWM control file in
+/sys/class/hwmon or the Thinkpad-specific thinkpad_acpi interface in
+/proc/acpi/ibm. If nothing is specified, it tries to use /proc/acpi/ibm.
 .HP
 \fBWARNING\fR: This program does only very basic sanity checking on the
 configuration. That means that you can set your temperature limits as insane
 as you like.
 .P
-It uses only the highest temperature found in the system. That
-may be dangerous, e.g. for hard disks. That's why you should provide a
+Thinkfan has two modes of operation:
+.SS SIMPLE MODE
+In simple mode, it uses only the highest temperature found in the system. That
+may be dangerous, e.g. for hard disks.  That's why you should provide a
 correction value (i.e. add 10\-15 \°C) for the sensor that has the temperature
 of your hard disk (or battery...). See the example config files for details
 about that.
+.SS COMPLEX MODE
+In complex mode, temperature limits are defined for each sensor thinkfan knows
+about. Setting suitable limits for each sensor in your system will probably
+require a bit of experimentation and good knowledge about your hardware, but
+it's the safest way of keeping each component within its specified temperature
+range. See http://www.thinkwiki.org/wiki/Thermal_Sensors for details on which
+sensor measures what temperature a Thinkpad. On other systems you'll have to
+find it out on your own. See the example configs to learn about the syntax.
 .SH CONFIGURATION
-Two example configurations are provided with the source package. For detailed
+Some example configurations are provided with the source package. For detailed
 explanations please read the README file. If you installed thinkfan from a
 distribution package, you may find them under \fI/usr/share/doc\fR or wherever
 your package manager puts documentation.
@@ -33,8 +43,8 @@ Show a short help message
 Maximum seconds between temperature updates (default: 5)
 .TP
 \fB\-b\fR
-Floating point number (0 ~ 20) to control rising edge temperature biasing
-strength (see README). Default 5.0
+Floating point number (0 ~ 20) to control rising temperature exaggeration (see
+README for why this is needed). Default 5.0
 .TP
 \fB\-c\fR
 Load different configuration file (default: /etc/thinkfan.conf)

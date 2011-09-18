@@ -1,5 +1,5 @@
 /**************************************************************************
- * thinkfan version 0.8 -- copyleft 04-2011, Victor Mataré
+ * thinkfan version 0.8 -- copyleft 09-2011, Victor Mataré
  *
  * thinkfan is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -67,7 +67,11 @@ on your carpet...
 (1) How it works
 ================
 
-Thinkfan sets your fan speed according to predefined temperature limits that
+Thinkfan has two modes of operation:
+
+(1.1) Simple Mode
+-----------------
+Inhinkfan sets your fan speed according to predefined temperature limits that
 are specified in the config file. It always reads all temperatures it knows
 about, but uses only the highest temperature it can find. This is potentially
 dangerous for devices with a low temperature rating like hard drives. For

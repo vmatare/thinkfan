@@ -97,7 +97,9 @@ struct tf_config *config;
 unsigned long int errcnt;
 int *temps, tmax, last_tmax, lvl_idx, b_tmax, line_count;
 unsigned int chk_sanity, watchdog_timeout, num_temps;
-char *config_file, *prefix, *rbuf, *cur_lvl, errmsg[1024],
+char *config_file, *prefix, *rbuf,
+	*cur_lvl,
+	errmsg[1024],
 	quiet, nodaemon, resume_is_safe,
 	*oldpwm; // old contents of pwm*_enable, used for uninit_fan()
 float bias_level, depulse_tmp;
