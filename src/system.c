@@ -111,7 +111,7 @@ void setfan_ibm() {
 	int ibm_fan, l = strlen(cur_lvl);
 
 	if (unlikely((ibm_fan = open(IBM_FAN, O_RDWR, O_TRUNC)) < 0)) {
-		report(LOG_ERR, LOG_ERR, IBM_FAN ": %s", strerror(errno));
+		report(LOG_ERR, LOG_ERR, IBM_FAN ": %s\n", strerror(errno));
 		errcnt |= ERR_FAN_SET;
 	}
 	else {
@@ -157,7 +157,7 @@ void uninit_fan_ibm() {
 	FILE *fan;
 
 	if ((fan = fopen(IBM_FAN, "r+")) == NULL) {
-		report(LOG_ERR, LOG_ERR, IBM_FAN ": %s", strerror(errno));
+		report(LOG_ERR, LOG_ERR, IBM_FAN ": %s\n", strerror(errno));
 		errcnt |= ERR_FAN_SET;
 	}
 	else {
@@ -173,19 +173,19 @@ void uninit_fan_ibm() {
 void disengage() {
 	int ibm_fan;
 	if (unlikely((ibm_fan = open(IBM_FAN, O_RDWR)) < 0)) {
-		report(LOG_ERR, LOG_ERR, IBM_FAN ": %s", strerror(errno));
+		report(LOG_ERR, LOG_ERR, IBM_FAN ": %s\n", strerror(errno));
 		errcnt |= ERR_FAN_SET;
 		return;
 	}
 	else {
 		if (write(ibm_fan, "level disengaged", 16) < 16) {
-			report(LOG_ERR, LOG_ERR, IBM_FAN ": %s", strerror(errno));
+			report(LOG_ERR, LOG_ERR, IBM_FAN ": %s\n", strerror(errno));
 			errcnt |= ERR_FAN_SET;
 		}
 		close(ibm_fan);
 	}
 	if (usleep(depulse)) {
-		report(LOG_ERR, LOG_ERR, "nanosleep(): %s", strerror(errno));
+		report(LOG_ERR, LOG_ERR, "nanosleep(): %s\n", strerror(errno));
 		errcnt |= ERR_FAN_SET;
 	}
 }
@@ -216,7 +216,7 @@ int get_temps_sysfs() {
 		if (unlikely((fd = open(config->sensors[i].path, O_RDONLY)) == -1
 				|| (num = read(fd, &buf, 7)) == -1
 				|| close(fd) < 0)) {
-			report(LOG_ERR, LOG_ERR, "%s: %s", config->sensors[i].path,
+			report(LOG_ERR, LOG_ERR, "%s: %s\n", config->sensors[i].path,
 					strerror(errno));
 			errcnt |= ERR_T_GET;
 			return i;
@@ -238,7 +238,7 @@ void setfan_sysfs() {
 	int fan, l = strlen(cur_lvl);
 
 	if (unlikely((fan = open(config->fan, O_WRONLY)) < 0)) {
-		report(LOG_ERR, LOG_ERR, "%s: %s", config->fan, strerror(errno));
+		report(LOG_ERR, LOG_ERR, "%s: %s\n", config->fan, strerror(errno));
 		errcnt++;
 	}
 	else {
@@ -277,13 +277,13 @@ void preinit_fan_sysfs() {
 	strcat(fan_enable, "_enable");
 
 	if ((fan = fopen(fan_enable, "r")) == NULL) {
-		report(LOG_ERR, LOG_ERR, "%s: %s", fan_enable, strerror(errno));
+		report(LOG_ERR, LOG_ERR, "%s: %s\n", fan_enable, strerror(errno));
 		free(fan_enable);
 		errcnt |= ERR_FAN_INIT;
 	}
 	else {
 		if ((r = getline(&oldpwm, &s, fan)) < 2)
-			report(LOG_ERR, LOG_ERR, "%s: %s", fan_enable, strerror(errno));
+			report(LOG_ERR, LOG_ERR, "%s: %s\n", fan_enable, strerror(errno));
 		if (r < 2) {
 			report(LOG_ERR, LOG_ERR, MSG_ERR_FAN_INIT);
 			errcnt |= ERR_FAN_INIT;
@@ -305,13 +305,13 @@ void init_fan_sysfs() {
 	strcat(fan_enable, "_enable");
 
 	if ((fd = open(fan_enable, O_WRONLY)) < 0) {
-		report(LOG_ERR, LOG_ERR, "%s: %s", fan_enable, strerror(errno));
+		report(LOG_ERR, LOG_ERR, "%s: %s\n", fan_enable, strerror(errno));
 		free(fan_enable);
 		errcnt |= ERR_FAN_INIT;
 		goto fail;
 	}
 	if ((r = write(fd, "1\n", 2)) < 2)
-		report(LOG_ERR, LOG_ERR, "%s: %s", fan_enable, strerror(errno));
+		report(LOG_ERR, LOG_ERR, "%s: %s\n", fan_enable, strerror(errno));
 	if (r < 2) {
 		report(LOG_ERR, LOG_ERR, MSG_ERR_FAN_INIT);
 		errcnt |= ERR_FAN_INIT;
@@ -329,7 +329,7 @@ void uninit_fan_sysfs() {
 
 	if (oldpwm) {
 		if ((fan = fopen(config->fan, "r+")) == NULL) {
-			report(LOG_ERR, LOG_ERR, "%s: %s", config->fan, strerror(errno));
+			report(LOG_ERR, LOG_ERR, "%s: %s\n", config->fan, strerror(errno));
 			errcnt++;
 		}
 		else {
