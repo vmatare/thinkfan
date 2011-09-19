@@ -177,6 +177,8 @@ struct tf_config *readconfig(char* fname) {
 		cfg_local->uninit_fan = uninit_fan_ibm;
 	}
 
+	cur_lvl = cfg_local->limits[lvl_idx].level;
+
 	// configure sensor interface
 	if (cfg_local->num_sensors > 0 &&
 	 strcmp(cfg_local->sensors[cfg_local->num_sensors - 1].path, IBM_TEMP)) {
