@@ -1,0 +1,8 @@
+[Unit]
+Description=simple and lightweight fan control program
+
+[Service]
+ExecStart=/usr/sbin/thinkfan -q -n
+
+[Install]
+WantedBy=multi-user.target
