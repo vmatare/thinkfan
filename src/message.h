@@ -42,7 +42,7 @@ void report(int nlevel, int dlevel, char *format, ...);
 
 #define MSG_FILE_HDR(file, line) "%s:%d:%s\n", file, line_count, line
 
-#define MSG_DBG_T_STAT "sleeptime=%d, temp=%d, last_temp=%d, biased_temp=%d" \
+#define MSG_DBG_T_STAT "sleeptime=%d, tmax=%d, last_tmax=%d, biased_tmax=%d" \
  " -> level=\"%s\"\n", tmp_sleeptime, tmax, last_tmax, b_tmax, config->limits[lvl_idx].level
 #define MSG_DBG_CONF_RELOAD "Received SIGHUP: reloading config...\n"
 
@@ -63,7 +63,9 @@ void report(int nlevel, int dlevel, char *format, ...);
 #define MSG_WRN_SYSFS_SAFE "WARNING: Using safe but wasteful way of settin" \
 	"g PWM value. Check README to know more.\n"
 #define MSG_WRN_SENSOR_DEFAULT "WARNING: Using default temperature inputs in" \
-	" /proc/acpi/ibm/thermal.\n"
+	" " IBM_TEMP ".\n"
+#define MSG_WRN_FAN_DEFAULT "WARNING: Using default fan control in" \
+	" " IBM_FAN ".\n"
 #define MSG_WRN_CONF_NOBIAS(t) "WARNING: You're using simple temperature limits" \
 	" without correction values, and your fan will only start at %d °C. This can " \
 	"be dangerous for your hard drive.\n", t

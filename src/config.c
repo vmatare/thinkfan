@@ -141,12 +141,17 @@ struct tf_config *readconfig(char* fname) {
 			}
 			else if (err) goto fail;
 		}
-		else if ((ret = (void *) parse_comment(&input))) free(ret);
-		else if (!parse_blankline(&input)) {
+		else if ((ret = (void *) parse_comment(&input))) {
+			*(input-sizeof(char)) = 0;
+			free(ret);
+		}
+		else if (parse_blankline(&input)) *(input-sizeof(char)) = 0;
+		else {
+			skip_line(&input);
 			*(input-sizeof(char)) = 0;
 			report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
 			report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_PARSE);
-			if (chk_sanity) goto fail;
+			if(chk_sanity) goto fail;
 		}
 	}
 	if (cfg_local->num_limits <= 0) {
@@ -169,6 +174,7 @@ struct tf_config *readconfig(char* fname) {
 	}
 	else {
 		if (cfg_local->fan == NULL) {
+			report(LOG_WARNING, LOG_NOTICE, MSG_WRN_FAN_DEFAULT);
 			cfg_local->fan = (char *) calloc(strlen(IBM_FAN)+1, sizeof(char));
 			strcpy(cfg_local->fan, IBM_FAN);
 		}
@@ -279,6 +285,7 @@ static int find_max(int *l) {
 
 static int add_sensor(struct tf_config *cfg, struct sensor *sensor) {
 	if (cfg->num_sensors >= 1 && !strcmp(sensor->path, IBM_TEMP)) {
+		// can't mix /proc/acpi/ibm with sysfs sensors
 		if (!strcmp(sensor->path, cfg->sensors[cfg->num_sensors - 1].path))
 			return 0;
 		else return ERR_CONF_MIX;
@@ -317,10 +324,15 @@ static int add_limit(struct tf_config *cfg, struct limit *limit) {
 	}
 	else if (*end == 0) {
 		// just a number
-		conv_lvl = calloc(7 + strlen(limit->level), sizeof(char));
-		snprintf(conv_lvl, 7 + strlen(limit->level), "level %d", (int)tmp);
-		free(limit->level);
-		limit->level = conv_lvl;
+		if (!strcmp(cfg->sensors[0].path, IBM_FAN)) {
+			// we're using /proc/acpi/ibn/fan, so prefix "level ".
+			conv_lvl = calloc(7 + strlen(limit->level), sizeof(char));
+			snprintf(conv_lvl, 7 + strlen(limit->level), "level %d", (int)tmp);
+			free(limit->level);
+			limit->level = conv_lvl;
+		}
+		// PWM values range from 0 to 255
+		else if (tmp < 0 || tmp > 255) rv |= ERR_CONF_LVLFORMAT;
 		limit->nlevel = (int)tmp;
 	}
 	else if (sscanf(limit->level, "level %d", (int * )&tmp)) {

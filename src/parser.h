@@ -30,6 +30,9 @@ char *parse_blankline(char **input);
 char *parse_quotation(char **input, const char *mark);
 
 void skip_space(char **input);
+void skip_comment(char **input);
+void skip_blankline(char **input);
+void skip_line(char **input);
 int *parse_int(char **input);
 
 #endif

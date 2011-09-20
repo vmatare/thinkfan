@@ -54,7 +54,6 @@ const char temperatures[] = "temperatures:";
 		rbuf[r] = 0;
 
 int count_temps_ibm() {
-
 	int *tmp;
 	sensor_file_ibm
 
@@ -75,7 +74,6 @@ int get_temps_ibm() {
 	char *s_input;
 	sensor_file_ibm
 
-
 	skip_space(&input);
 	if (likely(parse_keyword(&input, temperatures) != NULL)) {
 		i = 0;
@@ -87,7 +85,10 @@ int get_temps_ibm() {
 				errcnt |= ERR_T_GET;
 				return i;
 			}
-			if (tmp > tmax) tmax = tmp;
+			if (tmp > tmax) {
+				b_tmax = temps + i;
+				tmax = tmp;
+			}
 			temps[i] = (int)tmp + config->sensors->bias[i];
 			i++;
 		}
@@ -212,6 +213,7 @@ int get_temps_sysfs() {
 	char buf[8];
 	char *input = buf, *end;
 
+	tmax = -128;
 	for (i = 0; i < config->num_sensors; i++) {
 		if (unlikely((fd = open(config->sensors[i].path, O_RDONLY)) == -1
 				|| (num = read(fd, &buf, 7)) == -1
@@ -226,7 +228,12 @@ int get_temps_sysfs() {
 			errcnt |= ERR_T_GET;
 			return i;
 		}
-		temps[i] = config->sensors[i].bias[0] + (int)(tmp / 1000);
+		tmp /= 1000;
+		if (tmp > tmax) {
+			tmax = (int)tmp;
+			b_tmax = temps + i;
+		}
+		temps[i] = config->sensors[i].bias[0] + (int)tmp;
 	}
 	return i;
 }

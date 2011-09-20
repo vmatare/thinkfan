@@ -12,7 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+ * along with thinkfan.  If not, see <http://www.gnu.org/licenses/>.
  **************************************************************************/
 
 Thinkfan is a simple, lightweight fan control program. Originally designed
@@ -81,6 +81,8 @@ actual temperature.
 (1.2) Complex Mode
 ------------------
 In complex mode, temperature limits are defined for each sensor individually.
+If *at least one* upper limit is reached we switch to the next fan level, and
+if *all* lower limits are reached, we switch to the previous level.
 This is a new feature in 0.8. It allows very fine-grained control and is the
 preferred way of using thinkfan. However it may require a bit of tweaking and
 experimentation to get a suitable config for your system.
@@ -103,14 +105,15 @@ But remember you have to "make clean" before rebuilding in the same directory.
 
 (2.2) Configure
 ---------------
-The default config file location is /etc/thinkfan.conf. Some examples are
-supplied with the documentation. You've got two choices now:
+The default config file location is /etc/thinkfan.conf. You should start with
+one of the supplied example configs and tweak from there. There are two
+different hardware interfaces:
 
-1. Using /proc/acpi/ibm/thermal (default)
+a) /proc/acpi/ibm/ (default)
    Most IBM/Lenovo Thinkpads and some other Lenovo models support this. You
    need the thinkpad_acpi kernel driver (see below).
 
-2. Using /sys/class/hwmon
+b) /sys/class/hwmon/
    This is a generic interface which is not hardware-specific. You need an
    hwmon-driver for your system that allows reading temperatures and
    controlling the fan from userspace.
@@ -133,12 +136,17 @@ for i in 0 1 2 3 4 5 6 7; do
 	cat /proc/acpi/ibm/fan | egrep "^speed"
 	echo
 done
+echo "level auto" > /proc/acpi/ibm/fan
 
-You should find out which value in /proc/acpi/ibm/thermal has the temperature
-of your harddrive, because harddrives have a much lower temperature rating
-than CPUs. Check out http://www.thinkwiki.org/wiki/Thermal_Sensors .
-Once you know which sensor belongs to your harddrive, you should specify a
-correction value for it. See the example config for details.
+Now you have to choose whether you want to use complex or simple temperature
+limits. I recommend using complex limits, since that gives you more control.
+Whatever you choose, you should have two lines saying
+
+ sensor /proc/acpi/ibm/thermal
+ fan /proc/acpi/ibm/fan
+
+in your config. /proc/acpi/ibm/thermal provides 8 or 16 temperatures, so if
+you use complex temperature limits, your limits need have that same length.
 
 
 (2.2b) Configure hardware interface (any system)
@@ -153,13 +161,6 @@ Now put all file names into the config file that give you a sensible
 temperature reading, each one on a separate "sensor" line. Example:
 sensor /sys/class/hwmon/hwmon3/device/temp10_input
 ...
-
-Note that you should specify a correction value for the temperature of your
-harddisk, because it's much more sensitive to high temperatures than your
-CPU:
-sensor /path/to/harddisk's/temp_input (15)
-This will add 15°C to the temperature read from your harddisk and thus keep
-it from heating up to the upper limit of your first fan level.
 
 Next you need to find the PWM control file of your fan:
 # find -L /sys/class/hwmon -maxdepth 3 -name "pwm?" \
@@ -187,9 +188,35 @@ SIGHUP way and use the -z option (see below).
 -----------------------------
 Carefully edit the fan-config tuples to your needs. Note that for the sysfs
 hwmon-interface, the fan level is a number from 0 to 255, while in the
-IBM-Interface, it's a number from 0 to 7.
+IBM-Interface, it's a number from 0 to 7. You also have the option of using
+strings like "level 0", "level auto" or "level disengaged" (WITH the
+quotation marks). In DANGEROUS mode, you can even use arbitrary (unknown)
+garbage as fan level.
+
 The temperature limits for different fan levels should overlap, so that once
 the fan is on, it keeps running for a while.
+
+If using simple temperature limits, you should specify a correction value for
+the temperature of your harddisk, because it's much more sensitive to high
+temperatures than your CPU. If using /proc/acpi/ibm/thermal, take a look at
+http://www.thinkwiki.org/wiki/Thermal_Sensors .
+If you're using sysfs to read temperatures, you'll have to find out on your
+own. A good starting point could be the documentation of your hwmon driver.
+Once you know which sensor belongs to your harddrive, you should specify a
+correction value for it. For a sysfs sensor, this would look like
+
+ sensor /path/to/harddisk's/temp_input (15)
+
+This will add 15°C to the temperature read from your harddisk and thus keep
+it from heating up to the upper limit of your first fan level. In
+/proc/acpi/ibm/thermal, the harddisk might be at the 3rd position:
+
+ sensor /proc/acpi/ibm/thermal (0, 0, 15)
+
+As this is just a quick-shot solution for the problem with overheating hard
+disks, I really recommend using complex temperature limits. See the example
+configs for the recommended syntax.
+
 
 (2.4) Test and install
 ----------------------

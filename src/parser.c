@@ -24,8 +24,8 @@
 #include <string.h>
 #include <ctype.h>
 
-static const char space[] = " \t\f\n\r";
-static const char newline[] = "\n\r";
+static const char space[] = " \t";
+static const char newline[] = "\n\r\f";
 static const char fan_keyword[] = "fan";
 static const char sensor_keyword[] = "sensor";
 static const char left_bracket[] = "({";
@@ -95,6 +95,7 @@ int *parse_int(char **input) {
 		*rv = (int) l;
 		rv[1] = INT_MIN;
 	}
+	skip_comment(input);
 	return rv;
 }
 
@@ -106,6 +107,7 @@ char *parse_keyword(char **input, const char *keyword) {
 	if (!strncasecmp(*input, keyword, l)) {
 		ret = *input;
 		*input += l;
+		skip_comment(input);
 	}
 	return ret;
 }
@@ -123,7 +125,7 @@ char *parse_comment(char **input) {
 		tmp = malloc(sizeof(char));
 		*tmp = 0;
 	}
-	skip_space(input);
+	skip_blankline(input);
 	return tmp;
 }
 
@@ -137,9 +139,11 @@ char *parse_word(char **input) {
 }
 
 char *parse_newline(char **input) {
+	char *rv;
 	if (char_alt(input, newline, 0)) {
-		line_count++;
-		return *input;
+		rv = malloc(sizeof(char));
+		*rv = **input;
+		return rv;
 	}
 	return NULL;
 }
@@ -147,6 +151,17 @@ char *parse_newline(char **input) {
 char *parse_blankline(char **input) {
 	skip_space(input);
 	return parse_newline(input);
+}
+
+void skip_blankline(char **input) {
+	char *tmp = parse_blankline(input);
+	free(tmp);
+}
+
+void skip_line(char **input) {
+	char *tmp = char_cat(input, newline, 1);
+	skip_blankline(input);
+	free(tmp);
 }
 
 /* Return the string following a keyword. Matching ends at the first space
@@ -160,6 +175,7 @@ char *parse_statement(char **input, const char *keyword) {
 	skip_space(input);
 	if (!(ret = parse_quotation(input, quote)))
 		ret = parse_word(input);
+	skip_comment(input);
 	if (!ret) line_count = oldlc;
 	return ret;
 }
@@ -169,7 +185,6 @@ char *parse_fan(char **input) {
 	char *rv = parse_statement(input, fan_keyword);
 	int oldlc = line_count;
 
-	skip_comment(input);
 	if (**input || !rv) {
 		free(rv);
 		*input = start;
@@ -180,7 +195,7 @@ char *parse_fan(char **input) {
 }
 
 char *skip_parse(char **input, const char *items, const char invert) {
-	skip_space(input);
+	skip_comment(input);
 	return char_alt(input, items, invert);
 }
 
@@ -192,6 +207,7 @@ int *parse_int_tuple(char **input) {
 	int oldlc = line_count;
 
 	if (!skip_parse(input, left_bracket, 0)) goto fail;
+	skip_comment(input);
 	do {
 		if (!(tmp = parse_int(input))) {
 			if (skip_parse(input, period, 0)) {
@@ -220,7 +236,7 @@ struct limit *parse_level(char **input) {
 	char *start = *input;
 	int oldlc = line_count;
 
-	if (!skip_parse(input, left_bracket, 0)) goto fail2;
+	if (!skip_parse(input, left_bracket, 0)) goto fail3;
 	skip_space(input);
 
 	rv = (struct limit *) malloc (sizeof(struct limit));
@@ -228,7 +244,7 @@ struct limit *parse_level(char **input) {
 	// OK, fan levels are strings now.
 	if ( !((rv->level = char_cat(input, digit, 0))
 			|| (rv->level = parse_quotation(input, quote))) )
-		goto fail2;
+		goto fail3;
 
 	skip_parse(input, comma, 0);
 
@@ -249,6 +265,8 @@ fail:
 fail1:
 	free(rv->low);
 fail2:
+	free(rv->level);
+fail3:
 	free(rv);
 	line_count = oldlc;
 	*input = start;

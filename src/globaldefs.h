@@ -95,7 +95,7 @@ struct tf_config {
 
 struct tf_config *config;
 unsigned long int errcnt;
-int *temps, tmax, last_tmax, lvl_idx, b_tmax, line_count;
+int *temps, tmax, last_tmax, lvl_idx, *b_tmax, line_count;
 unsigned int chk_sanity, watchdog_timeout, num_temps;
 char *config_file, *prefix, *rbuf,
 	*cur_lvl,

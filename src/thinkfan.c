@@ -62,12 +62,12 @@ int complex_lvl_down() {
 }
 
 int simple_lvl_up() {
-	if (unlikely(b_tmax >= config->limits[lvl_idx].high[0])) return TRUE;
+	if (unlikely(*b_tmax >= config->limits[lvl_idx].high[0])) return TRUE;
 	return FALSE;
 }
 
 int simple_lvl_down() {
-	if (unlikely(b_tmax <= config->limits[lvl_idx].low[0])) return TRUE;
+	if (unlikely(*b_tmax <= config->limits[lvl_idx].low[0])) return TRUE;
 	return FALSE;
 }
 
@@ -111,7 +111,7 @@ int fancontrol() {
 			if (tmp_sleeptime > 2) tmp_sleeptime = 2;
 		}
 		else if (unlikely(tmp_sleeptime < sleeptime)) tmp_sleeptime++;
-		b_tmax = tmax + bias;
+		*b_tmax = tmax + bias;
 
 		// determine appropriate fan level and activate it
 		if (unlikely(lvl_idx < config->num_limits - 1 && config->lvl_up())) {
