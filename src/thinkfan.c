@@ -332,7 +332,7 @@ int run() {
 		}
 	}
 
-	if (chk_sanity && (pidfile = fopen(PID_FILE, "w+")) == NULL) {
+	if ((pidfile = fopen(PID_FILE, "w+")) == NULL && chk_sanity) {
 		report(LOG_ERR, LOG_WARNING, PID_FILE ": %s", strerror(errno));
 		return ERR_PIDFILE;
 	}
