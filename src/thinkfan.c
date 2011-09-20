@@ -1,5 +1,5 @@
 /*************************************************************************
- * thinkfan version 0.7.2 -- copyleft 07-2011, Victor Mataré
+ * thinkfan version 0.7.3 -- copyleft 09-2011, Victor Mataré
  *
  * This file is part of thinkfan.
  *

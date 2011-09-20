@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <limits.h>
 
-#define VERSION "0.7.2"
+#define VERSION "0.7.3"
 
 #define ERR_T_GET     	INT_MIN
 #define ERR_FAN_INIT   	-2
