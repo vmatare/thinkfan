@@ -134,6 +134,8 @@ struct tf_config *readconfig(char* fname) {
 		cfg_local->uninit_fan = uninit_fan_ibm;
 	}
 
+	cur_lvl = cfg_local->limits[cfg_local->num_limits - 1].level;
+
 	if (cfg_local->num_sensors > 0 &&
 	 strcmp(cfg_local->sensors[cfg_local->num_sensors - 1].path, IBM_TEMP)) {
 		// one or more sysfs sensors were specified in the config file

@@ -165,14 +165,14 @@ void disengage() {
 int depulse_and_get_temp_ibm() {
 	if (cur_lvl >= DEPULSE_MIN_LVL && cur_lvl <= DEPULSE_MAX_LVL) {
 		disengage();
-		setfan_ibm();
+		config->setfan();
 	}
 	return get_temp_ibm();
 }
 int depulse_and_get_temp_sysfs() {
 	if (cur_lvl >= DEPULSE_MIN_LVL && cur_lvl <= DEPULSE_MAX_LVL) {
 		disengage();
-		setfan_sysfs();
+		config->setfan();
 	}
 	return get_temp_sysfs();
 }
