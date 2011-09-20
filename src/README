@@ -67,25 +67,23 @@ on your carpet...
 (1) How it works
 ================
 
-Thinkfan has two modes of operation:
+Thinkfan sets your fan speed according to predefined temperature limits that
+are specified in the config file. There are two modes of operation:
 
 (1.1) Simple Mode
 -----------------
-Inhinkfan sets your fan speed according to predefined temperature limits that
-are specified in the config file. It always reads all temperatures it knows
-about, but uses only the highest temperature it can find. This is potentially
+In simple mode, thinkfan uses only the highest temperature it can find. This
+was the only choice in versions before 0.8. However, it's potentially
 dangerous for devices with a low temperature rating like hard drives. For
 these devices, you should specify a correction value that's added to the
 actual temperature.
 
-Thinkfan works in a single loop that repeats the following steps:
-1. Read temperature
-2. If desired: apply the pulsating-fan workaround (only on Thinkpads, see
-below)
-2. Calculate temperature bias/exaggeration and possibly adjust sleep time
-(see below)
-3. Set fan speed
-4. Sleep for a defined amount of time
+(1.2) Complex Mode
+------------------
+In complex mode, temperature limits are defined for each sensor individually.
+This is a new feature in 0.8. It allows very fine-grained control and is the
+preferred way of using thinkfan. However it may require a bit of tweaking and
+experimentation to get a suitable config for your system.
 
 
 

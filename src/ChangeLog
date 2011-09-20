@@ -1,3 +1,7 @@
+2011-09-20	Victor Mataré
+		* everything: Ok, forgot to update the ChangeLog. Lots of changes
+		towards the 0.8 release. See git for details.
+
 2010-08-15	Victor Mataré
 		* message.h, message.c, config.c, system.c, thinkfan.c: Rewrite
 		messaging and logging functionality.

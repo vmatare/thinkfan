@@ -1,3 +1,23 @@
+thinkfan 0.8
+============
+
+1) Complex Temperature Limits
+-----------------------------
+Thinkfan now allows you to specify temperature limits for each sensor
+individually. Configuring this requires more tweaking and experimentation,
+but's definitely worth the effort, since it allows you much more fine-grained
+control over your fan's behaviour. See README and the example configs for
+details.
+
+2) Arbitrary Strings as Fan Levels
+----------------------------------
+Now you can specify arbitrary strings as fan levels. This allows you to use
+things like "level auto" or "level disengaged" in certain temperature ranges.
+The sanity checks will filter out anything that isn't a known sensible string,
+but as usual, you can use dangerous mode to disable them.
+
+
+
 thinkfan 0.7
 ============
 
