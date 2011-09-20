@@ -1,3 +1,6 @@
+2011-09-20	Victor Mataré
+		* everything: Moved to git, this file is discontinued.
+
 2011-07-16	Victor Mataré
 		* thinkfan-0.7.2: Switch to GPLv3, release.
 		* system.c: Don't cut buffer to length 8 in setfan_ibm().
