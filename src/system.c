@@ -224,7 +224,8 @@ int get_temps_sysfs() {
 			return i;
 		}
 		tmp = strtol(input, &end, 0);
-		if (tmp < INT_MIN || tmp > INT_MAX) {
+		if (*end != 0 || tmp < INT_MIN || tmp > INT_MAX) {
+			report(LOG_ERR, LOG_ERR, MSG_ERR_T_GET);
 			errcnt |= ERR_T_GET;
 			return i;
 		}
