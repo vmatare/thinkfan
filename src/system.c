@@ -275,9 +275,11 @@ void init_fan_sysfs_once() {
  * Store old pwm_enable value to cleanly reset it when exiting
  ***********************************************************/
 void preinit_fan_sysfs() {
+	if (oldpwm) return;
+
 	char *fan_enable = (char *) malloc((strlen(config->fan) + 8) * sizeof(char));
 	FILE *fan = NULL;
-	size_t s;
+	size_t s = 0;
 	ssize_t r = 0;
 
 	strcpy(fan_enable, config->fan);

@@ -324,15 +324,10 @@ static int add_limit(struct tf_config *cfg, struct limit *limit) {
 	}
 	else if (*end == 0) {
 		// just a number
-		if (!strcmp(cfg->sensors[0].path, IBM_FAN)) {
-			// we're using /proc/acpi/ibn/fan, so prefix "level ".
-			conv_lvl = calloc(7 + strlen(limit->level), sizeof(char));
-			snprintf(conv_lvl, 7 + strlen(limit->level), "level %d", (int)tmp);
-			free(limit->level);
-			limit->level = conv_lvl;
-		}
-		// PWM values range from 0 to 255
-		else if (tmp < 0 || tmp > 255) rv |= ERR_CONF_LVLFORMAT;
+		conv_lvl = calloc(7 + strlen(limit->level), sizeof(char));
+		snprintf(conv_lvl, 7 + strlen(limit->level), "level %d", (int)tmp);
+		free(limit->level);
+		limit->level = conv_lvl;
 		limit->nlevel = (int)tmp;
 	}
 	else if (sscanf(limit->level, "level %d", (int * )&tmp)) {

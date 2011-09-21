@@ -43,7 +43,7 @@ void report(int nlevel, int dlevel, char *format, ...);
 #define MSG_FILE_HDR(file, line) "%s:%d:%s\n", file, line_count, line
 
 #define MSG_DBG_T_STAT "sleeptime=%d, tmax=%d, last_tmax=%d, biased_tmax=%d" \
- " -> level=\"%s\"\n", tmp_sleeptime, tmax, last_tmax, *b_tmax, config->limits[lvl_idx].level
+ " -> fan=\"%s\"\n", tmp_sleeptime, tmax, last_tmax, *b_tmax, config->limits[lvl_idx].level
 #define MSG_DBG_CONF_RELOAD "Received SIGHUP: reloading config...\n"
 
 #define MSG_INF_SANITY "Sanity checks are on. Exiting.\n"

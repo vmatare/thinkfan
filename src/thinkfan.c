@@ -115,11 +115,11 @@ int fancontrol() {
 
 		// determine appropriate fan level and activate it
 		if (unlikely(lvl_idx < config->num_limits - 1 && config->lvl_up())) {
-			while (likely(config->lvl_up())) lvl_idx++;
+			while (likely(lvl_idx < config->num_limits - 1 && config->lvl_up())) lvl_idx++;
 			set_fan;
 		}
 		else if (unlikely(lvl_idx > 0 && config->lvl_down())) {
-			while (likely(config->lvl_down())) lvl_idx--;
+			while (likely(lvl_idx > 0 && config->lvl_down())) lvl_idx--;
 			set_fan;
 			tmp_sleeptime = sleeptime;
 		}
