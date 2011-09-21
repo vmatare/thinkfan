@@ -41,8 +41,8 @@ static int add_limit(struct tf_config *cfg, struct limit *limit);
  * problem with the config.
  **********************************************************************/
 struct tf_config *readconfig(char* fname) {
-	int err, i, j, fd, *temps_save;
-	struct tf_config *cfg_local, *cfg_save;
+	int err, i, j, fd, *temps_save = NULL;
+	struct tf_config *cfg_local, *cfg_save = NULL;
 	char *s_input = NULL, *input = NULL;
 	void *ret = NULL, *map_start;
 	struct stat sb;
@@ -56,18 +56,18 @@ struct tf_config *readconfig(char* fname) {
 
 	fd = open(fname, O_RDONLY);
 	if (fd < 0) {
-		report(LOG_ERR, LOG_ERR, "%s: %s", fname, strerror(errno));
+		report(LOG_ERR, LOG_ERR, "%s: %s\n", fname, strerror(errno));
 		goto fail;
 	}
 	if (fstat(fd, &sb) < 0) {
-		report(LOG_ERR, LOG_ERR, "%s: %s", fname, strerror(errno));
+		report(LOG_ERR, LOG_ERR, "%s: %s\n", fname, strerror(errno));
 		goto fail;
 	}
 
 	map_start = (char *) mmap(NULL, sb.st_size,
 			PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
 	if (map_start == MAP_FAILED) {
-		report(LOG_ERR, LOG_ERR, "%s: %s", fname, strerror(errno));
+		report(LOG_ERR, LOG_ERR, "%s: %s\n", fname, strerror(errno));
 		goto fail;
 	}
 	input = (char *) map_start;
@@ -183,7 +183,7 @@ struct tf_config *readconfig(char* fname) {
 		cfg_local->uninit_fan = uninit_fan_ibm;
 	}
 
-	cur_lvl = cfg_local->limits[lvl_idx].level;
+	cur_lvl = cfg_local->limits[cfg_local->num_limits - 1].level;
 
 	// configure sensor interface
 	if (cfg_local->num_sensors > 0 &&

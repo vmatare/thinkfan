@@ -30,8 +30,8 @@ static const char fan_keyword[] = "fan";
 static const char sensor_keyword[] = "sensor";
 static const char left_bracket[] = "({";
 static const char right_bracket[] = ")}";
-static const char comma[] = ",;";
-//static const char nonword[] = " \t\n\r\f,;#({})";
+static const char separator[] = ",; ";
+static const char nonword[] = " \t\n\r\f,;#({})";
 static const char comment[] = "#";
 //static const char nonfilename[] = "\n\n{[";
 static const char digit[] = "0123456789";
@@ -121,11 +121,11 @@ char *parse_comment(char **input) {
 	skip_space(input);
 	if (!char_alt(input, comment, 0)) return NULL;
 	char *tmp = char_cat(input, newline, 1);
+	char_alt(input, newline, 0);
 	if (tmp == NULL) {
 		tmp = malloc(sizeof(char));
 		*tmp = 0;
 	}
-	skip_blankline(input);
 	return tmp;
 }
 
@@ -135,10 +135,10 @@ void skip_comment(char **input) {
 }
 
 char *parse_word(char **input) {
-	return char_cat(input, space, 1);
+	return char_cat(input, nonword, 1);
 }
 
-char *parse_newline(char **input) {
+/*char *parse_newline(char **input) {
 	char *rv;
 	if (char_alt(input, newline, 0)) {
 		rv = malloc(sizeof(char));
@@ -146,16 +146,15 @@ char *parse_newline(char **input) {
 		return rv;
 	}
 	return NULL;
-}
+}*/
 
 char *parse_blankline(char **input) {
 	skip_space(input);
-	return parse_newline(input);
+	return char_alt(input, newline, 0);
 }
 
 void skip_blankline(char **input) {
-	char *tmp = parse_blankline(input);
-	free(tmp);
+	parse_blankline(input);
 }
 
 void skip_line(char **input) {
@@ -182,11 +181,10 @@ char *parse_statement(char **input, const char *keyword) {
 
 char *parse_fan(char **input) {
 	char *start = *input;
-	char *rv = parse_statement(input, fan_keyword);
+	char *rv;
 	int oldlc = line_count;
 
-	if (**input || !rv) {
-		free(rv);
+	if (!(rv = parse_statement(input, fan_keyword))) {
 		*input = start;
 		line_count = oldlc;
 		return NULL;
@@ -195,7 +193,7 @@ char *parse_fan(char **input) {
 }
 
 char *skip_parse(char **input, const char *items, const char invert) {
-	skip_comment(input);
+	skip_space(input);
 	return char_alt(input, items, invert);
 }
 
@@ -219,7 +217,8 @@ int *parse_int_tuple(char **input) {
 		rv = realloc(rv, sizeof(int) * (i+2));
 		rv[i++] = *tmp;
 		free(tmp);
-		skip_parse(input, comma, 0);
+		skip_comment(input);
+		skip_parse(input, separator, 0);
 	} while(!skip_parse(input, right_bracket, 0));
 	rv[i] = INT_MIN;
 	skip_comment(input);
@@ -238,6 +237,8 @@ struct limit *parse_level(char **input) {
 
 	if (!skip_parse(input, left_bracket, 0)) goto fail3;
 	skip_space(input);
+	skip_comment(input);
+	skip_blankline(input);
 
 	rv = (struct limit *) malloc (sizeof(struct limit));
 
@@ -246,16 +247,22 @@ struct limit *parse_level(char **input) {
 			|| (rv->level = parse_quotation(input, quote))) )
 		goto fail3;
 
-	skip_parse(input, comma, 0);
+	skip_parse(input, separator, 0);
+	skip_comment(input);
+	skip_blankline(input);
 
 	if (!(rv->low = parse_int_tuple(input))
 			&& !(rv->low = parse_int(input))) goto fail2;
 
-	skip_parse(input, comma, 0);
+	skip_parse(input, separator, 0);
+	skip_comment(input);
+	skip_blankline(input);
 
 	if(!(rv->high = parse_int_tuple(input))
 			&& !(rv->high = parse_int(input))) goto fail1;
 
+	skip_comment(input);
+	skip_blankline(input);
 	if (!skip_parse(input, right_bracket, 0)) goto fail;
 	skip_space(input);
 	return rv;
