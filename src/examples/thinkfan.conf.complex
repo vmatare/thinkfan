@@ -1,0 +1,84 @@
+######################################################################
+# thinkfan 0.8 example config file
+# ================================
+#
+# ATTENTION: There is only very basic sanity checking on the configuration.
+# That means you can set your temperature limits as insane as you like. You
+# can do anything stupid, e.g. turn off your fan when your CPU reaches 70°C.
+#
+# That's why this program is called thinkfan: You gotta THINK about your FAN!
+#
+######################################################################
+#
+# This file shows how to use sensor-specific temperature limits.
+# First of all, you need to specify temperature inputs. On a Thinkpad, you can
+# just use:
+#
+sensor /proc/acpi/ibm/thermal  # provides us with 16 temperature inputs
+
+#
+# On other systems, you have to specify a file in /sys/class/hwmon for each
+# sensor you want to use. They are numbered in their order of appearance.
+# For example:
+# sensor /sys/class/hwmon5/temp2_input           #1
+# sensor /sys/class/hwmon0/device/temp3_input    #2
+# ...
+#
+
+#
+# Next we specify the fan we want to use. On a Thinkpad, this is:
+#
+fan /proc/acpi/ibm/fan
+
+#
+# On anything other than a Thinkpad you'll probably use some PWM control file
+# in /sys/class/hwmon. Remember that fan levels range from 0 to 255 and that
+# they're just a number, not including the word "level" as seen below.
+#
+
+#
+# Then you need to specify the temperature limits for each of the sensors.
+# A dot means that the corresponding sensor should be ignored. The length of the
+# UPPER and LOWER limits must be the same as the number of temperatures. In this
+# example, /proc/acpi/ibm/thermal contains 16 sensors (on older thinkpads,
+# there may be only 8), some of which are unused (hence the dots).
+# A sysfs temperature input always contains only one sensor, so if you specify
+# 5 sysfs files above, the length of your limits must be 5, too.
+#
+# I've come up with these preliminary settings for my Thinkpad T61p. They probably
+# don't make sense for any other system, so you most definitely have to work
+# something out for yourself.
+#
+# Sensor count:
+#    1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
+######################################################
+{ "level 0"                                               # the fan level
+    (0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0)      # LOWER limit
+    (54 42 42 54 42 .  42 .  42 46 54 .  .  .  .  .)      # UPPER limit
+}
+
+{ "level 1"
+    (46 39 39 48 39 .  39 .  41 44 46 .  .  .  .  .)
+    (58 45 45 60 45 .  45 .  45 47 56 .  .  .  .  .)
+}
+
+{ "level 3"
+    (52 43 43 57 43 .  43 .  43 45 51 .  .  .  .  .)
+    (62 48 48 67 48 .  48 .  48 48 57 .  .  .  .  .)
+}
+
+{ "level 5"
+    (56 46 46 65 46 .  46 .  46 46 52 .  .  .  .  .)
+    (66 49 49 69 49 .  49 .  49 49 58 .  .  .  .  .)
+}
+
+{ "level 7"
+    (63 47 47 67 47 .  47 .  47 47 50 .  .  .  .  .)
+    (73 55 55 83 60 .  60 .  60 60 64 .  .  .  .  .)
+}
+
+{ "level disengaged" # nice idea: "level auto" can also be used.
+    (69 50 50 75 55 .  55 .  55 55 55 .  .  .  .  .)
+    (99 99 99 99 99 .  99 .  99 99 99 .  .  .  .  .)
+}
+

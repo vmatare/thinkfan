@@ -70,6 +70,7 @@ on your carpet...
 Thinkfan sets your fan speed according to predefined temperature limits that
 are specified in the config file. There are two modes of operation:
 
+
 (1.1) Simple Mode
 -----------------
 In simple mode, thinkfan uses only the highest temperature it can find. This
@@ -77,6 +78,7 @@ was the only choice in versions before 0.8. However, it's potentially
 dangerous for devices with a low temperature rating like hard drives. For
 these devices, you should specify a correction value that's added to the
 actual temperature.
+
 
 (1.2) Complex Mode
 ------------------
@@ -184,6 +186,7 @@ By default, thinkfan re-initializes the PWM control *every time* a fan speed
 is set. This is safe, but stupid. So if you want to do it properly, go the
 SIGHUP way and use the -z option (see below).
 
+
 (2.3) Configure fan behaviour
 -----------------------------
 Carefully edit the fan-config tuples to your needs. Note that for the sysfs
@@ -200,10 +203,11 @@ If using simple temperature limits, you should specify a correction value for
 the temperature of your harddisk, because it's much more sensitive to high
 temperatures than your CPU. If using /proc/acpi/ibm/thermal, take a look at
 http://www.thinkwiki.org/wiki/Thermal_Sensors .
-If you're using sysfs to read temperatures, you'll have to find out on your
-own. A good starting point could be the documentation of your hwmon driver.
-Once you know which sensor belongs to your harddrive, you should specify a
-correction value for it. For a sysfs sensor, this would look like
+If you're using sysfs to read temperatures, you'll have to find out about the
+meaning of your sensors on your own. A good starting point could be the
+documentation of your hwmon driver.  Once you know which sensor belongs to
+your harddrive, you should specify a correction value for it. For a sysfs
+sensor, this would look like
 
  sensor /path/to/harddisk's/temp_input (15)
 
@@ -214,8 +218,8 @@ it from heating up to the upper limit of your first fan level. In
  sensor /proc/acpi/ibm/thermal (0, 0, 15)
 
 As this is just a quick-shot solution for the problem with overheating hard
-disks, I really recommend using complex temperature limits. See the example
-configs for the recommended syntax.
+disks, I really recommend using complex temperature limits. Go take a look at
+thinkfan.conf.complex to learn about the syntax.
 
 
 (2.4) Test and install
@@ -250,17 +254,20 @@ Usage: thinkfan [-hnqzD] [-b BIAS ] [-c FILE] [-s SEC] [-p[SEC]]
 -D       DANGEROUS mode: No sanity checks on config! May damage your
          hardware!!
 
-(3.2) Temperature biasing (the -b option)
------------------------------------------
+
+(3.2) Rising Temperature Exaggeration (the -b option)
+-----------------------------------------------------
 Thinkfan takes special measures to deal with temperatures rising very
 suddenly (like when you turn on the computer and instantly run some
 CPU/GPU-intensive app).
 
-You can provide a floating point number between 0 and 20 to adjust the
-weighting of the temperature bias. If we have a temperature jump >=2 °C, the
-bias is calculated to:
-bias = (sleeptime * (delta_t - 1)) * (0.1 * BIAS)
+You can provide a floating point number between 0 and 20 to adjust the amount
+of exaggeration. If the highest known temperature jumps up 2 °C or more, the
+exaggeration is calculated to:
+exaggeration = (sleeptime * (delta_t - 1)) * (0.1 * BIAS)
 (BIAS is the value provided on the commandline)
+This value is then added to the current highest temperature and the fan speed
+decision is based on that.
 
 Ex: If we slept for 5 seconds during the last cycle, provided a BIAS of 10
 on the commandline, and the temperature increased by 3 °C, we get a bias of:
@@ -271,6 +278,7 @@ thinkfan with -b 0.
 In addition to exaggerating the temperature reading, the sleep time is
 reduced to 2 seconds, and then slowly increased back up to the specified
 value.
+
 
 (3.3) Pulsing-fan workaround (the -p option)
 --------------------------------------------
