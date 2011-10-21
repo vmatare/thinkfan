@@ -46,7 +46,7 @@ fan /proc/acpi/ibm/fan
 # 5 sysfs files above, the length of your limits must be 5, too.
 #
 # I've come up with these preliminary settings for my Thinkpad T61p. They probably
-# don't make sense for any other system, so you most definitely have to work
+# don't make sense for anything else, so you most definitely have to work
 # something out for yourself.
 #
 # Sensor count:

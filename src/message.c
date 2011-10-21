@@ -22,7 +22,6 @@
 #include "globaldefs.h"
 #include <stdio.h>
 #include <stdarg.h>
-#include <unistd.h>
 #include <syslog.h>
 
 void report(int nlevel, int dlevel, char *format, ...) {
@@ -30,8 +29,7 @@ void report(int nlevel, int dlevel, char *format, ...) {
 	int level = chk_sanity ? nlevel : dlevel;
 
 	va_start(ap, format);
-	if ( (nodaemon || isatty(fileno(stderr)))
-			&& (!quiet || level > LOG_WARNING)) {
+	if (nodaemon && (!quiet || level > LOG_WARNING)) {
 		fputs(prefix, stderr);
 		vfprintf(stderr, format, ap);
 		prefix = "";
