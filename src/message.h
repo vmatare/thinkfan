@@ -28,17 +28,17 @@ void report(int nlevel, int dlevel, char *format, ...);
  "\nUsage: thinkfan [-hnqzD [-b BIAS] [-c CONFIG] [-s SECONDS] [-p [SECONDS]]]" \
  "\n -h  This help message" \
  "\n -s  Maximum cycle time in seconds (Integer. Default: 5)" \
- "\n -b  Floating point number (0 ~ 20) to control rising edge" \
- "\n     temperature biasing strength (see README). Default: 5.0" \
+ "\n -b  Floating point number (0 ~ 20) to control rising temperature" \
+ "\n     exaggeration (see README). Default: 5.0" \
  "\n -c  Load different configuration file (default: /etc/thinkfan.conf)" \
- "\n -n  Do not become a daemon and log to terminal & syslog" \
- "\n -q  Be quiet (no status info on terminal)" \
+ "\n -n  Do not become a daemon and log to terminal" \
+ "\n -q  Be quiet (report only important events)" \
  "\n -z  Assume we don't have to worry about resuming when using the sysfs" \
  "\n     interface (see README!)" \
  "\n -p  Use the pulsing-fan workaround (for older Thinkpads). Takes an optional" \
  "\n     floating-point argument (0 ~ 10s) as depulsing duration. Default 0.5s." \
- "\n -D  DANGEROUS mode: Disable all sanity checks. May damage your " \
- "hardware!!\n\n"
+ "\n -D  DANGEROUS mode: Disable all sanity checks. May result in undefined"\
+ "\n     behaviour!\n\n"
 
 #define MSG_FILE_HDR(file, line) "%s:%d:%s\n", file, line_count, line
 
