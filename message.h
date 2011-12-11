@@ -96,8 +96,6 @@ void report(int nlevel, int dlevel, char *format, ...);
 #define MSG_ERR_CONF_OVERLAP "LOWER limit doesn't overlap with previous UPPER" \
 	" limit.\n"
 #define MSG_ERR_CONF_FAN "Thinkfan can't use more than one fan.\n"
-#define MSG_ERR_CONF_MIX "Thinkfan can't use sysfs sensors together with " \
-	"thinkpad_acpi sensors. Please choose one.\n"
 #define MSG_ERR_CONF_LVLORDER "Fan levels are not ordered correctly.\n"
 #define MSG_ERR_CONF_PARSE "Syntax error.\n"
 #define MSG_ERR_CONF_LVL0 "The LOWER limit of the first fan level cannot con" \

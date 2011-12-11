@@ -78,12 +78,7 @@ struct tf_config *readconfig(char* fname) {
 		// mostly sanity checking and n00b catering...
 		if ((ret = (void *) parse_sensor(&input))) {
 			*(input-sizeof(char)) = 0;
-			if ((err = add_sensor(cfg_local, (struct sensor *) ret)) == ERR_CONF_MIX) {
-				report(LOG_ERR, LOG_ERR, MSG_FILE_HDR(fname, s_input));
-				report(LOG_ERR, LOG_ERR, MSG_ERR_CONF_MIX);
-				goto fail;
-			}
-			else if (err) goto fail;
+			if (add_sensor(cfg_local, (struct sensor *) ret)) goto fail;
 		}
 		else if ((ret = (void *) parse_fan(&input))) {
 			*(input-sizeof(char)) = 0;
@@ -185,36 +180,19 @@ struct tf_config *readconfig(char* fname) {
 
 	cur_lvl = cfg_local->limits[cfg_local->num_limits - 1].level;
 
+	if (depulse) cfg_local->get_temps = depulse_and_get_temps;
+	else cfg_local->get_temps = get_temps;
+
 	// configure sensor interface
-	if (cfg_local->num_sensors > 0 &&
-	 strcmp(cfg_local->sensors[cfg_local->num_sensors - 1].path, IBM_TEMP)) {
-		// one or more sysfs sensors were specified in the config file
-		if (depulse) cfg_local->get_temps = depulse_and_get_temps_sysfs;
-		else cfg_local->get_temps = get_temps_sysfs;
-		num_temps = cfg_local->num_sensors;
-		if (errcnt & ERR_T_GET) {
-			report(LOG_ERR, LOG_ERR, MSG_ERR_T_GET);
-			goto fail;
-		}
-	}
-	else {
-		if (depulse) cfg_local->get_temps = depulse_and_get_temps_ibm;
-		else cfg_local->get_temps = get_temps_ibm;
-		num_temps = count_temps_ibm();
-		if (errcnt & ERR_T_GET) {
-			report(LOG_ERR, LOG_ERR, MSG_ERR_T_GET);
-			goto fail;
-		}
-		if (cfg_local->num_sensors == 0) {
-			report(LOG_WARNING, LOG_NOTICE, MSG_WRN_SENSOR_DEFAULT);
-			cfg_local->sensors = malloc(sizeof(struct sensor));
-			cfg_local->sensors = memset(cfg_local->sensors, 0,
-					sizeof(struct sensor));
-			cfg_local->sensors->path = (char *) calloc(
-					strlen(IBM_TEMP)+1, sizeof(char));
-			strcpy(cfg_local->sensors->path, IBM_TEMP);
-			cfg_local->num_sensors++;
-		}
+	if (cfg_local->num_sensors == 0) {
+		report(LOG_WARNING, LOG_NOTICE, MSG_WRN_SENSOR_DEFAULT);
+		cfg_local->sensors = malloc(sizeof(struct sensor));
+		cfg_local->sensors = memset(cfg_local->sensors, 0,
+				sizeof(struct sensor));
+		cfg_local->sensors->path = (char *) calloc(
+				strlen(IBM_TEMP)+1, sizeof(char));
+		strcpy(cfg_local->sensors->path, IBM_TEMP);
+		cfg_local->num_sensors++;
 	}
 
 	// configure temperature comparison method (new in 0.8)
@@ -241,7 +219,8 @@ struct tf_config *readconfig(char* fname) {
 	temps = (int *) calloc(num_temps, sizeof(int));
 	cfg_save = config;
 	config = cfg_local;
-	if ((num_temps > 1 && cfg_local->get_temps() != num_temps)
+	cfg_local->get_temps();
+	if ((num_temps > 1 &&  tempidx != num_temps)
 			|| (errcnt & ERR_T_GET)) {
 		report(LOG_ERR, LOG_ERR, MSG_ERR_T_GET);
 		goto fail;
@@ -284,18 +263,21 @@ static int find_max(int *l) {
 
 
 static int add_sensor(struct tf_config *cfg, struct sensor *sensor) {
-	if (cfg->num_sensors >= 1 && !strcmp(sensor->path, IBM_TEMP)) {
-		// can't mix /proc/acpi/ibm with sysfs sensors
-		if (!strcmp(sensor->path, cfg->sensors[cfg->num_sensors - 1].path))
-			return 0;
-		else return ERR_CONF_MIX;
-	}
 	if (!(cfg->sensors = (struct sensor *) realloc(cfg->sensors,
 			(cfg->num_sensors+1) * sizeof(struct sensor)))) {
 		report(LOG_ERR, LOG_ERR, "Allocating memory for config: %s",
 				strerror(errno));
 		free(sensor);
 		return ERR_MALLOC;
+	}
+	if (strcmp(sensor->path, IBM_TEMP))
+		num_temps++;
+	else {
+		num_temps += count_temps_ibm();
+		if (errcnt & ERR_T_GET) {
+			report(LOG_ERR, LOG_ERR, MSG_ERR_T_GET);
+			return ERR_T_GET;
+		}
 	}
 	cfg->sensors[cfg->num_sensors++] = *sensor;
 	free(sensor);

@@ -26,6 +26,6 @@ int complex_lvl_up();
 int complex_lvl_down();
 int simple_lvl_up();
 int simple_lvl_down();
-
+void get_temps();
 
 #endif

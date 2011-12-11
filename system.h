@@ -26,10 +26,14 @@
 #define SYSTEM_H
 
 int count_temps_ibm();
-int get_temps_ibm();
-int get_temps_sysfs();
-int depulse_and_get_temps_ibm();
-int depulse_and_get_temps_sysfs();
+void get_temp_ibm();
+void get_temp_sysfs();
+#ifdef USE_ATASMART
+void get_temp_atasmart();
+#endif
+void depulse_and_get_temps();
+void depulse_and_get_temps();
+void get_temps();
 void setfan_ibm();
 void setfan_sysfs();
 void setfan_sysfs_safe();

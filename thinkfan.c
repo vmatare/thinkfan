@@ -71,13 +71,26 @@ int simple_lvl_down() {
 	return FALSE;
 }
 
+void get_temps() {
+	tmax = -128;
+	for (tempidx = 0; tempidx < config->num_sensors; tempidx++) {
+		config->sensors->get_temp(); // might also increment tempidx
+		if (temps[tempidx] > tmax) {
+			tmax = (int)temps[tempidx];
+			b_tmax = temps + tempidx;
+		}
+	}
+}
+
+
 
 /***********************************************************
  * This is the main routine which periodically checks
  * temperatures and adjusts the fan according to config.
  ***********************************************************/
 int fancontrol() {
-	int bias=0, diff=0, i;
+	float bias=0;
+	int diff=0, i;
 	int wt = watchdog_timeout;
 
 	tmp_sleeptime = sleeptime;
@@ -101,7 +114,7 @@ int fancontrol() {
 
 		last_tmax = tmax;
 		// depending on the command line, this might also call depulse()
-		config->get_temps();
+		get_temps();
 
 		// If temperature increased by more than 2 °C since the
 		// last cycle, we try to react quickly.
@@ -135,8 +148,14 @@ int fancontrol() {
 
 		// slowly reduce the bias
 		if (unlikely(bias != 0)) {
-			bias -= (bias_level + 0.1f) * 4;
-			if (unlikely(bias < 0)) bias = 0;
+			if (likely(bias > 0)) {
+				if (bias < 0.5) bias = 0;
+				else bias -= (bias_level + 0.1f) * 4;
+			}
+			else {
+				if (bias > -0.5) bias = 0;
+				else bias += (bias_level + 0.1f) * 4;
+			}
 		}
 	}
 	return errcnt;
@@ -308,7 +327,7 @@ int run() {
 	}
 
 	config->init_fan();
-	config->get_temps();
+	get_temps();
 	if (errcnt) return errcnt;
 
 	if (chk_sanity && ((pidfile = fopen(PID_FILE, "r")) != NULL)) {

@@ -22,6 +22,7 @@
 #define CONFIG_PARSER_H
 
 struct sensor *parse_sensor(char **input);
+struct sensor *parse_atasmart(char **input);
 char *parse_fan(char **input);
 struct limit *parse_level(char **input);
 char *parse_keyword(char **input, const char *keyword);

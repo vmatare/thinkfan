@@ -20,6 +20,12 @@
 
 #include "parser.h"
 #include "globaldefs.h"
+#include "system.h"
+
+#ifdef USE_ATASMART
+static const char atasmart_keyword[] = "atasmart";
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -281,12 +287,12 @@ fail3:
 }
 
 /* Parse a sensor statement followed by an optional bias tuple */
-struct sensor *parse_sensor(char **input) {
+static struct sensor *parse_tempinput(char **input, const char *keyword) {
 	struct sensor *rv = (struct sensor *) malloc(sizeof(struct sensor));
 	int *tmp, i, oldlc = line_count;
 	char *start = *input;
 
-	if (!(rv->path = parse_statement(input, sensor_keyword))) {
+	if (!(rv->path = parse_statement(input, keyword))) {
 		free(rv);
 		*input = start;
 		line_count = oldlc;
@@ -304,6 +310,18 @@ struct sensor *parse_sensor(char **input) {
 	return rv;
 }
 
+struct sensor *parse_sensor(char **input) {
+	struct sensor *rv = parse_tempinput(input, sensor_keyword);
+	if (rv) {
+		if (!strcmp(rv->path, IBM_TEMP)) rv->get_temp = get_temp_ibm;
+		else rv->get_temp = get_temp_sysfs;
+	}
+#ifdef USE_ATASMART
+	else if ((rv = parse_tempinput(input, atasmart_keyword)))
+		rv->get_temp = get_temp_atasmart;
+#endif
+	return rv;
+}
 
 char *parse_quotation(char **input, const char *mark) {
 	char *ret = NULL;

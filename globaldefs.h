@@ -27,7 +27,7 @@
 #include <limits.h>
 #include <time.h>
 
-#define VERSION "0.8"
+#define VERSION "0.9"
 
 #define ERR_T_GET          1
 #define ERR_FAN_INIT       1<<1
@@ -36,19 +36,18 @@
 #define ERR_CONF_RELOAD    1<<4
 #define ERR_PIDFILE        1<<5
 #define ERR_FORK           1<<6
-#define ERR_CONF_MIX       1<<7
-#define ERR_MALLOC         1<<8
-#define ERR_CONF_LOWHIGH   1<<9
-#define ERR_CONF_LVLORDER  1<<10
-#define ERR_CONF_ORDERLOW  1<<11
-#define ERR_CONF_ORDERHIGH 1<<12
-#define ERR_CONF_OVERLAP   1<<13
-#define ERR_CONF_LVL0      1<<14
-#define ERR_FAN_SET        1<<15
-#define ERR_CONF_LIMIT     1<<16
-#define WRN_CONF_INTMIN_LVL 1<<17
-#define ERR_CONF_LVLFORMAT 1<<18
-#define ERR_CONF_LIMITLEN  1<<19
+#define ERR_MALLOC         1<<7
+#define ERR_CONF_LOWHIGH   1<<8
+#define ERR_CONF_LVLORDER  1<<9
+#define ERR_CONF_ORDERLOW  1<<10
+#define ERR_CONF_ORDERHIGH 1<<11
+#define ERR_CONF_OVERLAP   1<<12
+#define ERR_CONF_LVL0      1<<13
+#define ERR_FAN_SET        1<<14
+#define ERR_CONF_LIMIT     1<<15
+#define WRN_CONF_INTMIN_LVL 1<<16
+#define ERR_CONF_LVLFORMAT 1<<17
+#define ERR_CONF_LIMITLEN  1<<18
 
 #ifndef DUMMYRUN
 #define PID_FILE "/var/run/thinkfan.pid"
@@ -74,6 +73,7 @@ struct limit {
 struct sensor {
 	char *path;
 	int bias[16];
+	void (*get_temp)();
 };
 
 struct tf_config {
@@ -83,19 +83,19 @@ struct tf_config {
 	struct limit *limits;
 	int num_limits;
 	int limit_len;
-	int (*get_temps)();
 	void (*setfan)();
 	void (*init_fan)();
 	void (*uninit_fan)();
 	int (*lvl_up)();
 	int (*lvl_down)();
 	int (*cmp_lvl)();
+	void (*get_temps)();
 };
 
 
 struct tf_config *config;
 unsigned long int errcnt;
-int *temps, tmax, last_tmax, lvl_idx, *b_tmax, line_count;
+int *temps, tmax, last_tmax, lvl_idx, *b_tmax, line_count, tempidx;
 unsigned int chk_sanity, watchdog_timeout, num_temps;
 char *config_file, *prefix, *rbuf,
 	*cur_lvl,
@@ -109,3 +109,5 @@ useconds_t depulse;
 
 
 #endif
+
+

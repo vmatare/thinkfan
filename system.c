@@ -25,6 +25,7 @@
  * to save us some memory access in the main loop.
  * ******************************************************************/
 #include "globaldefs.h"
+#include "thinkfan.h"
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/stat.h>
@@ -37,10 +38,14 @@
 #include "system.h"
 #include "parser.h"
 
+#ifdef USE_ATASMART
+#include <atasmart.h>
+#endif
+
 const char temperatures[] = "temperatures:";
 
 #define sensor_file_ibm \
-		int i, ibm_temp; \
+		int ibm_temp; \
 		ssize_t r; \
 		char *input; \
 		input = rbuf; \
@@ -49,26 +54,26 @@ const char temperatures[] = "temperatures:";
 				|| (close(ibm_temp) < 0))) { \
 			report(LOG_ERR, LOG_ERR, IBM_TEMP ": %s\n", strerror(errno)); \
 			errcnt |= ERR_T_GET; \
-			return 0; \
 		} \
 		rbuf[r] = 0;
+
 
 int count_temps_ibm() {
 	int *tmp;
 	sensor_file_ibm
 
 	skip_space(&input);
-	i = 0;
+	tempidx = 0;
 	if(likely(parse_keyword(&input, temperatures) != NULL))
-		for (i = 0; (tmp = parse_int(&input)); i++) free(tmp);
-	return i;
+		for (tempidx = 0; (tmp = parse_int(&input)); tempidx++) free(tmp);
+	return tempidx;
 }
 
 /*******************************************************************
  * get_temp_ibm reads temperatures from /proc/acpi/ibm/thermal and
  * returns the number of temperatures read.
  *******************************************************************/
-int get_temps_ibm() {
+void get_temp_ibm() {
 
 	long int tmp;
 	char *s_input;
@@ -76,24 +81,22 @@ int get_temps_ibm() {
 
 	skip_space(&input);
 	if (likely(parse_keyword(&input, temperatures) != NULL)) {
-		i = 0;
+		tempidx = 0;
 		tmax = -128;
 		while(*(s_input = input) && (
 				(tmp = strtol(input, &input, 0))
 				 || (input > s_input) )) {
-			if (tmp < INT_MIN || tmp > INT_MAX) {
+			if (tmp < INT_MIN || tmp > INT_MAX)
 				errcnt |= ERR_T_GET;
-				return i;
-			}
 			if (tmp > tmax) {
-				b_tmax = temps + i;
+				b_tmax = temps + tempidx;
 				tmax = tmp;
 			}
-			temps[i] = (int)tmp + config->sensors->bias[i];
-			i++;
+			temps[tempidx] = (int)tmp + config->sensors->bias[tempidx];
+			tempidx++;
 		}
 
-		if (unlikely(i < 2)) {
+		if (unlikely(tempidx < 2)) {
 			report(LOG_ERR, LOG_ERR, MSG_ERR_T_GET);
 			errcnt |= ERR_T_GET;
 		}
@@ -102,7 +105,6 @@ int get_temps_ibm() {
 		report(LOG_ERR, LOG_ERR, MSG_ERR_T_PARSE(rbuf));
 		errcnt |= ERR_T_GET;
 	}
-	return i;
 }
 
 /***********************************************************
@@ -191,15 +193,10 @@ void disengage() {
 	}
 }
 
-int depulse_and_get_temps_ibm() {
+void depulse_and_get_temps() {
 	disengage();
 	config->setfan();
-	return get_temps_ibm();
-}
-int depulse_and_get_temps_sysfs() {
-	disengage();
-	config->setfan();
-	return get_temps_sysfs();
+	get_temps();
 }
 
 /****************************************************************
@@ -207,42 +204,33 @@ int depulse_and_get_temps_sysfs() {
  * were specified as "sensor ..." in the config file and stores
  * them in the global variable "temps".
  ****************************************************************/
-int get_temps_sysfs() {
-	int i, num, fd;
+void get_temp_sysfs() {
+	int num, fd;
 	long int tmp;
 	char buf[8];
 	char *input = buf, *end;
 
-	tmax = -128;
-	for (i = 0; i < config->num_sensors; i++) {
-		if (unlikely((fd = open(config->sensors[i].path, O_RDONLY)) == -1
-				|| (num = read(fd, &buf, 7)) == -1
-				|| close(fd) < 0)) {
-			report(LOG_ERR, LOG_ERR, "%s: %s\n", config->sensors[i].path,
-					strerror(errno));
-			errcnt |= ERR_T_GET;
-			return i;
-		}
-		tmp = strtol(input, &end, 0);
-		if (*end != 0 && *end != '\n') {
-			report(LOG_ERR, LOG_WARNING, MSG_ERR_T_GARBAGE,
-					config->sensors[i].path);
-			if (chk_sanity) errcnt |= ERR_T_GET;
-		}
-		if (tmp < INT_MIN || tmp > INT_MAX) {
-			report(LOG_ERR, LOG_ERR, MSG_ERR_T_INVALID,
-					config->sensors[i].path, tmp);
-			errcnt |= ERR_T_GET;
-			return i;
-		}
-		tmp /= 1000;
-		if (tmp > tmax) {
-			tmax = (int)tmp;
-			b_tmax = temps + i;
-		}
-		temps[i] = config->sensors[i].bias[0] + (int)tmp;
+	if (unlikely((fd = open(config->sensors[tempidx].path, O_RDONLY)) == -1
+			|| (num = read(fd, &buf, 7)) == -1
+			|| close(fd) < 0)) {
+		report(LOG_ERR, LOG_ERR, "%s: %s\n", config->sensors[tempidx].path,
+				strerror(errno));
+		errcnt |= ERR_T_GET;
 	}
-	return i;
+	tmp = strtol(input, &end, 0);
+	if (*end != 0 && *end != '\n') {
+		report(LOG_ERR, LOG_WARNING, MSG_ERR_T_GARBAGE,
+				config->sensors[i].path);
+		if (chk_sanity) errcnt |= ERR_T_GET;
+	}
+	if (tmp < INT_MIN || tmp > INT_MAX) {
+		report(LOG_ERR, LOG_ERR, MSG_ERR_T_INVALID,
+				config->sensors[i].path, tmp);
+		errcnt |= ERR_T_GET;
+		return i;
+	}
+	tmp /= 1000;
+	temps[tempidx] = config->sensors[tempidx].bias[0] + (int)tmp;
 }
 
 /***********************************************************
@@ -357,3 +345,37 @@ void uninit_fan_sysfs() {
 	}
 }
 
+#ifdef USE_ATASMART
+void get_temp_atasmart() {
+	SkDisk *disk;
+	uint64_t kelvin;
+	double tmp;
+
+	if (sk_disk_open(config->sensors[tempidx].path, &disk)) {
+		report(LOG_ERR, LOG_ERR, "sk_disk_open(%s): %s\n",
+				config->sensors[tempidx].path, strerror(errno));
+		errcnt |= ERR_T_GET;
+		return;
+	}
+	if (sk_disk_smart_read_data(disk)) {
+		report(LOG_ERR, LOG_ERR, "sk_disk_smart_read_data(%s): %s\n",
+				config->sensors[tempidx].path, strerror(errno));
+		errcnt |= ERR_T_GET;
+		return;
+	}
+	if (sk_disk_smart_get_temperature(disk, &kelvin)) {
+		report(LOG_ERR, LOG_ERR, "sk_disk_smart_get_temperature(%s): %s\n",
+				config->sensors[tempidx].path, strerror(errno));
+		errcnt |= ERR_T_GET;
+		return;
+	}
+	tmp = kelvin / 1000.0f;
+	tmp -= 273.15f;
+	if (tmp > INT_MAX || tmp < INT_MIN) {
+		errcnt |= ERR_T_GET;
+		return;
+	}
+	temps[tempidx] = config->sensors[tempidx].bias[0] + (int)tmp;
+
+}
+#endif
