@@ -27,13 +27,20 @@ static const char atasmart_keyword[] = "atasmart";
 #endif
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
+#include <syslog.h>
+#include "message.h"
 
 static const char space[] = " \t";
 static const char newline[] = "\n\r\f";
 static const char fan_keyword[] = "fan";
 static const char sensor_keyword[] = "sensor";
+static const char hwmon_keyword[] = "hwmon";
+static const char tp_thermal_keyword[] = "tp_thermal";
+static const char tp_fan[] = "tp_fan";
+static const char pwm_fan[] = "pwm_fan";
 static const char left_bracket[] = "({";
 static const char right_bracket[] = ")}";
 static const char separator[] = ",; ";
@@ -107,6 +114,7 @@ int *parse_int(char **input) {
 
 /* Match a single string (keyword) */
 char *parse_keyword(char **input, const char *keyword) {
+	char *start = *input;
 	int l = strlen(keyword);
 	char *ret = NULL;
 
@@ -115,6 +123,7 @@ char *parse_keyword(char **input, const char *keyword) {
 		*input += l;
 		skip_comment(input);
 	}
+	else *input = start;
 	return ret;
 }
 
@@ -169,33 +178,36 @@ void skip_line(char **input) {
 	free(tmp);
 }
 
-/* Return the string following a keyword. Matching ends at the first space
- * character. */
+/* Return the string/quotation following a keyword. */
 char *parse_statement(char **input, const char *keyword) {
+	char *start = *input;
 	char *tmp, *ret = NULL;
 	int oldlc = line_count;
 
 	skip_space(input);
- 	if (!(tmp = parse_keyword(input, keyword))) return NULL;
+ 	if (!(tmp = parse_keyword(input, keyword))) goto done;
 	skip_space(input);
 	if (!(ret = parse_quotation(input, quote)))
 		ret = parse_word(input);
 	skip_comment(input);
-	if (!ret) line_count = oldlc;
+done:
+	if (!ret) {
+		line_count = oldlc;
+		*input = start;
+	}
 	return ret;
 }
 
 char *parse_fan(char **input) {
-	char *start = *input;
-	char *rv;
-	int oldlc = line_count;
+	return parse_statement(input, fan_keyword);
+}
 
-	if (!(rv = parse_statement(input, fan_keyword))) {
-		*input = start;
-		line_count = oldlc;
-		return NULL;
-	}
-	return rv;
+char *parse_tpfan(char **input) {
+	return parse_statement(input, tp_fan);
+}
+
+char *parse_pwmfan(char **input) {
+	return parse_statement(input, pwm_fan);
 }
 
 char *skip_parse(char **input, const char *items, const char invert) {
@@ -311,11 +323,16 @@ static struct sensor *parse_tempinput(char **input, const char *keyword) {
 }
 
 struct sensor *parse_sensor(char **input) {
-	struct sensor *rv = parse_tempinput(input, sensor_keyword);
-	if (rv) {
+	struct sensor *rv;
+	if ((rv = parse_tempinput(input, sensor_keyword))) {
+		report(LOG_WARNING, LOG_WARNING, MSG_WRN_SENSOR_DEPRECATED);
 		if (!strcmp(rv->path, IBM_TEMP)) rv->get_temp = get_temp_ibm;
 		else rv->get_temp = get_temp_sysfs;
 	}
+	else if ((rv = parse_tempinput(input, tp_thermal_keyword)))
+		rv->get_temp = get_temp_ibm;
+	else if ((rv = parse_tempinput(input, hwmon_keyword)))
+		rv->get_temp = get_temp_sysfs;
 #ifdef USE_ATASMART
 	else if ((rv = parse_tempinput(input, atasmart_keyword)))
 		rv->get_temp = get_temp_atasmart;

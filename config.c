@@ -33,6 +33,9 @@
 
 static int add_sensor(struct tf_config *cfg, struct sensor *sensor);
 static int add_limit(struct tf_config *cfg, struct limit *limit);
+static void add_ibmfan(struct tf_config *cfg, char *path);
+static void add_pwmfan(struct tf_config *cfg, char *path);
+
 
 
 /***********************************************************************
@@ -82,7 +85,33 @@ struct tf_config *readconfig(char* fname) {
 		}
 		else if ((ret = (void *) parse_fan(&input))) {
 			*(input-sizeof(char)) = 0;
-			if (cfg_local->fan == NULL) cfg_local->fan = ret;
+
+			if (cfg_local->fan == NULL) cfg_local->fan = (char *)ret;
+			else {
+				report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
+				report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_FAN);
+				if (chk_sanity) goto fail;
+			}
+
+			if (strcmp(cfg_local->fan, IBM_FAN))
+				add_pwmfan(cfg_local, (char *)ret);
+			else add_ibmfan(cfg_local, (char *)ret);
+			// guessing the fan type from the path is deprecated...
+			report(LOG_WARNING, LOG_NOTICE, MSG_FILE_HDR(fname, s_input));
+			report(LOG_WARNING, LOG_NOTICE, MSG_WRN_FAN_DEPRECATED);
+		}
+		else if ((ret = (void *) parse_tpfan(&input))) {
+			*(input-sizeof(char)) = 0;
+			if (cfg_local->fan == NULL) add_ibmfan(cfg_local, (char *)ret);
+			else {
+				report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
+				report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_FAN);
+				if (chk_sanity) goto fail;
+			}
+		}
+		else if ((ret = (void *) parse_pwmfan(&input))) {
+			*(input-sizeof(char)) = 0;
+			if (cfg_local->fan == NULL) add_pwmfan(cfg_local, (char *)ret);
 			else {
 				report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
 				report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_FAN);
@@ -155,17 +184,8 @@ struct tf_config *readconfig(char* fname) {
 	}
 
 	// configure fan interface
-	if (cfg_local->fan != NULL && strcmp(cfg_local->fan, IBM_FAN)) {
+	if (cfg_local->fan != NULL) {
 		// a sysfs PWM fan was specified in the config file
-		if (resume_is_safe) {
-			cfg_local->setfan = setfan_sysfs;
-		}
-		else {
-			cfg_local->setfan = setfan_sysfs_safe;
-			report(LOG_WARNING, LOG_WARNING, MSG_WRN_SYSFS_SAFE);
-		}
-		cfg_local->init_fan = init_fan_sysfs_once;
-		cfg_local->uninit_fan = uninit_fan_sysfs;
 	}
 	else {
 		if (cfg_local->fan == NULL) {
@@ -251,7 +271,22 @@ fail:
 	return NULL;
 }
 
+static void add_ibmfan(struct tf_config *cfg, char *path) {
+	cfg->setfan = setfan_ibm;
+	cfg->init_fan = init_fan_ibm;
+	cfg->uninit_fan = uninit_fan_ibm;
+}
 
+static void add_pwmfan(struct tf_config *cfg, char *path) {
+	if (resume_is_safe)
+		cfg->setfan = setfan_sysfs;
+	else {
+		cfg->setfan = setfan_sysfs_safe;
+		report(LOG_WARNING, LOG_WARNING, MSG_WRN_SYSFS_SAFE);
+	}
+	cfg->init_fan = init_fan_sysfs_once;
+	cfg->uninit_fan = uninit_fan_sysfs;
+}
 
 static int find_max(int *l) {
 	int i, rv = INT_MIN;
@@ -300,7 +335,7 @@ static int add_limit(struct tf_config *cfg, struct limit *limit) {
 	else if (tmp == INT_MIN) {
 		// old special value for "level disengaged"
 		free(limit->level);
-		limit->level = "level disengaged";
+		strcpy(limit->level, "level disengaged");
 		limit->nlevel = (int)tmp;
 		rv |= WRN_CONF_INTMIN_LVL;
 	}
@@ -312,7 +347,7 @@ static int add_limit(struct tf_config *cfg, struct limit *limit) {
 		limit->level = conv_lvl;
 		limit->nlevel = (int)tmp;
 	}
-	else if (sscanf(limit->level, "level %d", (int * )&tmp)) {
+	else if (sscanf(limit->level, "level %d", (int *)&tmp)) {
 		limit->nlevel = (int)tmp;
 	}
 	else if (!strcmp(limit->level, "level disengaged")
@@ -331,7 +366,7 @@ static int add_limit(struct tf_config *cfg, struct limit *limit) {
 	if (cfg->limit_len <= 0) cfg->limit_len = nl;
 	if (nh != cfg->limit_len || nl != cfg->limit_len) {
 		rv |= ERR_CONF_LIMITLEN;
-		goto bail;
+		goto fail;
 	}
 
 	// Check level ordering and border values...
@@ -363,11 +398,16 @@ static int add_limit(struct tf_config *cfg, struct limit *limit) {
 		report(LOG_ERR, LOG_ERR, "Allocating memory for config: %s",
 				strerror(errno));
 		rv |= ERR_MALLOC;
-		goto bail;
+		goto fail;
 	}
 	cfg->limits[cfg->num_limits++] = *limit;
+	goto done;
 
-bail:
+fail:
+	free(limit->level);
+	free(limit->high);
+	free(limit->low);
+done:
 	free(limit);
 	return rv;
 }

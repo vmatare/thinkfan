@@ -72,6 +72,7 @@ struct limit {
 
 struct sensor {
 	char *path;
+	char removable;
 	int bias[16];
 	void (*get_temp)();
 };

@@ -72,13 +72,18 @@ int simple_lvl_down() {
 }
 
 void get_temps() {
+	int i;
 	tmax = -128;
-	for (tempidx = 0; tempidx < config->num_sensors; tempidx++) {
-		config->sensors->get_temp(); // might also increment tempidx
-		if (temps[tempidx] > tmax) {
-			tmax = (int)temps[tempidx];
-			b_tmax = temps + tempidx;
+	for (i = 0; i < config->num_sensors; i++) {
+		config->sensors->get_temp();
+		if (temps[i] > tmax) {
+			tmax = (int)temps[i];
+			b_tmax = temps + i;
 		}
+	}
+	if (unlikely(i < num_temps)) {
+		report(LOG_ALERT, LOG_ALERT, MSG_ALERT_SENSOR);
+		errcnt |= ERR_T_GET;
 	}
 }
 
@@ -253,7 +258,7 @@ int main(int argc, char **argv) {
 				ret = 1;
 				goto fail;
 			}
-			if (bias_level >= 0 && bias_level <= 20)
+			if (bias_level >= -20 && bias_level <= 20)
 				bias_level = 0.1f * bias_level;
 			else {
 				report(LOG_ERR, LOG_ERR, MSG_ERR_OPT_B);

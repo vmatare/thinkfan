@@ -46,7 +46,7 @@ const char temperatures[] = "temperatures:";
 
 #define sensor_file_ibm \
 		int ibm_temp; \
-		ssize_t r; \
+		ssize_t r=0; \
 		char *input; \
 		input = rbuf; \
 		if (unlikely(((ibm_temp = open(IBM_TEMP, O_RDONLY)) < 0) \
@@ -92,8 +92,10 @@ void get_temp_ibm() {
 				b_tmax = temps + tempidx;
 				tmax = tmp;
 			}
-			temps[tempidx] = (int)tmp + config->sensors->bias[tempidx];
-			tempidx++;
+			if (likely(tmp > -64)) {
+				temps[tempidx] = (int)tmp + config->sensors->bias[tempidx];
+				tempidx++;
+			}
 		}
 
 		if (unlikely(tempidx < 2)) {
