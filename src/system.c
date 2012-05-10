@@ -224,8 +224,14 @@ int get_temps_sysfs() {
 			return i;
 		}
 		tmp = strtol(input, &end, 0);
-		if (*end != 0 || tmp < INT_MIN || tmp > INT_MAX) {
-			report(LOG_ERR, LOG_ERR, MSG_ERR_T_GET);
+		if (*end != 0 && *end != '\n') {
+			report(LOG_ERR, LOG_WARNING, MSG_ERR_T_GARBAGE,
+					config->sensors[i].path);
+			if (chk_sanity) errcnt |= ERR_T_GET;
+		}
+		if (tmp < INT_MIN || tmp > INT_MAX) {
+			report(LOG_ERR, LOG_ERR, MSG_ERR_T_INVALID,
+					config->sensors[i].path, tmp);
 			errcnt |= ERR_T_GET;
 			return i;
 		}

@@ -74,19 +74,20 @@ void report(int nlevel, int dlevel, char *format, ...);
 #define MSG_WRN_NUM_TEMPS(n, i) "WARNING: You have %d sensors but your temper" \
 	"ature limits only have %d entries. Excess sensors will be ignored.\n", n, i
 
-#define MSG_ERR_T_GET "Error getting temperature.\n"
+#define MSG_ERR_T_GET "%s: Error getting temperature.\n", __func__
+#define MSG_ERR_T_GARBAGE "%s: Trailing garbage after temperature!\n"
+#define MSG_ERR_T_INVALID "%s: Invalid temperature: %d"
 #define MSG_ERR_MODOPTS \
  "Module thinkpad_acpi doesn't seem to support fan_control\n"
-#define MSG_ERR_FANCTRL "Error writing to %s: %s\n", config->fan, strerror(errno)
-#define MSG_ERR_FAN_INIT "Error initializing fan control.\n"
+#define MSG_ERR_FANCTRL "%s: Error writing to %s: %s\n", __func__, config->fan, strerror(errno)
+#define MSG_ERR_FAN_INIT "%s: Error initializing fan control.\n", __func__
 #define MSG_ERR_OPT_S "ERROR: option -s requires an int argument!\n"
 #define MSG_ERR_OPT_B "ERROR: option -b requires a float argument!\n"
 #define MSG_ERR_OPT_P "ERROR: invalid argument to option -p: %f\n", depulse_tmp
 
-#define MSG_ERR_CONF_NOFILE "Refusing to run without usable config file." \
- " Please read AND UNDERSTAND the documentation!\n"
-#define MSG_ERR_CONF_LOST "Lost configuration! This is a bug. Please " \
- "report this to the author.\n"
+#define MSG_ERR_CONF_NOFILE "Refusing to run without usable config file!\n"
+#define MSG_ERR_CONF_LOST "%s: Lost configuration! This is a bug. Please " \
+ "report this to the author.\n", __func__
 #define MSG_ERR_CONF_RELOAD "Error reloading config. Keeping old one.\n"
 #define MSG_ERR_CONF_NOFAN "Could not find any fan speed settings in" \
 	" the config file. Please read AND UNDERSTAND the documentation!\n"
