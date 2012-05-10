@@ -185,7 +185,7 @@ char *parse_statement(char **input, const char *keyword) {
 	int oldlc = line_count;
 
 	skip_space(input);
- 	if (!(tmp = parse_keyword(input, keyword))) goto done;
+	if (!(tmp = parse_keyword(input, keyword))) goto done;
 	skip_space(input);
 	if (!(ret = parse_quotation(input, quote)))
 		ret = parse_word(input);
