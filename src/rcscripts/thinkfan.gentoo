@@ -3,7 +3,7 @@
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 
-opts="reload"
+extra_started_commands="reload"
 
 depend() {
 	after modules
