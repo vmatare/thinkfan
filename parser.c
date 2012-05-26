@@ -52,6 +52,9 @@ static const char quote[] = "\"";
 static const char period[] = ".";
 
 
+
+
+
 /*
  * All these functions allocate memory only for the matching result, with the
  * exception of char_alt(), which never allocates memory and instead returns a
@@ -136,7 +139,6 @@ char *parse_comment(char **input) {
 	skip_space(input);
 	if (!char_alt(input, comment, 0)) return NULL;
 	char *tmp = char_cat(input, newline, 1);
-	char_alt(input, newline, 0);
 	if (tmp == NULL) {
 		tmp = malloc(sizeof(char));
 		*tmp = 0;
@@ -224,11 +226,12 @@ int *parse_int_tuple(char **input) {
 
 	if (!skip_parse(input, left_bracket, 0)) goto fail;
 	skip_comment(input);
+	skip_blankline(input);
 	do {
 		if (!(tmp = parse_int(input))) {
 			if (skip_parse(input, period, 0)) {
 				tmp = malloc(sizeof(int));
-				*tmp = INT_MAX;
+				*tmp = TEMP_UNUSED;
 			}
 			else goto fail;
 		}
@@ -236,6 +239,7 @@ int *parse_int_tuple(char **input) {
 		rv[i++] = *tmp;
 		free(tmp);
 		skip_comment(input);
+		skip_blankline(input);
 		skip_parse(input, separator, 0);
 	} while(!skip_parse(input, right_bracket, 0));
 	rv[i] = INT_MIN;
@@ -254,7 +258,6 @@ struct limit *parse_level(char **input) {
 	int oldlc = line_count;
 
 	if (!skip_parse(input, left_bracket, 0)) goto fail3;
-	skip_space(input);
 	skip_comment(input);
 	skip_blankline(input);
 
@@ -282,7 +285,7 @@ struct limit *parse_level(char **input) {
 	skip_comment(input);
 	skip_blankline(input);
 	if (!skip_parse(input, right_bracket, 0)) goto fail;
-	skip_space(input);
+	skip_comment(input);
 	return rv;
 
 fail:
@@ -318,7 +321,6 @@ static struct sensor *parse_tempinput(char **input, const char *keyword) {
 		}
 	free(tmp);
 	skip_comment(input);
-	skip_space(input);
 	return rv;
 }
 

@@ -51,6 +51,7 @@ struct tf_config *readconfig(char* fname) {
 	struct stat sb;
 
 	line_count = 0;
+	sensoridx = 0;
 
 	prefix = "\n";
 
@@ -80,10 +81,12 @@ struct tf_config *readconfig(char* fname) {
 
 		// mostly sanity checking and n00b catering...
 		if ((ret = (void *) parse_sensor(&input))) {
+			skip_blankline(&input);
 			*(input-sizeof(char)) = 0;
 			if (add_sensor(cfg_local, (struct sensor *) ret)) goto fail;
 		}
 		else if ((ret = (void *) parse_fan(&input))) {
+			skip_blankline(&input);
 			*(input-sizeof(char)) = 0;
 
 			if (cfg_local->fan == NULL) cfg_local->fan = (char *)ret;
@@ -101,6 +104,7 @@ struct tf_config *readconfig(char* fname) {
 			report(LOG_WARNING, LOG_NOTICE, MSG_WRN_FAN_DEPRECATED);
 		}
 		else if ((ret = (void *) parse_tpfan(&input))) {
+			skip_blankline(&input);
 			*(input-sizeof(char)) = 0;
 			if (cfg_local->fan == NULL) add_ibmfan(cfg_local, (char *)ret);
 			else {
@@ -110,6 +114,7 @@ struct tf_config *readconfig(char* fname) {
 			}
 		}
 		else if ((ret = (void *) parse_pwmfan(&input))) {
+			skip_blankline(&input);
 			*(input-sizeof(char)) = 0;
 			if (cfg_local->fan == NULL) add_pwmfan(cfg_local, (char *)ret);
 			else {
@@ -119,6 +124,7 @@ struct tf_config *readconfig(char* fname) {
 			}
 		}
 		else if ((ret = (void *) parse_level(&input))) {
+			skip_blankline(&input);
 			*(input-sizeof(char)) = 0;
 			if ((err = add_limit(cfg_local, (struct limit *) ret))) {
 				if (err & ERR_CONF_LOWHIGH) {
@@ -166,6 +172,7 @@ struct tf_config *readconfig(char* fname) {
 			else if (err) goto fail;
 		}
 		else if ((ret = (void *) parse_comment(&input))) {
+			skip_blankline(&input);
 			*(input-sizeof(char)) = 0;
 			free(ret);
 		}
@@ -184,15 +191,11 @@ struct tf_config *readconfig(char* fname) {
 	}
 
 	// configure fan interface
-	if (cfg_local->fan != NULL) {
-		// a sysfs PWM fan was specified in the config file
-	}
-	else {
-		if (cfg_local->fan == NULL) {
-			report(LOG_WARNING, LOG_NOTICE, MSG_WRN_FAN_DEFAULT);
-			cfg_local->fan = (char *) calloc(strlen(IBM_FAN)+1, sizeof(char));
-			strcpy(cfg_local->fan, IBM_FAN);
-		}
+	if (cfg_local->fan == NULL) {
+		report(LOG_WARNING, LOG_NOTICE, MSG_WRN_FAN_DEFAULT);
+		cfg_local->fan = (char *) calloc(strlen(IBM_FAN)+1, sizeof(char));
+		strcpy(cfg_local->fan, IBM_FAN);
+
 		cfg_local->setfan = setfan_ibm;
 		cfg_local->init_fan = init_fan_ibm;
 		cfg_local->uninit_fan = uninit_fan_ibm;
@@ -215,23 +218,6 @@ struct tf_config *readconfig(char* fname) {
 		cfg_local->num_sensors++;
 	}
 
-	// configure temperature comparison method (new in 0.8)
-	if (cfg_local->limits[0].low[1] == INT_MIN) {
-		cfg_local->lvl_up = simple_lvl_up;
-		cfg_local->lvl_down = simple_lvl_down;
-	}
-	else {
-		if (cfg_local->limit_len < num_temps)
-			report(LOG_WARNING, LOG_INFO, MSG_WRN_NUM_TEMPS(
-					num_temps, cfg_local->limit_len));
-		if (cfg_local->limit_len > num_temps) {
-			report(LOG_ERR, LOG_ERR, MSG_ERR_LONG_LIMIT);
-			goto fail;
-		}
-		cfg_local->lvl_up = complex_lvl_up;
-		cfg_local->lvl_down = complex_lvl_down;
-	}
-
 	/* Bleh. This is awful.
 	 * Not sure if cheap function calls are worth this kind of crap code.
 	 * See the done: and fail: labels (urgh) */
@@ -246,6 +232,43 @@ struct tf_config *readconfig(char* fname) {
 		goto fail;
 	}
 	config = cfg_save;
+
+	// configure temperature comparison method (new in 0.8)
+	if (cfg_local->limits[0].low[1] == INT_MIN) {
+		cfg_local->lvl_up = simple_lvl_up;
+		cfg_local->lvl_down = simple_lvl_down;
+
+		// no info in config, so count what's there an rely on that
+		cfg_local->used_temps = found_temps;
+	}
+	else {
+		if (cfg_local->limit_len < num_temps)
+			report(LOG_WARNING, LOG_INFO, MSG_WRN_NUM_TEMPS(
+					num_temps, cfg_local->limit_len));
+		if (cfg_local->limit_len > num_temps) {
+			report(LOG_ERR, LOG_ERR, MSG_ERR_LONG_LIMIT);
+			goto fail;
+		}
+		cfg_local->lvl_up = complex_lvl_up;
+		cfg_local->lvl_down = complex_lvl_down;
+
+		int j, tmpcount;
+		for (j=0; j < cfg_local->num_limits; j++) {
+			tmpcount = 0;
+			for (i=0; i < cfg_local->limit_len; i++)
+				if ((cfg_local->limits[j].low[i] != TEMP_UNUSED)
+						&& cfg_local->limits[j].high[i] != TEMP_UNUSED)
+					tmpcount++;
+			if (tmpcount > cfg_local->used_temps) cfg_local->used_temps = tmpcount;
+		}
+
+		if (found_temps < cfg_local->used_temps) {
+			report(LOG_ERR, LOG_WARNING, MSG_ERR_TEMP_COUNT,
+					cfg_local->used_temps, found_temps);
+			if (chk_sanity) goto fail;
+		}
+	}
+
 
 	// check for a sane start temperature
 	if (cfg_local->limit_len == 1 && chk_sanity
@@ -298,6 +321,7 @@ static int find_max(int *l) {
 
 
 static int add_sensor(struct tf_config *cfg, struct sensor *sensor) {
+	struct tf_config *cfg_save;
 	if (!(cfg->sensors = (struct sensor *) realloc(cfg->sensors,
 			(cfg->num_sensors+1) * sizeof(struct sensor)))) {
 		report(LOG_ERR, LOG_ERR, "Allocating memory for config: %s",
@@ -305,16 +329,20 @@ static int add_sensor(struct tf_config *cfg, struct sensor *sensor) {
 		free(sensor);
 		return ERR_MALLOC;
 	}
-	if (strcmp(sensor->path, IBM_TEMP))
+	cfg->sensors[cfg->num_sensors++] = *sensor;
+	if (sensor->get_temp != get_temp_ibm)
 		num_temps++;
 	else {
+		cfg_save = config;
+		config = cfg;
 		num_temps += count_temps_ibm();
+		config = cfg_save;
 		if (errcnt & ERR_T_GET) {
 			report(LOG_ERR, LOG_ERR, MSG_ERR_T_GET);
 			return ERR_T_GET;
 		}
 	}
-	cfg->sensors[cfg->num_sensors++] = *sensor;
+	sensoridx++;
 	free(sensor);
 	return 0;
 }

@@ -28,7 +28,7 @@ void report(int nlevel, int dlevel, char *format, ...);
  "\nUsage: thinkfan [-hnqzD [-b BIAS] [-c CONFIG] [-s SECONDS] [-p [SECONDS]]]" \
  "\n -h  This help message" \
  "\n -s  Maximum cycle time in seconds (Integer. Default: 5)" \
- "\n -b  Floating point number (-20 ~ 20) to control rising temperature" \
+ "\n -b  Floating point number (-10 to 20) to control rising temperature" \
  "\n     exaggeration (see README). Default: 5.0" \
  "\n -c  Load different configuration file (default: /etc/thinkfan.conf)" \
  "\n -n  Do not become a daemon and log to terminal" \
@@ -74,7 +74,7 @@ void report(int nlevel, int dlevel, char *format, ...);
 #define MSG_WRN_NUM_TEMPS(n, i) "WARNING: You have %d sensors but your temper" \
 	"ature limits only have %d entries. Excess sensors will be ignored.\n", n, i
 #define MSG_WRN_SENSOR_DEPRECATED "WARNING: The `sensor' keyword is deprecat" \
-	"ed. Please use the `hwmon' or `thinkpad_acpi' keywords instead!\n"
+	"ed. Please use the `hwmon' or `tp_thermal' keywords instead!\n"
 #define MSG_WRN_FAN_DEPRECATED "WARNING: Guessing the fan type from the path" \
 	" argument to the `fan' keyword is deprecated. Please use `tp_fan' or" \
 	" `pwm_fan' to make things clear.\n"
@@ -87,7 +87,7 @@ void report(int nlevel, int dlevel, char *format, ...);
 #define MSG_ERR_FANCTRL "%s: Error writing to %s: %s\n", __func__, config->fan, strerror(errno)
 #define MSG_ERR_FAN_INIT "%s: Error initializing fan control.\n", __func__
 #define MSG_ERR_OPT_S "ERROR: option -s requires an int argument!\n"
-#define MSG_ERR_OPT_B "ERROR: option -b requires a float argument!\n"
+#define MSG_ERR_OPT_B "ERROR: bias must be between -20 and 20!\n"
 #define MSG_ERR_OPT_P "ERROR: invalid argument to option -p: %f\n", depulse_tmp
 
 #define MSG_ERR_CONF_NOFILE "Refusing to run without usable config file!\n"
@@ -120,6 +120,8 @@ void report(int nlevel, int dlevel, char *format, ...);
 #define MSG_ERR_LONG_LIMIT "You have configured more temperature limits " \
 	"than sensors. That doesn't make sense.\n"
 #define MSG_ERR_LIMITLEN "Inconsistent limit length.\n"
+#define MSG_ERR_TEMP_COUNT "Your config requires at least %d temperatures, " \
+	"but only %d temperatures were found.\n"
 #define MSG_ALERT_SENSOR "A sensor has vanished! Exiting since there's no " \
 	"safe way of handling this.\n"
 

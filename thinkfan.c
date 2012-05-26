@@ -1,5 +1,5 @@
 /*************************************************************************
- * thinkfan version 0.8 -- copyleft 07-2011, Victor Mataré
+ * thinkfan version 0.9 -- copyleft 06-2012, Victor Mataré
  *
  * thinkfan is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,8 +47,8 @@ int run();
 int complex_lvl_up() {
 	int i;
 
-	for (i=0; i < num_temps; i++)
-		if (temps[i] >= config->limits[lvl_idx].high[i]) return TRUE;
+	for (i=0; likely(i < num_temps); i++)
+		if (unlikely(temps[i] >= config->limits[lvl_idx].high[i])) return TRUE;
 	return FALSE;
 }
 
@@ -56,8 +56,8 @@ int complex_lvl_up() {
 int complex_lvl_down() {
 	int i;
 
-	for (i=0; i < num_temps && temps[i] <= config->limits[lvl_idx].low[i]; i++);
-	if (i >= config->limit_len) return TRUE;
+	for (i=0; likely(i < num_temps && temps[i] <= config->limits[lvl_idx].low[i]); i++);
+	if (unlikely(i >= config->limit_len)) return TRUE;
 	return FALSE;
 }
 
@@ -72,16 +72,14 @@ int simple_lvl_down() {
 }
 
 void get_temps() {
-	int i;
 	tmax = -128;
-	for (i = 0; i < config->num_sensors; i++) {
-		config->sensors->get_temp();
-		if (temps[i] > tmax) {
-			tmax = (int)temps[i];
-			b_tmax = temps + i;
-		}
+	tempidx = 0;
+	sensoridx = 0;
+	found_temps = 0;
+	for (sensoridx = 0; likely(sensoridx < config->num_sensors); sensoridx++) {
+		config->sensors[sensoridx].get_temp();
 	}
-	if (unlikely(i < num_temps)) {
+	if (unlikely(found_temps < config->used_temps)) {
 		report(LOG_ALERT, LOG_ALERT, MSG_ALERT_SENSOR);
 		errcnt |= ERR_T_GET;
 	}
@@ -125,7 +123,8 @@ int fancontrol() {
 		// last cycle, we try to react quickly.
 		diff = tmax - last_tmax;
 		if (unlikely(diff >= 2)) {
-			bias = (tmp_sleeptime * (diff-1)) * bias_level;
+			//bias = (tmp_sleeptime * (diff-1)) * bias_level;
+			bias = ((float)diff * bias_level);
 			if (tmp_sleeptime > 2) tmp_sleeptime = 2;
 		}
 		else if (unlikely(tmp_sleeptime < sleeptime)) tmp_sleeptime++;
@@ -155,11 +154,11 @@ int fancontrol() {
 		if (unlikely(bias != 0)) {
 			if (likely(bias > 0)) {
 				if (bias < 0.5) bias = 0;
-				else bias -= (bias_level + 0.1f) * 4;
+				else bias -= bias/2 * bias_level;
 			}
 			else {
 				if (bias > -0.5) bias = 0;
-				else bias += (bias_level + 0.1f) * 4;
+				else bias -= bias/2 * bias_level;
 			}
 		}
 	}
@@ -195,7 +194,7 @@ int main(int argc, char **argv) {
 	sleeptime = 5;
 	quiet = 0;
 	chk_sanity = 1;
-	bias_level = 0.5f;
+	bias_level = 1.5f;
 	ret = 0;
 	config_file = "/etc/thinkfan.conf";
 	nodaemon = 0;
@@ -209,6 +208,7 @@ int main(int argc, char **argv) {
 	tmax = 0;
 	temps = NULL;
 	cur_lvl = NULL;
+	tempidx = 0;
 
 	openlog("thinkfan", LOG_CONS, LOG_USER);
 	syslog(LOG_INFO, "thinkfan " VERSION " starting...");
@@ -258,14 +258,15 @@ int main(int argc, char **argv) {
 				ret = 1;
 				goto fail;
 			}
-			if (bias_level >= -20 && bias_level <= 20)
-				bias_level = 0.1f * bias_level;
-			else {
-				report(LOG_ERR, LOG_ERR, MSG_ERR_OPT_B);
-				report(LOG_ERR, LOG_INFO, MSG_USAGE);
-				ret = 1;
-				goto fail;
+			if (bias_level < -10 || bias_level > 30) {
+				report(LOG_ERR, LOG_WARNING, MSG_ERR_OPT_B);
+				if (chk_sanity) {
+					report(LOG_ERR, LOG_INFO, MSG_USAGE);
+					ret = 1;
+					goto fail;
+				}
 			}
+			bias_level /= 10;
 			break;
 		case 'p':
 			if (optarg) {

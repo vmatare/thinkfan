@@ -72,7 +72,6 @@ struct limit {
 
 struct sensor {
 	char *path;
-	char removable;
 	int bias[16];
 	void (*get_temp)();
 };
@@ -91,12 +90,16 @@ struct tf_config {
 	int (*lvl_down)();
 	int (*cmp_lvl)();
 	void (*get_temps)();
+	int used_temps; // how many temperature do we expect to find?
 };
 
 
 struct tf_config *config;
 unsigned long int errcnt;
-int *temps, tmax, last_tmax, lvl_idx, *b_tmax, line_count, tempidx;
+int *temps, tmax, last_tmax, lvl_idx, *b_tmax, line_count;
+int	tempidx; // global index into global temps[] array
+int sensoridx; // separate since one sensor may have multiple temps (ibm)
+int found_temps; // how may temperatures we actually found
 unsigned int chk_sanity, watchdog_timeout, num_temps;
 char *config_file, *prefix, *rbuf,
 	*cur_lvl,
@@ -107,6 +110,7 @@ float bias_level, depulse_tmp;
 useconds_t depulse;
 #define FALSE 0
 #define TRUE !FALSE
+#define TEMP_UNUSED INT_MAX
 
 
 #endif
