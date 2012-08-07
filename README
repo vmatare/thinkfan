@@ -1,5 +1,5 @@
 /**************************************************************************
- * thinkfan version 0.8 -- copyleft 09-2011, Victor Mataré
+ * thinkfan version 0.9 -- copyleft 06-2012, Victor Mataré
  *
  * thinkfan is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -67,8 +67,10 @@ on your carpet...
 (1) How it works
 ================
 
-Thinkfan sets your fan speed according to predefined temperature limits that
-are specified in the config file. There are two modes of operation:
+Thinkfan can read temperatures from /proc/acpi/ibm/thermal, from temp*_input
+files in /sys/class/hwmon, or directly from hard disks via S.M.A.R.T.  Your
+fan speed is set according to predefined temperature limits that are specified
+in the config file. There are two modes of operation:
 
 
 (1.1) Simple Mode
@@ -96,32 +98,47 @@ experimentation to get a suitable config for your system.
 
 (2.1) Build
 -----------
-Run
-# make CFLAGS="-O3"
-To build a fully optimized executable.
+You can use ccmake to choose build options interactively:
+# ccmake .
 
-If you want to debug:
-# make CFLAGS="-g3 -O0"
-But remember you have to "make clean" before rebuilding in the same directory.
+Or set your build options from the command line. E.g. to configure a debug
+build with support for libatasmart:
+# cmake -D USE_ATASMART:BOOL=ON -D CMAKE_BUILD_TYPE:STRING=Debug .
+
+Use CMAKE_BUILD_TYPE:STRING="" to get an optimized build without debug
+symbols. This is the default.
+To compile simply run:
+# cmake --build .
+
+CMake should also provide you with a "make install" target, which defaults to
+a /usr/local prefix.
 
 
 (2.2) Configure
 ---------------
 The default config file location is /etc/thinkfan.conf. You should start with
-one of the supplied example configs and tweak from there. There are two
-different hardware interfaces:
+one of the supplied example configs and tweak from there. There are three
+possible temperature sources, which can also be combined (since 0.9). Take
+note of the order in which you listed your sensors, since that is the way they
+are matched against your temperature limits.
+
 
 a) /proc/acpi/ibm/ (default)
    Most IBM/Lenovo Thinkpads and some other Lenovo models support this. You
-   need the thinkpad_acpi kernel driver (see below).
+   need the thinkpad_acpi kernel driver (see 2.2a).
 
 b) /sys/class/hwmon/
    This is a generic interface which is not hardware-specific. You need an
    hwmon-driver for your system that allows reading temperatures and
-   controlling the fan from userspace.
+   controlling the fan from userspace. (see 2.2b)
 
+c) S.M.A.R.T
+   Thinkfan uses libatasmart to read the temperature directly from hard disks.
+   Just include a line saying
+   atasmart /dev/sda
+   And thinkfan will read the temperature directly from /dev/sda.
 
-(2.2a) Configure hardware interface (IBM/Lenovo Thinkpads)
+(2.2a) Configure hardware interface (/proc/acpi/ibm)
 --------------------------------------------------------------
 First, you need to load the thinkpad_acpi module with fan_control=1:
 # modprobe thinkpad_acpi fan_control=1
@@ -144,8 +161,8 @@ Now you have to choose whether you want to use complex or simple temperature
 limits. I recommend using complex limits, since that gives you more control.
 Whatever you choose, you should have two lines saying
 
- sensor /proc/acpi/ibm/thermal
- fan /proc/acpi/ibm/fan
+ tp_thermal /proc/acpi/ibm/thermal
+ tp_fan /proc/acpi/ibm/fan
 
 in your config. /proc/acpi/ibm/thermal provides 8 or 16 temperatures, so if
 you use complex temperature limits, your limits need have that same length.
