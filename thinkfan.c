@@ -192,14 +192,14 @@ int main(int argc, char **argv) {
 	rbuf = NULL;
 	depulse_tmp = 0;
 	sleeptime = 5;
-	quiet = 0;
-	chk_sanity = 1;
+	quiet = FALSE;
+	chk_sanity = TRUE;
 	bias_level = 1.5f;
 	ret = 0;
 	config_file = "/etc/thinkfan.conf";
-	nodaemon = 0;
+	nodaemon = FALSE;
 	errcnt = 0;
-	resume_is_safe = 0;
+	resume_is_safe = FALSE;
 	prefix = "\n";
 	oldpwm = NULL;
 	config = NULL;
@@ -209,6 +209,7 @@ int main(int argc, char **argv) {
 	temps = NULL;
 	cur_lvl = NULL;
 	tempidx = 0;
+	dnd_disk = FALSE;
 
 	openlog("thinkfan", LOG_CONS, LOG_USER);
 	syslog(LOG_INFO, "thinkfan " VERSION " starting...");
