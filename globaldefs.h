@@ -100,11 +100,10 @@ int *temps, tmax, last_tmax, lvl_idx, *b_tmax, line_count;
 int	tempidx; // global index into global temps[] array
 int sensoridx; // separate since one sensor may have multiple temps (ibm)
 int found_temps; // how may temperatures we actually found
-unsigned int chk_sanity, watchdog_timeout, num_temps;
+unsigned int watchdog_timeout, num_temps;
+char quiet, nodaemon, resume_is_safe, chk_sanity, dnd_disk;
 char *config_file, *prefix, *rbuf,
 	*cur_lvl,
-	errmsg[1024],
-	quiet, nodaemon, resume_is_safe,
 	*oldpwm; // old contents of pwm*_enable, used for uninit_fan()
 float bias_level, depulse_tmp;
 useconds_t depulse;

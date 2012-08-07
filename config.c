@@ -33,8 +33,8 @@
 
 static int add_sensor(struct tf_config *cfg, struct sensor *sensor);
 static int add_limit(struct tf_config *cfg, struct limit *limit);
-static void add_ibmfan(struct tf_config *cfg, char *path);
-static void add_pwmfan(struct tf_config *cfg, char *path);
+static int add_ibmfan(struct tf_config *cfg, char *path);
+static int add_pwmfan(struct tf_config *cfg, char *path);
 
 
 
@@ -89,16 +89,16 @@ struct tf_config *readconfig(char* fname) {
 			skip_blankline(&input);
 			*(input-sizeof(char)) = 0;
 
-			if (cfg_local->fan == NULL) cfg_local->fan = (char *)ret;
-			else {
+			if (strcmp((char *)ret, IBM_FAN))
+				err = add_pwmfan(cfg_local, (char *)ret);
+			else err = add_ibmfan(cfg_local, (char *)ret);
+
+			if (err) {
 				report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
 				report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_FAN);
 				if (chk_sanity) goto fail;
 			}
 
-			if (strcmp(cfg_local->fan, IBM_FAN))
-				add_pwmfan(cfg_local, (char *)ret);
-			else add_ibmfan(cfg_local, (char *)ret);
 			// guessing the fan type from the path is deprecated...
 			report(LOG_WARNING, LOG_NOTICE, MSG_FILE_HDR(fname, s_input));
 			report(LOG_WARNING, LOG_NOTICE, MSG_WRN_FAN_DEPRECATED);
@@ -106,8 +106,7 @@ struct tf_config *readconfig(char* fname) {
 		else if ((ret = (void *) parse_tpfan(&input))) {
 			skip_blankline(&input);
 			*(input-sizeof(char)) = 0;
-			if (cfg_local->fan == NULL) add_ibmfan(cfg_local, (char *)ret);
-			else {
+			if (add_ibmfan(cfg_local, (char *)ret)) {
 				report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
 				report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_FAN);
 				if (chk_sanity) goto fail;
@@ -116,8 +115,7 @@ struct tf_config *readconfig(char* fname) {
 		else if ((ret = (void *) parse_pwmfan(&input))) {
 			skip_blankline(&input);
 			*(input-sizeof(char)) = 0;
-			if (cfg_local->fan == NULL) add_pwmfan(cfg_local, (char *)ret);
-			else {
+			if (add_pwmfan(cfg_local, (char *)ret)) {
 				report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
 				report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_FAN);
 				if (chk_sanity) goto fail;
@@ -294,21 +292,30 @@ fail:
 	return NULL;
 }
 
-static void add_ibmfan(struct tf_config *cfg, char *path) {
-	cfg->setfan = setfan_ibm;
-	cfg->init_fan = init_fan_ibm;
-	cfg->uninit_fan = uninit_fan_ibm;
+static int add_ibmfan(struct tf_config *cfg, char *path) {
+	if (cfg->fan == NULL)  {
+		cfg->fan = path;
+		cfg->setfan = setfan_ibm;
+		cfg->init_fan = init_fan_ibm;
+		cfg->uninit_fan = uninit_fan_ibm;
+		return 0;
+	}
+	return 1;
 }
 
-static void add_pwmfan(struct tf_config *cfg, char *path) {
-	if (resume_is_safe)
-		cfg->setfan = setfan_sysfs;
-	else {
-		cfg->setfan = setfan_sysfs_safe;
-		report(LOG_WARNING, LOG_WARNING, MSG_WRN_SYSFS_SAFE);
+static int add_pwmfan(struct tf_config *cfg, char *path) {
+	if (cfg->fan == NULL) {
+		if (resume_is_safe)
+			cfg->setfan = setfan_sysfs;
+		else {
+			cfg->setfan = setfan_sysfs_safe;
+			report(LOG_WARNING, LOG_WARNING, MSG_WRN_SYSFS_SAFE);
+		}
+		cfg->init_fan = init_fan_sysfs_once;
+		cfg->uninit_fan = uninit_fan_sysfs;
+		return 0;
 	}
-	cfg->init_fan = init_fan_sysfs_once;
-	cfg->uninit_fan = uninit_fan_sysfs;
+	return 1;
 }
 
 static int find_max(int *l) {

@@ -124,7 +124,6 @@ char *parse_keyword(char **input, const char *keyword) {
 	if (!strncasecmp(*input, keyword, l)) {
 		ret = *input;
 		*input += l;
-		skip_comment(input);
 	}
 	else *input = start;
 	return ret;

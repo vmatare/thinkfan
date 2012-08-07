@@ -23,12 +23,19 @@
 
 void report(int nlevel, int dlevel, char *format, ...);
 
+#ifdef USE_ATASMART
+#define DND_DISK_HELP \
+ "\n -d  Don't read S.M.A.R.T. temperature from sleeping disks"
+#else
+#define DND_DISK_HELP ""
+#endif
+
 #define MSG_USAGE \
  "\nthinkfan " VERSION ": A minimalist fan control program\n" \
  "\nUsage: thinkfan [-hnqzD [-b BIAS] [-c CONFIG] [-s SECONDS] [-p [SECONDS]]]" \
  "\n -h  This help message" \
  "\n -s  Maximum cycle time in seconds (Integer. Default: 5)" \
- "\n -b  Floating point number (-10 to 20) to control rising temperature" \
+ "\n -b  Floating point number (-10 to 30) to control rising temperature" \
  "\n     exaggeration (see README). Default: 5.0" \
  "\n -c  Load different configuration file (default: /etc/thinkfan.conf)" \
  "\n -n  Do not become a daemon and log to terminal" \
@@ -37,6 +44,7 @@ void report(int nlevel, int dlevel, char *format, ...);
  "\n     interface (see README!)" \
  "\n -p  Use the pulsing-fan workaround (for older Thinkpads). Takes an optional" \
  "\n     floating-point argument (0 ~ 10s) as depulsing duration. Default 0.5s." \
+ DND_DISK_HELP \
  "\n -D  DANGEROUS mode: Disable all sanity checks. May result in undefined"\
  "\n     behaviour!\n\n"
 
@@ -87,7 +95,7 @@ void report(int nlevel, int dlevel, char *format, ...);
 #define MSG_ERR_FANCTRL "%s: Error writing to %s: %s\n", __func__, config->fan, strerror(errno)
 #define MSG_ERR_FAN_INIT "%s: Error initializing fan control.\n", __func__
 #define MSG_ERR_OPT_S "ERROR: option -s requires an int argument!\n"
-#define MSG_ERR_OPT_B "ERROR: bias must be between -20 and 20!\n"
+#define MSG_ERR_OPT_B "ERROR: bias must be between -10 and 30!\n"
 #define MSG_ERR_OPT_P "ERROR: invalid argument to option -p: %f\n", depulse_tmp
 
 #define MSG_ERR_CONF_NOFILE "Refusing to run without usable config file!\n"
