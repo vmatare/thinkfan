@@ -133,7 +133,7 @@ void setfan_ibm() {
 }
 
 /*********************************************************
- * Checks for fan_control support in thinkpad_acpi and
+ * Check for fan_control support in thinkpad_acpi and
  * activates the fan watchdog.
  *********************************************************/
 void init_fan_ibm() {
@@ -160,7 +160,7 @@ void init_fan_ibm() {
 }
 
 /*********************************************************
- * Restores automatic fan control.
+ * Restore automatic fan control.
  *********************************************************/
 void uninit_fan_ibm() {
 	FILE *fan;
@@ -206,9 +206,7 @@ void depulse_and_get_temps() {
 }
 
 /****************************************************************
- * get_temps_sysfs() reads the temperature from all files that
- * were specified as "sensor ..." in the config file and stores
- * them in the global variable "temps".
+ * Read the temperature from the current sysfs sensor.
  ****************************************************************/
 void get_temp_sysfs() {
 	int num, fd, i = 0;
@@ -303,7 +301,7 @@ void preinit_fan_sysfs() {
 }
 
 /*********************************************************
- * This activates userspace PWM control.
+ * Activate userspace PWM control.
  *********************************************************/
 void init_fan_sysfs() {
 	int fd;
@@ -350,32 +348,51 @@ void uninit_fan_sysfs() {
 	}
 }
 
+
 #ifdef USE_ATASMART
+/*********************************************************
+ * Read the temperature from the current atasmart sensor,
+ * using 0 if the disk is in standby and dnd_disk is set.
+ *********************************************************/
 void get_temp_atasmart() {
-	SkDisk *d;
-	uint64_t kelvin;
+	SkDisk *disk;
+	SkBool diskSleeping = FALSE;
+	uint64_t mKelvin;
 	double tmp;
 	int ret, i = 0;
 
-	if (unlikely((ret = sk_disk_open(config->sensors[sensoridx].path, &d)) < 0)) {
+	if (unlikely((ret = sk_disk_open(config->sensors[sensoridx].path, &disk)) < 0)) {
 		report(LOG_ERR, LOG_ERR, "sk_disk_open(%s): %s\n",
 				config->sensors[sensoridx].path, strerror(errno));
 		errcnt |= ERR_T_GET;
 		return;
 	}
-	if (unlikely((ret = sk_disk_smart_read_data(d)) < 0)) {
+	if (unlikely(dnd_disk)) {
+		if (unlikely((ret = sk_disk_check_sleep_mode(disk, &diskSleeping)) < 0)) {
+			report(LOG_ERR, LOG_ERR, "sk_disk_open(%s): %s\n",
+					config->sensors[sensoridx].path, strerror(errno));
+			errcnt |= ERR_T_GET;
+			goto end;
+		}
+		if (unlikely(diskSleeping)) {
+			tmp = 0;
+			store_temp;
+			goto end;
+		}
+	}
+	if (unlikely((ret = sk_disk_smart_read_data(disk)) < 0)) {
 		report(LOG_ERR, LOG_ERR, "sk_disk_smart_read_data(%s): %s\n",
 				config->sensors[sensoridx].path, strerror(errno));
 		errcnt |= ERR_T_GET;
 		goto end;
 	}
-	if (unlikely((ret = sk_disk_smart_get_temperature(d, &kelvin)) < 0)) {
+	if (unlikely((ret = sk_disk_smart_get_temperature(disk, &mKelvin)) < 0)) {
 		report(LOG_ERR, LOG_ERR, "sk_disk_smart_get_temperature(%s): %s\n",
 				config->sensors[sensoridx].path, strerror(errno));
 		errcnt |= ERR_T_GET;
 		goto end;
 	}
-	tmp = kelvin / 1000.0f;
+	tmp = mKelvin / 1000.0f;
 	tmp -= 273.15f;
 	if (unlikely(tmp > INT_MAX || tmp < INT_MIN)) {
 		errcnt |= ERR_T_GET;
@@ -383,7 +400,7 @@ void get_temp_atasmart() {
 	}
 	store_temp
 end:
-	sk_disk_free(d);
+	sk_disk_free(disk);
 	return;
 }
 #endif
