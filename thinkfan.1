@@ -1,4 +1,4 @@
-.TH THINKFAN "1" "October 2011" "thinkfan 0.8" "thinkfan"
+.TH THINKFAN "1" "June 2012" "thinkfan 0.9.0" "thinkfan"
 .SH NAME
 thinkfan \- A simple fan control program
 .SH SYNOPSIS
@@ -6,29 +6,38 @@ thinkfan \- A simple fan control program
 [\fB-hnqzD\fR [\fB-b \fIBIAS\fR] [\fB-c \fICONFIG\fR] [\fB-s \fISECONDS\fR] \
 [\fB-p \fI[DELAY]\fR]]
 .SH DESCRIPTION
-Thinkfan can use temperature inputs and one PWM control file in
-/sys/class/hwmon or the Thinkpad-specific thinkpad_acpi interface in
-/proc/acpi/ibm. If nothing is specified, it tries to use /proc/acpi/ibm.
+Thinkfan can read temperatures from three sources:
+.IP "\fI/proc/acpi/ibm/thermal\fR"
+Which is provided by the thinkpad_acpi kernel module,
+.IP "\fI/sys/class/hwmon/*/temp*_input\fR"
+Which may be provided by any hwmon drivers, and (since 0.9.0), and
+.IP "\fIS.M.A.R.T.\fR"
+using libatasmart.
+.P
+The fan can be \fI/proc/acpi/ibm/fan\fR or some PWM file in \fI
+/sys/class/hwmon\fR. The fan speed is set according to limits preconfigured in
+\fI/etc/thinkfan.conf\fR.
 .HP
 \fBWARNING\fR: This program does only very basic sanity checking on the
 configuration. That means that you can set your temperature limits as insane
 as you like.
 .P
-Thinkfan has two modes of operation:
-.SS SIMPLE MODE
-In simple mode, it uses only the highest temperature found in the system. That
-may be dangerous, e.g. for hard disks.  That's why you should provide a
-correction value (i.e. add 10\-15 \°C) for the sensor that has the temperature
-of your hard disk (or battery...). See the example config files for details
-about that.
-.SS COMPLEX MODE
+There are two general modes of operation:
+.SS COMPLEX MODE (recommended)
 In complex mode, temperature limits are defined for each sensor thinkfan knows
 about. Setting suitable limits for each sensor in your system will probably
 require a bit of experimentation and good knowledge about your hardware, but
 it's the safest way of keeping each component within its specified temperature
-range. See http://www.thinkwiki.org/wiki/Thermal_Sensors for details on which
-sensor measures what temperature in a Thinkpad. On other systems you'll have to
-find out on your own. See the example configs to learn about the syntax.
+range. See \fIhttp://www.thinkwiki.org/wiki/Thermal_Sensors\fR for details on
+which sensor measures what temperature in a Thinkpad. On other systems you'll
+have to find out on your own. See the example configs to learn about the
+syntax.
+.SS SIMPLE MODE (discouraged)
+In simple mode, Thinkfan uses only the highest temperature found in the
+system. That may be dangerous, e.g. for hard disks.  That's why you should
+provide a correction value (i.e. add 10\-15 \°C) for the sensor that has the
+temperature of your hard disk (or battery...). See the example config files
+for details about that.
 .SH CONFIGURATION
 Some example configurations are provided with the source package. For detailed
 explanations please read the README file. If you installed thinkfan from a
@@ -43,8 +52,8 @@ Show a short help message
 Maximum seconds between temperature updates (default: 5)
 .TP
 \fB\-b\fR
-Floating point number (0 ~ 20) to control rising temperature exaggeration (see
-README for why this is needed). Default 5.0
+Floating point number (-10 to 30) to control rising temperature exaggeration (see
+README for details). Default is 15.0
 .TP
 \fB\-c\fR
 Load different configuration file (default: /etc/thinkfan.conf)
@@ -65,7 +74,13 @@ floating-point argument (0-10s) as depulsing duration. Default 0.5s.
 .TP
 \fB\-D\fR
 DANGEROUS mode: Disable all sanity checks. May damage your hardware!!
+.SH SEE ALSO
+git://thinkfan.git.sourceforge.net/gitroot/thinkfan/thinkfan
+(may be rebased every now and then, so let me know if you write larger
+patches)
 .SH BUGS
 If you have any problems with thinkfan, please go to the help forum at sf.net:
-http://sourceforge.net/projects/thinkfan/forums/forum/905019
+http://sourceforge.net/projects/thinkfan/forums/forum/905019.
+There's a bugtracker at
+http://sourceforge.net/tracker/?group_id=249872&atid=2416828.
 
