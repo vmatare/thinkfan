@@ -311,7 +311,10 @@ char *parse_quotation(char **input, const char *mark) {
 	int oldlc = line_count;
 
 	start = *input;
-	if (!char_alt(input, mark, 0)) return NULL;
+	if (!char_alt(input, mark, 0)) {
+		*input = start;
+		return NULL;
+	}
 	ret = char_cat(input, mark, 1);
 	if (!ret) {
 		ret = malloc(sizeof(char));
@@ -321,6 +324,7 @@ char *parse_quotation(char **input, const char *mark) {
 		free(ret);
 		ret = NULL;
 		line_count = oldlc;
+		*input = start;
 	}
 	return ret;
 }
