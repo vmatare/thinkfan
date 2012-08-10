@@ -109,6 +109,7 @@ int get_temps_ibm() {
  * Set fan speed (IBM interface).
  ***********************************************************/
 void setfan_ibm() {
+	char *cur_lvl = config->limits[lvl_idx].level;
 	int ibm_fan, l = strlen(cur_lvl);
 
 	if (unlikely((ibm_fan = open(IBM_FAN, O_RDWR, O_TRUNC)) < 0)) {
@@ -249,6 +250,7 @@ int get_temps_sysfs() {
  * Set fan speed (sysfs interface).
  ***********************************************************/
 void setfan_sysfs() {
+	char *cur_lvl = config->limits[lvl_idx].sysfslevel;
 	int fan, l = strlen(cur_lvl);
 
 	if (unlikely((fan = open(config->fan, O_WRONLY)) < 0)) {
@@ -322,7 +324,6 @@ void init_fan_sysfs() {
 
 	if ((fd = open(fan_enable, O_WRONLY)) < 0) {
 		report(LOG_ERR, LOG_ERR, "%s: %s\n", fan_enable, strerror(errno));
-		free(fan_enable);
 		errcnt |= ERR_FAN_INIT;
 		goto fail;
 	}

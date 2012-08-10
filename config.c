@@ -183,7 +183,7 @@ struct tf_config *readconfig(char* fname) {
 		cfg_local->uninit_fan = uninit_fan_ibm;
 	}
 
-	cur_lvl = cfg_local->limits[cfg_local->num_limits - 1].level;
+	lvl_idx = cfg_local->num_limits - 1;
 
 	// configure sensor interface
 	if (cfg_local->num_sensors > 0 &&
@@ -310,6 +310,8 @@ static int add_limit(struct tf_config *cfg, struct limit *limit) {
 	long int tmp;
 	char *end, *conv_lvl;
 
+	limit->sysfslevel = NULL;
+
 	// Check formatting of level string...
 	tmp = strtol(limit->level, &end, 0);
 	if (tmp < INT_MIN || tmp > INT_MAX) {
@@ -324,13 +326,13 @@ static int add_limit(struct tf_config *cfg, struct limit *limit) {
 	}
 	else if (*end == 0) {
 		// just a number
+		limit->sysfslevel = limit->level;
 		conv_lvl = calloc(7 + strlen(limit->level), sizeof(char));
 		snprintf(conv_lvl, 7 + strlen(limit->level), "level %d", (int)tmp);
-		free(limit->level);
 		limit->level = conv_lvl;
 		limit->nlevel = (int)tmp;
 	}
-	else if (sscanf(limit->level, "level %d", (int * )&tmp)) {
+	else if (sscanf(limit->level, "level %d", (int *)&tmp)) {
 		limit->nlevel = (int)tmp;
 	}
 	else if (!strcmp(limit->level, "level disengaged")
@@ -403,6 +405,7 @@ void free_config(struct tf_config *cfg) {
 	}
 	for (j=0; j < cfg->num_limits; j++) {
 		free(cfg->limits[j].level);
+		free(cfg->limits[j].sysfslevel);
 		free(cfg->limits[j].low);
 		free(cfg->limits[j].high);
 	}

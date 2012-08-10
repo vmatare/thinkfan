@@ -65,7 +65,8 @@
 #define unlikely(x)     __builtin_expect((x),0)
 
 struct limit {
-	char *level; // this is written to the fan control file.
+	char *level; // "level x" representation for /proc/acpi/ibm/fan.
+	char *sysfslevel; // numeric representation for /sys/class/hwmon
 	int nlevel;   // A numeric interpretation of the level
 	int *low;   // int array specifying the LOWER limit, terminated by INT_MIN
 	int *high;  // dito for UPPER limit.
@@ -98,7 +99,6 @@ unsigned long int errcnt;
 int *temps, tmax, last_tmax, lvl_idx, *b_tmax, line_count;
 unsigned int chk_sanity, watchdog_timeout, num_temps;
 char *config_file, *prefix, *rbuf,
-	*cur_lvl,
 	errmsg[1024],
 	quiet, nodaemon, resume_is_safe,
 	*oldpwm; // old contents of pwm*_enable, used for uninit_fan()
