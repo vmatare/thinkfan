@@ -88,6 +88,9 @@ struct tf_config {
 	void (*setfan)();
 	void (*init_fan)();
 	void (*uninit_fan)();
+
+	/* Test whether we want to increase fan speed. Points either
+	 * to complex_lvl_up or to simple_lvl_up, depending on config */
 	int (*lvl_up)();
 	int (*lvl_down)();
 	int (*cmp_lvl)();
