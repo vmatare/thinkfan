@@ -210,8 +210,11 @@ void disengage() {
 }
 
 void depulse_and_get_temps() {
-	disengage();
-	config->setfan();
+	int nlevel = config->limits[lvl_idx].nlevel;
+	if (nlevel != 0 && nlevel != INT_MIN && nlevel != INT_MAX) {
+		disengage();
+		config->setfan();
+	}
 	get_temps();
 }
 
