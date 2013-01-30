@@ -105,7 +105,10 @@ int	tempidx; // global index into global temps[] array
 int sensoridx; // separate since one sensor may have multiple temps (ibm)
 int found_temps; // how may temperatures we actually found
 unsigned int watchdog_timeout, num_temps;
-char quiet, nodaemon, resume_is_safe, chk_sanity, dnd_disk;
+char quiet, nodaemon, resume_is_safe, chk_sanity;
+#ifdef USE_ATASMART
+char dnd_disk;
+#endif
 char *config_file, *prefix, *rbuf,
 	*cur_lvl,
 	*oldpwm; // old contents of pwm*_enable, used for uninit_fan()
