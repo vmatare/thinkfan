@@ -158,7 +158,7 @@ int fancontrol() {
 			}
 			else {
 				if (bias > -0.5) bias = 0;
-				else bias -= bias/2 * bias_level;
+				else bias += bias/2 * bias_level;
 			}
 		}
 	}
