@@ -99,16 +99,19 @@ experimentation to get a suitable config for your system.
 (2.1) Build
 -----------
 You can use ccmake to choose build options interactively:
-# ccmake .
+
+ ccmake .
 
 Or set your build options from the command line. E.g. to configure a debug
 build with support for libatasmart:
-# cmake -D USE_ATASMART:BOOL=ON -D CMAKE_BUILD_TYPE:STRING=Debug .
+
+ cmake -D USE_ATASMART:BOOL=ON -D CMAKE_BUILD_TYPE:STRING=Debug .
 
 Use CMAKE_BUILD_TYPE:STRING="" to get an optimized build without debug
 symbols. This is the default.
 To compile simply run:
-# cmake --build .
+
+ cmake --build .
 
 CMake should also provide you with a "make install" target, which defaults to
 a /usr/local prefix.
@@ -148,14 +151,14 @@ custom options.
 Then you might want to check out which fan levels your fan controller
 supports by doing something like this:
 
-for i in 0 1 2 3 4 5 6 7; do
-	echo "level $i" > /proc/acpi/ibm/fan
-	echo "level $i..."
-	sleep 6
-	cat /proc/acpi/ibm/fan | egrep "^speed"
-	echo
-done
-echo "level auto" > /proc/acpi/ibm/fan
+ for i in 0 1 2 3 4 5 6 7; do
+    echo "level $i" > /proc/acpi/ibm/fan
+    echo "level $i..."
+    sleep 6
+    cat /proc/acpi/ibm/fan | egrep "^speed"
+    echo
+ done
+ echo "level auto" > /proc/acpi/ibm/fan
 
 Now you have to choose whether you want to use complex or simple temperature
 limits. I recommend using complex limits, since that gives you more control.
@@ -173,7 +176,8 @@ you use complex temperature limits, your limits need have that same length.
 On all systems other than IBM/Lenovo Thinkpads, you need to provide thinkfan
 with the path(s) of all sysfs temperature sensor files you want to use. You
 may find them by doing something like this:
-# find -L /sys/class/hwmon -maxdepth 5 -name "temp*_input" \
+
+ find -L /sys/class/hwmon -maxdepth 5 -name "temp*_input" \
        -print -exec cat \{\} \; 2>/dev/null
 
 Now put all file names into the config file that give you a sensible
@@ -182,13 +186,14 @@ sensor /sys/class/hwmon/hwmon3/device/temp10_input
 ...
 
 Next you need to find the PWM control file of your fan:
-# find -L /sys/class/hwmon -maxdepth 3 -name "pwm?" \
+
+ find -L /sys/class/hwmon -maxdepth 3 -name "pwm?" \
        -print -exec cat \{\} \; 2>/dev/null
 
 At the moment, thinkfan can control only one fan. Support for multiple fans
 may be added in a later release. Put your PWM control file on a "fan" line
 like so:
-fan /sys/class/hwmon/hwmon3/device/pwm1
+pwm_fan /sys/class/hwmon/hwmon3/device/pwm1
 
 You'll want to try out the behaviour of your PWM controller by echo'ing some
 numbers from 0 to 255 to your PWM file and then checking the fan RPM in
@@ -310,7 +315,8 @@ time, so with the -p option, the default sleep time is actually 5.5 seconds.
 -------------
 Send a SIGHUP to make thinkfan reload its config file and reinitialize fan
 control:
-# kill -HUP $(</var/run/thinkfan.pid)
+
+ kill -HUP $(</var/run/thinkfan.pid)
 
 SIGINT and SIGTERM are caught to make for a clean exit.
 
