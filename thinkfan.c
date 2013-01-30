@@ -93,7 +93,7 @@ void get_temps() {
  ***********************************************************/
 int fancontrol() {
 	float bias=0;
-	int diff=0, i;
+	int diff=0, i, last_errcnt = 0;
 	int wt = watchdog_timeout;
 
 	tmp_sleeptime = sleeptime;
@@ -160,6 +160,12 @@ int fancontrol() {
 				if (bias > -0.5) bias = 0;
 				else bias += bias/2 * bias_level;
 			}
+		}
+		if (unlikely(!chk_sanity)) {
+			// In DANGEROUS mode, we exit only after MAXERR consecutive errors.
+			if (unlikely(errcnt)) last_errcnt++;
+			else last_errcnt = 0;
+			if (likely(last_errcnt <= MAXERR)) errcnt = 0;
 		}
 	}
 	return errcnt;

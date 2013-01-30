@@ -59,6 +59,10 @@
 #define IBM_FAN "/tmp/fan"
 #endif //DUMMYRUN
 
+#ifndef MAXERR
+#define MAXERR 2
+#endif
+
 // Stolen from the gurus
 #define likely(x)       __builtin_expect((x),1)
 #define unlikely(x)     __builtin_expect((x),0)
