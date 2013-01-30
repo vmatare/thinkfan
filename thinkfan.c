@@ -215,7 +215,14 @@ int main(int argc, char **argv) {
 	temps = NULL;
 	cur_lvl = NULL;
 	tempidx = 0;
+
+	char *optstring = "c:s:b:p::hnqDz"
+#ifdef USE_ATASMART
+			"d";
 	dnd_disk = FALSE;
+#else
+	;
+#endif
 
 	openlog("thinkfan", LOG_CONS, LOG_USER);
 	syslog(LOG_INFO, "thinkfan " VERSION " starting...");
@@ -227,12 +234,17 @@ int main(int argc, char **argv) {
 	 || sigaction(SIGINT, &handler, NULL) \
 	 || sigaction(SIGTERM, &handler, NULL)) perror("sigaction");
 
-	while ((opt = getopt(argc, argv, "c:s:b:p::hnqDzd")) != -1) {
+	while ((opt = getopt(argc, argv, optstring)) != -1) {
 		switch(opt) {
 		case 'h':
 			fprintf(stderr, MSG_USAGE);
 			return 0;
 			break;
+#ifdef USE_ATASMART
+		case 'd':
+			dnd_disk = TRUE;
+			break;
+#endif
 		case 'n':
 			nodaemon = 1;
 			break;
