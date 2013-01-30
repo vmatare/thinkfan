@@ -16,7 +16,7 @@ Which may be provided by any hwmon drivers, and
 .IP "\fIS.M.A.R.T.\fR (since 0.9)"
 Which reads the temperature directly from the hard disk using libatasmart.
 .P
-Note that sice 0.9 you can use any sensors of these three types at the same
+Note that since 0.9 you can use any sensors of these three types at the same
 time. To allow that, the configuration \fBkeywords\fR have been \fBchanged\fR. The
 \fIsensor\fR keyword has been deprecated in favor of the new keywords
 \fItp_thermal\fR, \fIhwmon\fR and \fIatasmart\fR which mark the following path
@@ -66,8 +66,9 @@ Maximum seconds between temperature updates (default: 5)
 .TP
 \fB\-b\fR BIAS
 Floating point number (-10 to 30) to control rising temperature exaggeration.
-This number is used to calculate a bias, which is added to the current highest
-temperature seen in the system:
+If the temperature increases by more than 2 °C during one cycle, this number
+is used to calculate a bias, which is added to the current highest temperature
+seen in the system:
 
  current_tmax = current_tmax + delta_t * BIAS / 10
 
@@ -95,6 +96,12 @@ interface (see README!)
 \fB\-p\fR [SECONDS]
 Use the pulsing-fan workaround (for older Thinkpads). Takes an optional
 floating-point argument (0-10s) as depulsing duration. Default 0.5s.
+.TP
+\fB\-d\fR
+Do not read temperature from sleeping disks. Instead, 0 °C is used as that
+disk's temperature. This is needed if reading the temperature causes your
+disk to wake up unnecessarily.
+\fBNote\fR: This option is only available if thinkfan was built with -D USE_ATASMART.
 .TP
 \fB\-D\fR
 DANGEROUS mode: Disable all sanity checks. May damage your hardware!!
