@@ -84,8 +84,7 @@ void report(int nlevel, int dlevel, char *format, ...);
 #define MSG_WRN_SENSOR_DEPRECATED "WARNING: The `sensor' keyword is deprecat" \
 	"ed. Please use the `hwmon' or `tp_thermal' keywords instead!\n"
 #define MSG_WRN_FAN_DEPRECATED "WARNING: Guessing the fan type from the path" \
-	" argument to the `fan' keyword is deprecated. Please use `tp_fan' or" \
-	" `pwm_fan' to make things clear.\n"
+	" is deprecated. Please use `tp_fan' or `pwm_fan' to make things clear.\n"
 
 #define MSG_ERR_T_GET "%s: Error getting temperature.\n", __func__
 #define MSG_ERR_T_GARBAGE "%s: Trailing garbage after temperature!\n"

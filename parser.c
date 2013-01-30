@@ -325,10 +325,16 @@ static struct sensor *parse_tempinput(char **input, const char *keyword) {
 
 struct sensor *parse_sensor(char **input) {
 	struct sensor *rv;
+	char *start = *input;
 	if ((rv = parse_tempinput(input, sensor_keyword))) {
+		prefix = "\n";
+		char *line = calloc(strchr(start, '\n') - start + 1, sizeof(char));
+		strncpy(line, start, strchr(start, '\n') - start);
+		report(LOG_WARNING, LOG_WARNING, MSG_FILE_HDR(config_file, line));
 		report(LOG_WARNING, LOG_WARNING, MSG_WRN_SENSOR_DEPRECATED);
 		if (!strcmp(rv->path, IBM_TEMP)) rv->get_temp = get_temp_ibm;
 		else rv->get_temp = get_temp_sysfs;
+		free(line);
 	}
 	else if ((rv = parse_tempinput(input, tp_thermal_keyword)))
 		rv->get_temp = get_temp_ibm;
@@ -357,6 +363,7 @@ char *parse_quotation(char **input, const char *mark) {
 		free(ret);
 		ret = NULL;
 		line_count = oldlc;
+		*input = start;
 	}
 	return ret;
 }

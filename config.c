@@ -94,12 +94,14 @@ struct tf_config *readconfig(char* fname) {
 			else err = add_ibmfan(cfg_local, (char *)ret);
 
 			if (err) {
+				prefix = "\n";
 				report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
 				report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_FAN);
 				if (chk_sanity) goto fail;
 			}
 
 			// guessing the fan type from the path is deprecated...
+			prefix = "\n";
 			report(LOG_WARNING, LOG_NOTICE, MSG_FILE_HDR(fname, s_input));
 			report(LOG_WARNING, LOG_NOTICE, MSG_WRN_FAN_DEPRECATED);
 		}
@@ -107,6 +109,7 @@ struct tf_config *readconfig(char* fname) {
 			skip_blankline(&input);
 			*(input-sizeof(char)) = 0;
 			if (add_ibmfan(cfg_local, (char *)ret)) {
+				prefix = "\n";
 				report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
 				report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_FAN);
 				if (chk_sanity) goto fail;
@@ -116,6 +119,7 @@ struct tf_config *readconfig(char* fname) {
 			skip_blankline(&input);
 			*(input-sizeof(char)) = 0;
 			if (add_pwmfan(cfg_local, (char *)ret)) {
+				prefix = "\n";
 				report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
 				report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_FAN);
 				if (chk_sanity) goto fail;
@@ -126,41 +130,48 @@ struct tf_config *readconfig(char* fname) {
 			*(input-sizeof(char)) = 0;
 			if ((err = add_limit(cfg_local, (struct limit *) ret))) {
 				if (err & ERR_CONF_LOWHIGH) {
+					prefix = "\n";
 					report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
 					report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_LOWHIGH);
 					err ^= ERR_CONF_LOWHIGH;
 					if (chk_sanity) goto fail;
 				}
 				if (err & ERR_CONF_LVLORDER) {
+					prefix = "\n";
 					report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
 					report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_LVLORDER);
 					err ^= ERR_CONF_LVLORDER;
 					if (chk_sanity) goto fail;
 				}
 				if (err & ERR_CONF_OVERLAP) {
+					prefix = "\n";
 					report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
 					report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_OVERLAP);
 					err ^= ERR_CONF_OVERLAP;
 					if (chk_sanity) goto fail;
 				}
 				if (err & ERR_CONF_LVL0) {
+					prefix = "\n";
 					report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
 					report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_LVL0);
 					err ^= ERR_CONF_LVL0;
 					if (chk_sanity) goto fail;
 				}
 				if (err & WRN_CONF_INTMIN_LVL) {
+					prefix = "\n";
 					report(LOG_WARNING, LOG_INFO, MSG_FILE_HDR(fname, s_input));
 					report(LOG_WARNING, LOG_INFO, MSG_WRN_LVL_DISENGAGED);
 					err ^= WRN_CONF_INTMIN_LVL;
 				}
 				if (err & ERR_CONF_LVLFORMAT) {
+					prefix = "\n";
 					report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
 					report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_LVLFORMAT);
 					err ^= ERR_CONF_LVLFORMAT;
 					if (chk_sanity) goto fail;
 				}
 				if (err & ERR_CONF_LIMITLEN) {
+					prefix = "\n";
 					report(LOG_ERR, LOG_ERR, MSG_FILE_HDR(fname, s_input));
 					report(LOG_ERR, LOG_ERR, MSG_ERR_LIMITLEN);
 					err ^= ERR_CONF_LIMITLEN;
@@ -178,18 +189,21 @@ struct tf_config *readconfig(char* fname) {
 		else {
 			skip_line(&input);
 			*(input-sizeof(char)) = 0;
+			prefix = "\n";
 			report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
 			report(LOG_ERR, LOG_WARNING, MSG_ERR_CONF_PARSE);
 			if(chk_sanity) goto fail;
 		}
 	}
 	if (cfg_local->num_limits <= 0) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, MSG_ERR_CONF_NOFAN);
 		goto fail;
 	}
 
 	// configure fan interface
 	if (cfg_local->fan == NULL) {
+		prefix = "\n";
 		report(LOG_WARNING, LOG_NOTICE, MSG_WRN_FAN_DEFAULT);
 		cfg_local->fan = (char *) calloc(strlen(IBM_FAN)+1, sizeof(char));
 		strcpy(cfg_local->fan, IBM_FAN);
@@ -206,6 +220,7 @@ struct tf_config *readconfig(char* fname) {
 
 	// configure sensor interface
 	if (cfg_local->num_sensors == 0) {
+		prefix = "\n";
 		report(LOG_WARNING, LOG_NOTICE, MSG_WRN_SENSOR_DEFAULT);
 		cfg_local->sensors = malloc(sizeof(struct sensor));
 		cfg_local->sensors = memset(cfg_local->sensors, 0,
@@ -240,10 +255,13 @@ struct tf_config *readconfig(char* fname) {
 		cfg_local->used_temps = found_temps;
 	}
 	else {
-		if (cfg_local->limit_len < num_temps)
+		if (cfg_local->limit_len < num_temps) {
+			prefix = "\n";
 			report(LOG_WARNING, LOG_INFO, MSG_WRN_NUM_TEMPS(
 					num_temps, cfg_local->limit_len));
+		}
 		if (cfg_local->limit_len > num_temps) {
+			prefix = "\n";
 			report(LOG_ERR, LOG_ERR, MSG_ERR_LONG_LIMIT);
 			goto fail;
 		}
@@ -261,6 +279,7 @@ struct tf_config *readconfig(char* fname) {
 		}
 
 		if (found_temps < cfg_local->used_temps) {
+			prefix = "\n";
 			report(LOG_ERR, LOG_WARNING, MSG_ERR_TEMP_COUNT,
 					cfg_local->used_temps, found_temps);
 			if (chk_sanity) goto fail;
@@ -275,6 +294,7 @@ struct tf_config *readconfig(char* fname) {
 			for (j=0; j < 16; j++)
 				if (cfg_local->sensors[i]
 				                       .bias[j] != 0) goto done;
+		prefix = "\n";
 		report(LOG_WARNING, LOG_NOTICE, MSG_WRN_CONF_NOBIAS(
 				cfg_local->limits[0].high[0]));
 	}
@@ -309,6 +329,7 @@ static int add_pwmfan(struct tf_config *cfg, char *path) {
 			cfg->setfan = setfan_sysfs;
 		else {
 			cfg->setfan = setfan_sysfs_safe;
+			prefix = "\n";
 			report(LOG_WARNING, LOG_WARNING, MSG_WRN_SYSFS_SAFE);
 		}
 		cfg->init_fan = init_fan_sysfs_once;
@@ -331,6 +352,7 @@ static int add_sensor(struct tf_config *cfg, struct sensor *sensor) {
 	struct tf_config *cfg_save;
 	if (!(cfg->sensors = (struct sensor *) realloc(cfg->sensors,
 			(cfg->num_sensors+1) * sizeof(struct sensor)))) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, "Allocating memory for config: %s",
 				strerror(errno));
 		free(sensor);
@@ -345,6 +367,7 @@ static int add_sensor(struct tf_config *cfg, struct sensor *sensor) {
 		num_temps += count_temps_ibm();
 		config = cfg_save;
 		if (errcnt & ERR_T_GET) {
+			prefix = "\n";
 			report(LOG_ERR, LOG_ERR, MSG_ERR_T_GET);
 			return ERR_T_GET;
 		}
@@ -430,6 +453,7 @@ static int add_limit(struct tf_config *cfg, struct limit *limit) {
 	// ... and FINALLY do what we came for
 	if (!(cfg->limits = (struct limit *) realloc(cfg->limits,
 			sizeof(struct limit) * (cfg->num_limits + 1)))) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, "Allocating memory for config: %s",
 				strerror(errno));
 		rv |= ERR_MALLOC;
