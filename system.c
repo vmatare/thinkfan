@@ -90,7 +90,6 @@ void get_temp_ibm() {
 	char *s_input;
 	sensor_file_ibm
 
-	prefix = "\n";
 	skip_space(&input);
 	if (likely(parse_keyword(&input, temperatures) != NULL)) {
 		tmax = -128;
@@ -104,11 +103,13 @@ void get_temp_ibm() {
 		}
 
 		if (unlikely(tempidx < 2)) {
+			prefix = "\n";
 			report(LOG_ERR, LOG_ERR, MSG_ERR_T_GET);
 			errcnt |= ERR_T_GET;
 		}
 	}
 	else {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, MSG_ERR_T_PARSE(rbuf));
 		errcnt |= ERR_T_GET;
 	}
@@ -120,13 +121,14 @@ void get_temp_ibm() {
 void setfan_ibm() {
 	int ibm_fan, l = strlen(cur_lvl);
 
-	prefix = "\n";
 	if (unlikely((ibm_fan = open(IBM_FAN, O_RDWR, O_TRUNC)) < 0)) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, IBM_FAN ": %s\n", strerror(errno));
 		errcnt |= ERR_FAN_SET;
 	}
 	else {
 		if (unlikely(write(ibm_fan, cur_lvl, l) < l)) {
+			prefix = "\n";
 			report(LOG_ERR, LOG_ERR, MSG_ERR_FANCTRL);
 			errcnt |= ERR_FAN_SET;
 		}
@@ -144,8 +146,8 @@ void init_fan_ibm() {
 	FILE *ibm_fan;
 	int module_valid=0;
 
-	prefix = "\n";
 	if ((ibm_fan = fopen(IBM_FAN, "r+")) == NULL) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, IBM_FAN ": %s\n"
 				MSG_ERR_FANFILE_IBM, strerror(errno));
 		errcnt |= ERR_FAN_SET;
@@ -154,6 +156,7 @@ void init_fan_ibm() {
 	while (getline(&line, &count, ibm_fan) != -1)
 		if (!strncmp("commands:", line, 9)) module_valid = 1;
 	if (!module_valid) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, MSG_ERR_MODOPTS);
 		errcnt |= ERR_FAN_SET;
 	}
@@ -168,8 +171,8 @@ void init_fan_ibm() {
 void uninit_fan_ibm() {
 	FILE *fan;
 
-	prefix = "\n";
 	if ((fan = fopen(IBM_FAN, "r+")) == NULL) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, IBM_FAN ": %s\n", strerror(errno));
 		errcnt |= ERR_FAN_SET;
 	}
@@ -185,20 +188,22 @@ void uninit_fan_ibm() {
  ****************************************************************/
 void disengage() {
 	int ibm_fan;
-	prefix = "\n";
 	if (unlikely((ibm_fan = open(IBM_FAN, O_RDWR)) < 0)) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, IBM_FAN ": %s\n", strerror(errno));
 		errcnt |= ERR_FAN_SET;
 		return;
 	}
 	else {
 		if (write(ibm_fan, "level disengaged", 16) < 16) {
+			prefix = "\n";
 			report(LOG_ERR, LOG_ERR, IBM_FAN ": %s\n", strerror(errno));
 			errcnt |= ERR_FAN_SET;
 		}
 		close(ibm_fan);
 	}
 	if (usleep(depulse)) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, "nanosleep(): %s\n", strerror(errno));
 		errcnt |= ERR_FAN_SET;
 	}
@@ -219,10 +224,10 @@ void get_temp_sysfs() {
 	char buf[8];
 	char *input = buf, *end;
 
-	prefix = "\n";
 	if (unlikely((fd = open(config->sensors[sensoridx].path, O_RDONLY)) == -1
 			|| (num = read(fd, &buf, 7)) == -1
 			|| close(fd) < 0)) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, "%s: %s\n", config->sensors[sensoridx].path,
 				strerror(errno));
 		errcnt |= ERR_T_GET;
@@ -230,11 +235,13 @@ void get_temp_sysfs() {
 	}
 	tmp = strtol(input, &end, 0);
 	if (unlikely(*end != 0 && *end != '\n')) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_WARNING, MSG_ERR_T_GARBAGE,
 				config->sensors[sensoridx].path);
 		if (chk_sanity) errcnt |= ERR_T_GET;
 	}
 	if (unlikely(tmp < INT_MIN || tmp > INT_MAX)) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, MSG_ERR_T_INVALID,
 				config->sensors[sensoridx].path, tmp);
 		errcnt |= ERR_T_GET;
@@ -250,11 +257,13 @@ void setfan_sysfs() {
 	int fan, l = strlen(cur_lvl);
 
 	if (unlikely((fan = open(config->fan, O_WRONLY)) < 0)) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, "%s: %s\n", config->fan, strerror(errno));
 		errcnt++;
 	}
 	else {
 		if (unlikely(write(fan, cur_lvl, l) < l)) {
+			prefix = "\n";
 			report(LOG_ERR, LOG_ERR, MSG_ERR_FANCTRL);
 			errcnt++;
 		}
@@ -291,14 +300,17 @@ void preinit_fan_sysfs() {
 	strcat(fan_enable, "_enable");
 
 	if ((fan = fopen(fan_enable, "r")) == NULL) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, "%s: %s\n", fan_enable, strerror(errno));
 		free(fan_enable);
 		errcnt |= ERR_FAN_INIT;
 	}
 	else {
 		if ((r = getline(&oldpwm, &s, fan)) < 2)
+			prefix = "\n";
 			report(LOG_ERR, LOG_ERR, "%s: %s\n", fan_enable, strerror(errno));
 		if (r < 2) {
+			prefix = "\n";
 			report(LOG_ERR, LOG_ERR, MSG_ERR_FAN_INIT);
 			errcnt |= ERR_FAN_INIT;
 		}
@@ -319,14 +331,17 @@ void init_fan_sysfs() {
 	strcat(fan_enable, "_enable");
 
 	if ((fd = open(fan_enable, O_WRONLY)) < 0) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, "%s: %s\n", fan_enable, strerror(errno));
 		free(fan_enable);
 		errcnt |= ERR_FAN_INIT;
 		goto fail;
 	}
 	if ((r = write(fd, "1\n", 2)) < 2)
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, "%s: %s\n", fan_enable, strerror(errno));
 	if (r < 2) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, MSG_ERR_FAN_INIT);
 		errcnt |= ERR_FAN_INIT;
 	}
@@ -343,6 +358,7 @@ void uninit_fan_sysfs() {
 
 	if (oldpwm) {
 		if ((fan = fopen(config->fan, "r+")) == NULL) {
+			prefix = "\n";
 			report(LOG_ERR, LOG_ERR, "%s: %s\n", config->fan, strerror(errno));
 			errcnt++;
 		}
@@ -369,6 +385,7 @@ void get_temp_atasmart() {
 	int ret, i = 0;
 
 	if (unlikely((ret = sk_disk_open(config->sensors[sensoridx].path, &disk)) < 0)) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, "sk_disk_open(%s): %s\n",
 				config->sensors[sensoridx].path, strerror(errno));
 		errcnt |= ERR_T_GET;
@@ -376,6 +393,7 @@ void get_temp_atasmart() {
 	}
 	if (unlikely(dnd_disk)) {
 		if (unlikely((ret = sk_disk_check_sleep_mode(disk, &diskSleeping)) < 0)) {
+			prefix = "\n";
 			report(LOG_ERR, LOG_ERR, "sk_disk_open(%s): %s\n",
 					config->sensors[sensoridx].path, strerror(errno));
 			errcnt |= ERR_T_GET;
@@ -388,12 +406,14 @@ void get_temp_atasmart() {
 		}
 	}
 	if (unlikely((ret = sk_disk_smart_read_data(disk)) < 0)) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, "sk_disk_smart_read_data(%s): %s\n",
 				config->sensors[sensoridx].path, strerror(errno));
 		errcnt |= ERR_T_GET;
 		goto end;
 	}
 	if (unlikely((ret = sk_disk_smart_get_temperature(disk, &mKelvin)) < 0)) {
+		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, "sk_disk_smart_get_temperature(%s): %s\n",
 				config->sensors[sensoridx].path, strerror(errno));
 		errcnt |= ERR_T_GET;
