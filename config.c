@@ -212,6 +212,19 @@ struct tf_config *readconfig(char* fname) {
 	if (depulse) cfg_local->get_temps = depulse_and_get_temps;
 	else cfg_local->get_temps = get_temps;
 
+	// Store correct level string if using /proc/acpi/ibm
+	if (cfg_local->setfan == setfan_ibm) {
+		for (i = 0; i < cfg_local->num_limits; i++) {
+			if (cfg_local->limits[i].nlevel != INT_MIN) {
+				char *conv_lvl = calloc(7 + strlen(cfg_local->limits[i].level), sizeof(char));
+				snprintf(conv_lvl, 7 + strlen(cfg_local->limits[i].level),
+						"level %d", cfg_local->limits[i].nlevel);
+				free(cfg_local->limits[i].level);
+				cfg_local->limits[i].level = conv_lvl;
+			}
+		}
+	}
+
 	// configure sensor interface
 	if (cfg_local->num_sensors == 0) {
 		prefix = "\n";
@@ -326,6 +339,7 @@ static int add_pwmfan(struct tf_config *cfg, char *path) {
 			prefix = "\n";
 			report(LOG_WARNING, LOG_WARNING, MSG_WRN_SYSFS_SAFE);
 		}
+		cfg->fan = path;
 		cfg->init_fan = init_fan_sysfs_once;
 		cfg->uninit_fan = uninit_fan_sysfs;
 		return 0;
@@ -384,15 +398,7 @@ static int add_limit(struct tf_config *cfg, struct limit *limit) {
 	if (tmp < INT_MIN || tmp > INT_MAX) {
 		rv |= ERR_CONF_LVLFORMAT;
 	}
-	else if (*end == 0) {
-		// just a number
-		conv_lvl = calloc(7 + strlen(limit->level), sizeof(char));
-		snprintf(conv_lvl, 7 + strlen(limit->level), "level %d", (int)tmp);
-		free(limit->level);
-		limit->level = conv_lvl;
-		limit->nlevel = (int)tmp;
-	}
-	else if (sscanf(limit->level, "level %d", (int *)&tmp)) {
+	else if (*end == 0 || sscanf(limit->level, "level %d", (int *)&tmp)) {
 		limit->nlevel = (int)tmp;
 	}
 	else if (!strcmp(limit->level, "level disengaged")
@@ -402,7 +408,7 @@ static int add_limit(struct tf_config *cfg, struct limit *limit) {
 	else {
 		// something broken
 		rv |= ERR_CONF_LVLFORMAT;
-		limit->nlevel = INT_MAX;
+		limit->nlevel = INT_MIN;
 	}
 
 	// Check length of limits...
