@@ -81,12 +81,12 @@ struct tf_config *readconfig(char* fname) {
 
 		// mostly sanity checking and n00b catering...
 		if ((ret = (void *) parse_sensor(&input))) {
-			skip_blankline(&input);
+			skip_blanklines(&input);
 			*(input-sizeof(char)) = 0;
 			if (add_sensor(cfg_local, (struct sensor *) ret)) goto fail;
 		}
 		else if ((ret = (void *) parse_fan(&input))) {
-			skip_blankline(&input);
+			skip_blanklines(&input);
 			*(input-sizeof(char)) = 0;
 
 			if (strcmp((char *)ret, IBM_FAN))
@@ -106,7 +106,7 @@ struct tf_config *readconfig(char* fname) {
 			report(LOG_WARNING, LOG_NOTICE, MSG_WRN_FAN_DEPRECATED);
 		}
 		else if ((ret = (void *) parse_tpfan(&input))) {
-			skip_blankline(&input);
+			skip_blanklines(&input);
 			*(input-sizeof(char)) = 0;
 			if (add_ibmfan(cfg_local, (char *)ret)) {
 				prefix = "\n";
@@ -116,7 +116,7 @@ struct tf_config *readconfig(char* fname) {
 			}
 		}
 		else if ((ret = (void *) parse_pwmfan(&input))) {
-			skip_blankline(&input);
+			skip_blanklines(&input);
 			*(input-sizeof(char)) = 0;
 			if (add_pwmfan(cfg_local, (char *)ret)) {
 				prefix = "\n";
@@ -126,7 +126,7 @@ struct tf_config *readconfig(char* fname) {
 			}
 		}
 		else if ((ret = (void *) parse_level(&input))) {
-			skip_blankline(&input);
+			skip_blanklines(&input);
 			*(input-sizeof(char)) = 0;
 			if ((err = add_limit(cfg_local, (struct limit *) ret))) {
 				if (err & ERR_CONF_LOWHIGH) {
@@ -175,7 +175,7 @@ struct tf_config *readconfig(char* fname) {
 			else if (err) goto fail;
 		}
 		else if ((ret = (void *) parse_comment(&input))) {
-			skip_blankline(&input);
+			skip_blanklines(&input);
 			*(input-sizeof(char)) = 0;
 			free(ret);
 		}

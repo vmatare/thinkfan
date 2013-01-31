@@ -111,7 +111,7 @@ int *parse_int(char **input) {
 		*rv = (int) l;
 		rv[1] = INT_MIN;
 	}
-	skip_comment(input);
+	skip_comments(input);
 	return rv;
 }
 
@@ -145,9 +145,9 @@ char *parse_comment(char **input) {
 	return tmp;
 }
 
-void skip_comment(char **input) {
-	char *tmp = parse_comment(input);
-	free(tmp);
+void skip_comments(char **input) {
+	char *tmp;
+	while ((tmp = parse_comment(input))) free(tmp);
 }
 
 char *parse_word(char **input) {
@@ -169,14 +169,23 @@ char *parse_blankline(char **input) {
 	return char_alt(input, newline, 0);
 }
 
-void skip_blankline(char **input) {
-	parse_blankline(input);
+void skip_blanklines(char **input) {
+	while (parse_blankline(input));
 }
 
 void skip_line(char **input) {
 	char *tmp = char_cat(input, newline, 1);
-	skip_blankline(input);
+	skip_blanklines(input);
 	free(tmp);
+}
+
+void skip_skippable(char **input) {
+	char *tmp;
+	skip_blanklines(input);
+	while ((tmp = parse_comment(input))) {
+		free(tmp);
+		skip_blanklines(input);
+	}
 }
 
 /* Return the string/quotation following a keyword. */
@@ -190,7 +199,7 @@ char *parse_statement(char **input, const char *keyword) {
 	skip_space(input);
 	if (!(ret = parse_quotation(input, quote)))
 		ret = parse_word(input);
-	skip_comment(input);
+	skip_comments(input);
 done:
 	if (!ret) {
 		line_count = oldlc;
@@ -224,8 +233,8 @@ int *parse_int_tuple(char **input) {
 	int oldlc = line_count;
 
 	if (!skip_parse(input, left_bracket, 0)) goto fail;
-	skip_comment(input);
-	skip_blankline(input);
+	skip_comments(input);
+	skip_blanklines(input);
 	do {
 		if (!(tmp = parse_int(input))) {
 			if (skip_parse(input, period, 0)) {
@@ -237,12 +246,12 @@ int *parse_int_tuple(char **input) {
 		rv = realloc(rv, sizeof(int) * (i+2));
 		rv[i++] = *tmp;
 		free(tmp);
-		skip_comment(input);
-		skip_blankline(input);
+		skip_comments(input);
+		skip_blanklines(input);
 		skip_parse(input, separator, 0);
 	} while(!skip_parse(input, right_bracket, 0));
 	rv[i] = INT_MIN;
-	skip_comment(input);
+	skip_comments(input);
 	return rv;
 
 fail:
@@ -257,8 +266,7 @@ struct limit *parse_level(char **input) {
 	int oldlc = line_count;
 
 	if (!skip_parse(input, left_bracket, 0)) goto fail3;
-	skip_comment(input);
-	skip_blankline(input);
+	skip_skippable(input);
 
 	rv = (struct limit *) malloc (sizeof(struct limit));
 
@@ -268,23 +276,20 @@ struct limit *parse_level(char **input) {
 		goto fail3;
 
 	skip_parse(input, separator, 0);
-	skip_comment(input);
-	skip_blankline(input);
+	skip_skippable(input);
 
 	if (!(rv->low = parse_int_tuple(input))
 			&& !(rv->low = parse_int(input))) goto fail2;
 
 	skip_parse(input, separator, 0);
-	skip_comment(input);
-	skip_blankline(input);
+	skip_skippable(input);
 
 	if(!(rv->high = parse_int_tuple(input))
 			&& !(rv->high = parse_int(input))) goto fail1;
 
-	skip_comment(input);
-	skip_blankline(input);
+	skip_skippable(input);
 	if (!skip_parse(input, right_bracket, 0)) goto fail;
-	skip_comment(input);
+	skip_skippable(input);
 	return rv;
 
 fail:
@@ -319,7 +324,7 @@ static struct sensor *parse_tempinput(char **input, const char *keyword) {
 			rv->bias[i] = tmp[i];
 		}
 	free(tmp);
-	skip_comment(input);
+	skip_comments(input);
 	return rv;
 }
 
