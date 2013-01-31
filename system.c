@@ -305,15 +305,14 @@ void preinit_fan_sysfs() {
 	if ((fan = fopen(fan_enable, "r")) == NULL) {
 		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, "%s: %s\n", fan_enable, strerror(errno));
+		report(LOG_ERR, LOG_ERR, MSG_ERR_FAN_INIT);
 		free(fan_enable);
 		errcnt |= ERR_FAN_INIT;
 	}
 	else {
-		if ((r = getline(&oldpwm, &s, fan)) < 2)
+		if ((r = getline(&oldpwm, &s, fan)) < 2) {
 			prefix = "\n";
 			report(LOG_ERR, LOG_ERR, "%s: %s\n", fan_enable, strerror(errno));
-		if (r < 2) {
-			prefix = "\n";
 			report(LOG_ERR, LOG_ERR, MSG_ERR_FAN_INIT);
 			errcnt |= ERR_FAN_INIT;
 		}
@@ -340,11 +339,9 @@ void init_fan_sysfs() {
 		errcnt |= ERR_FAN_INIT;
 		goto fail;
 	}
-	if ((r = write(fd, "1\n", 2)) < 2)
+	if ((r = write(fd, "1\n", 2)) < 2) {
 		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, "%s: %s\n", fan_enable, strerror(errno));
-	if (r < 2) {
-		prefix = "\n";
 		report(LOG_ERR, LOG_ERR, MSG_ERR_FAN_INIT);
 		errcnt |= ERR_FAN_INIT;
 	}
@@ -359,10 +356,15 @@ fail:
 void uninit_fan_sysfs() {
 	FILE *fan;
 
+	char *fan_enable = (char *) malloc((strlen(config->fan) + 8) * sizeof(char));
+
+	strcpy(fan_enable, config->fan);
+	strcat(fan_enable, "_enable");
+
 	if (oldpwm) {
-		if ((fan = fopen(config->fan, "r+")) == NULL) {
+		if ((fan = fopen(fan_enable, "r+")) == NULL) {
 			prefix = "\n";
-			report(LOG_ERR, LOG_ERR, "%s: %s\n", config->fan, strerror(errno));
+			report(LOG_ERR, LOG_ERR, "%s: %s\n", fan_enable, strerror(errno));
 			errcnt++;
 		}
 		else {
@@ -370,6 +372,7 @@ void uninit_fan_sysfs() {
 			fclose(fan);
 		}
 		free(oldpwm);
+		free(fan_enable);
 		oldpwm = NULL;
 	}
 }
