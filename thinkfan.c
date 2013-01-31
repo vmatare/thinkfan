@@ -346,6 +346,12 @@ int run() {
 
 	prefix = "\n";
 
+	if (chk_sanity && ((pidfile = fopen(PID_FILE, "r")) != NULL)) {
+		fclose(pidfile);
+		report(LOG_ERR, LOG_WARNING, MSG_ERR_RUNNING);
+		if (chk_sanity) return ERR_PIDFILE;
+	}
+
 	if ((config = readconfig(config_file)) == NULL) {
 		report(LOG_ERR, LOG_ERR, MSG_ERR_CONF_NOFILE);
 		return ERR_CONF_NOFILE;
@@ -353,13 +359,8 @@ int run() {
 
 	config->init_fan();
 	get_temps();
-	if (errcnt) return errcnt;
-
-	if (chk_sanity && ((pidfile = fopen(PID_FILE, "r")) != NULL)) {
-		fclose(pidfile);
-		report(LOG_ERR, LOG_WARNING, MSG_ERR_RUNNING);
-		if (chk_sanity) return ERR_PIDFILE;
-	}
+	ret |= errcnt;
+	if (errcnt) goto cleanexit;
 
 	if (depulse) report(LOG_INFO, LOG_DEBUG, MSG_INF_DEPULSE(sleeptime, depulse_tmp));
 
@@ -372,13 +373,15 @@ int run() {
 		}
 		if (childpid < 0) {
 			perror("fork()");
-			return ERR_FORK;
+			ret |= ERR_FORK;
+			goto cleanexit;
 		}
 	}
 
 	if ((pidfile = fopen(PID_FILE, "w+")) == NULL && chk_sanity) {
 		report(LOG_ERR, LOG_WARNING, PID_FILE ": %s", strerror(errno));
-		return ERR_PIDFILE;
+		ret |= ERR_PIDFILE;
+		goto cleanexit;
 	}
 	fprintf(pidfile, "%d\n", getpid());
 	fclose(pidfile);
@@ -400,6 +403,7 @@ int run() {
 		}
 	}
 
+cleanexit:
 	report(LOG_WARNING, LOG_INFO, MSG_INF_TERM);
 	config->uninit_fan();
 
