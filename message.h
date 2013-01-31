@@ -38,7 +38,7 @@ void report(int nlevel, int dlevel, char *format, ...);
  "\n -b  Floating point number (-10 to 30) to control rising temperature" \
  "\n     exaggeration (see README). Default: 5.0" \
  "\n -c  Load different configuration file (default: /etc/thinkfan.conf)" \
- "\n -n  Do not become a daemon and log to terminal" \
+ "\n -n  Do not become a daemon and log to terminal instead of syslog" \
  "\n -q  Be quiet (report only important events)" \
  "\n -z  Assume we don't have to worry about resuming when using the sysfs" \
  "\n     interface (see README!)" \
