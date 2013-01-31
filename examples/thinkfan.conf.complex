@@ -1,63 +1,82 @@
 ######################################################################
-# thinkfan 0.8 example config file
-# ================================
-#
-# ATTENTION: There is only very basic sanity checking on the configuration.
-# That means you can set your temperature limits as insane as you like. You
-# can do anything stupid, e.g. turn off your fan when your CPU reaches 70°C.
-#
-# That's why this program is called thinkfan: You gotta THINK about your FAN!
-#
-######################################################################
-#
-# This file shows how to use sensor-specific temperature limits.
-# First of all, you need to specify temperature inputs. On a Thinkpad, you can
-# just use:
-#
-sensor /proc/acpi/ibm/thermal  # provides us with 16 temperature inputs
+## thinkfan 0.9 example config file
+## ================================
+##
+## ATTENTION: There is only very basic sanity checking on the configuration.
+## That means you can set your temperature limits as insane as you like. You
+## can do anything stupid, e.g. turn off your fan when your CPU reaches 70°C.
+##
+## That's why this program is called thinkfan: You gotta think for yourself.
+##
+#######################################################################
+##
+## This file shows how to use sensor-specific temperature limits.
+## First of all, you need to specify temperature inputs. On a Thinkpad, you can
+## just use:
+##
+tp_thermal /proc/acpi/ibm/thermal  # provides us with 16 temperature inputs
 
+##
+## On other systems, you have to specify a file in /sys/class/hwmon for each
+## sensor you want to use. They are numbered in their order of appearance.
+## For example:
 #
-# On other systems, you have to specify a file in /sys/class/hwmon for each
-# sensor you want to use. They are numbered in their order of appearance.
-# For example:
-# sensor /sys/class/hwmon5/temp2_input           #1
-# sensor /sys/class/hwmon0/device/temp3_input    #2
+# hwmon /sys/class/hwmon5/temp2_input           #1
+# hwmon /sys/class/hwmon0/device/temp3_input    #2
+#
+## If you want to read temperatures directly from the hard disk, thinkfan needs
+## to be compiled with -DUSE_ATASMART. Then you can do:
+#
+# atasmart /dev/sda                             #3
 # ...
 #
-
-#
-# Next we specify the fan we want to use. On a Thinkpad, this is:
-#
-fan /proc/acpi/ibm/fan
-
-#
-# On anything other than a Thinkpad you'll probably use some PWM control file
-# in /sys/class/hwmon. Remember that fan levels range from 0 to 255 and that
-# they're just a number, not including the word "level" as seen below.
+## You can have as many temperature inputs as you like. You should at get the
+## temperature from the CPU, the GPU and the hard disk.
 #
 
 #
-# Then you need to specify the temperature limits for each of the sensors.
-# A dot means that the corresponding sensor should be ignored. The length of the
-# UPPER and LOWER limits must be the same as the number of temperatures. In this
-# example, /proc/acpi/ibm/thermal contains 16 sensors (on older thinkpads,
-# there may be only 8), some of which are unused (hence the dots).
-# A sysfs temperature input always contains only one sensor, so if you specify
-# 5 sysfs files above, the length of your limits must be 5, too.
+## Next we specify the fan we want to use. On a Thinkpad, this is:
 #
-# I've come up with these preliminary settings for my Thinkpad T61p. They probably
-# don't make sense for anything else, so you most definitely have to work
-# something out for yourself.
+tp_fan /proc/acpi/ibm/fan
+
 #
-# Sensor count:
+## On anything other than a Thinkpad you'll probably use some PWM control file
+## in /sys/class/hwmon. Remember that fan levels range from 0 to 255 and that
+## they're just a number, not including the word "level" as seen below.
+## A sysfs fan would be specified like this:
+#
+# pwm_fan /sys/class/hwmon/hwmon2/device/pwm1
+#
+## But remember you can only have one fan.
+
+#
+## Then you need to specify the temperature limits for each of the sensors.
+## A dot means that the corresponding sensor should be ignored. The length of the
+## UPPER and LOWER limits must be the same as the number of temperatures. In this
+## example, /proc/acpi/ibm/thermal contains 16 sensors (on older thinkpads,
+## there may be only 8), some of which are unused (hence the dots).
+## A sysfs temperature input always contains only one sensor, so if you specify
+## 5 sysfs files above, the length of your limits must be 5, too.
+#
+## I've come up with these preliminary settings for my Thinkpad T61p. They probably
+## don't make sense for anything else, so you most definitely have to work
+## something out for yourself.
+#
+{ "level 0"   # the fan level
+# ^-------^   This works for /proc/acpi/ibm/thermal.
+#             for a PWM fan in /sys/class/hwmon it would have to be just
+#             0 or "0".
+#
+#    Sensor count:
 #    1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-######################################################
-{ "level 0"                                               # the fan level
+#    ==============================================
     (0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0)      # LOWER limit
     (54 42 42 54 42 .  42 .  42 46 54 .  .  .  .  .)      # UPPER limit
 }
 
 { "level 1"
+# ^-------^ For a PWM fan you may have to use something around 30 to get the
+# same speed.
     (46 39 39 48 39 .  39 .  41 44 46 .  .  .  .  .)
     (58 45 45 60 45 .  45 .  45 47 56 .  .  .  .  .)
 }
@@ -78,6 +97,7 @@ fan /proc/acpi/ibm/fan
 }
 
 { "level disengaged" # nice idea: "level auto" can also be used.
+                     # but again: only numbers for sysfs.
     (69 50 50 75 55 .  55 .  55 55 55 .  .  .  .  .)
     (99 99 99 99 99 .  99 .  99 99 99 .  .  .  .  .)
 }

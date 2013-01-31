@@ -24,7 +24,7 @@
 # temperatures are read from the file.
 #
 # For example:
-# sensor /proc/acpi/ibm/thermal (0, 0, 10)
+# tp_thermal /proc/acpi/ibm/thermal (0, 0, 10)
 # will add a fixed value of 10 °C the 3rd value read from that file. Check out
 # http://www.thinkwiki.org/wiki/Thermal_Sensors to find out how much you may
 # want to add to certain temperatures.
@@ -38,7 +38,8 @@
 #
 
 # I use this on my T61p:
-#sensor /proc/acpi/ibm/thermal (0, 10, 15, 2, 10, 5, 0, 3, 0, 3)
+#tp_fan /proc/acpi/ibm/fan
+#tp_thermal /proc/acpi/ibm/thermal (0, 10, 15, 2, 10, 5, 0, 3, 0, 3)
 
 (0,	0,	55)
 (1,	48,	60)
