@@ -157,12 +157,6 @@ struct tf_config *readconfig(char* fname) {
 					err ^= ERR_CONF_LVL0;
 					if (chk_sanity) goto fail;
 				}
-				if (err & WRN_CONF_INTMIN_LVL) {
-					prefix = "\n";
-					report(LOG_WARNING, LOG_INFO, MSG_FILE_HDR(fname, s_input));
-					report(LOG_WARNING, LOG_INFO, MSG_WRN_LVL_DISENGAGED);
-					err ^= WRN_CONF_INTMIN_LVL;
-				}
 				if (err & ERR_CONF_LVLFORMAT) {
 					prefix = "\n";
 					report(LOG_ERR, LOG_WARNING, MSG_FILE_HDR(fname, s_input));
@@ -389,13 +383,6 @@ static int add_limit(struct tf_config *cfg, struct limit *limit) {
 	tmp = strtol(limit->level, &end, 0);
 	if (tmp < INT_MIN || tmp > INT_MAX) {
 		rv |= ERR_CONF_LVLFORMAT;
-	}
-	else if (tmp == INT_MIN) {
-		// old special value for "level disengaged"
-		free(limit->level);
-		strcpy(limit->level, "level disengaged");
-		limit->nlevel = (int)tmp;
-		rv |= WRN_CONF_INTMIN_LVL;
 	}
 	else if (*end == 0) {
 		// just a number

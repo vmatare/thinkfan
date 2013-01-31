@@ -77,8 +77,6 @@ void report(int nlevel, int dlevel, char *format, ...);
 #define MSG_WRN_CONF_NOBIAS(t) "WARNING: You're using simple temperature limits" \
 	" without correction values, and your fan will only start at %d °C. This can " \
 	"be dangerous for your hard drive.\n", t
-#define MSG_WRN_LVL_DISENGAGED "WARNING: You're using INT_MIN as a fan level." \
-	" Fan levels are strings now, so please replace it by \"level disengaged\"."
 #define MSG_WRN_NUM_TEMPS(n, i) "WARNING: You have %d sensors but your temper" \
 	"ature limits only have %d entries. Excess sensors will be ignored.\n", n, i
 #define MSG_WRN_SENSOR_DEPRECATED "WARNING: The `sensor' keyword is deprecat" \
