@@ -391,7 +391,7 @@ static int add_sensor(struct tf_config *cfg, struct sensor *sensor) {
 static int add_limit(struct tf_config *cfg, struct limit *limit) {
 	int rv = 0, nl, nh, i;
 	long int tmp;
-	char *end, *conv_lvl;
+	char *end;
 
 	// Check formatting of level string...
 	tmp = strtol(limit->level, &end, 0);
