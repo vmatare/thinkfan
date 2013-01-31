@@ -44,7 +44,7 @@ static int add_pwmfan(struct tf_config *cfg, char *path);
  * problem with the config.
  **********************************************************************/
 struct tf_config *readconfig(char* fname) {
-	int err, i, j, fd, *temps_save = NULL;
+	int err, i, j, fd, *temps_save = temps, num_temps_save = num_temps;
 	struct tf_config *cfg_local, *cfg_save = NULL;
 	char *s_input = NULL, *input = NULL;
 	void *ret = NULL, *map_start;
@@ -52,6 +52,7 @@ struct tf_config *readconfig(char* fname) {
 
 	line_count = 0;
 	sensoridx = 0;
+	num_temps = 0;
 
 	prefix = "\n";
 
@@ -241,7 +242,6 @@ struct tf_config *readconfig(char* fname) {
 	/* Bleh. This is awful.
 	 * Not sure if cheap function calls are worth this kind of crap code.
 	 * See the done: and fail: labels (urgh) */
-	temps_save = temps;
 	temps = (int *) calloc(num_temps, sizeof(int));
 	cfg_save = config;
 	config = cfg_local;
@@ -314,8 +314,9 @@ done:
 
 fail:
 	free_config(cfg_local);
-	free(temps);
+	if (temps != temps_save) free(temps);
 	temps = temps_save;
+	num_temps = num_temps_save;
 	return NULL;
 }
 
