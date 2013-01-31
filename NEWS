@@ -1,3 +1,35 @@
+thinkfan 0.9
+============
+
+This took a while, and it comes with lots of changes, so brace yourself.
+
+1) S.M.A.R.T via libatasmart
+----------------------------
+Thinkfan can now read temperatures directly from hard disks via libatasmart.
+To enable it, you need to compile with -DUSE_ATASMART.
+
+2) cmake
+--------
+I've switched to cmake. Don't ask me why, I think it's just more convenient.
+Details are in the README.
+
+3) Multiple sensor inputs
+-------------------------
+When using libatasmart, you obviously want to have other temperature inputs as
+well. Thus, thinkfan now allows temperature inputs (i.e. legacy thinkpad_acpi
+procfs, sysfs hwmon and atasmart) to be arbitrarily combined. In order to
+clean up the config syntax, the "sensor" and "fan" keywords have been
+deprecated in favor of other, interface-specific keywords. See README and
+example configs for details.
+
+4) Various bugfixes
+-------------------
+The depulsing hack is now only applied if the fan is actually running (thx
+yuszuv). Various sysfs bugs have been fixed and a rare race condition when
+resuming from suspend can now be worked around with DANGEROUS mode.
+
+
+
 thinkfan 0.8
 ============
 
