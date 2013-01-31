@@ -27,7 +27,7 @@
 #include <limits.h>
 #include <time.h>
 
-#define VERSION "0.9"
+#define VERSION "0.9_beta1"
 
 #define ERR_T_GET          1
 #define ERR_FAN_INIT       1<<1
@@ -94,7 +94,7 @@ struct tf_config {
 	int (*lvl_down)();
 	int (*cmp_lvl)();
 	void (*get_temps)();
-	int used_temps; // how many temperature do we expect to find?
+	int used_temps; // how many temperatures do we expect to find?
 };
 
 
