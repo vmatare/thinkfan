@@ -128,11 +128,16 @@ int fancontrol() {
 		// last cycle, we try to react quickly.
 		diff = tmax - last_tmax;
 		if (unlikely(diff >= 2)) {
-			//bias = (tmp_sleeptime * (diff-1)) * bias_level;
 			bias = ((float)diff * bias_level);
 			if (tmp_sleeptime > 2) tmp_sleeptime = 2;
 		}
-		else if (unlikely(tmp_sleeptime < sleeptime)) tmp_sleeptime++;
+		else {
+			if (unlikely(diff < 0)) {
+				tmp_sleeptime = sleeptime;
+				bias = 0;
+			}
+			else if (unlikely(tmp_sleeptime < sleeptime)) tmp_sleeptime++;
+		}
 		*b_tmax = tmax + bias;
 
 		// determine appropriate fan level and activate it
