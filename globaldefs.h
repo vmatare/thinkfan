@@ -27,7 +27,7 @@
 #include <limits.h>
 #include <time.h>
 
-#define VERSION "0.9_beta2"
+#define VERSION "0.9.1"
 
 #define ERR_T_GET          1
 #define ERR_FAN_INIT       1<<1

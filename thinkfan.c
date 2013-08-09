@@ -1,5 +1,5 @@
 /*************************************************************************
- * thinkfan version 0.9 -- copyleft 06-2012, Victor Mataré
+ * thinkfan version 0.9 -- copyleft 08-2013, Victor Mataré
  *
  * thinkfan is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
