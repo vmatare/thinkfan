@@ -48,7 +48,12 @@ int complex_lvl_up() {
 	int i;
 
 	for (i=0; likely(i < num_temps); i++)
-		if (unlikely(temps[i] >= config->limits[lvl_idx].high[i])) return TRUE;
+		if (unlikely(temps[i] >= config->limits[lvl_idx].high[i])) {
+#ifdef DEBUG
+			triggered_tidx = i;
+#endif /* DEBUG */
+			return TRUE;
+		}
 	return FALSE;
 }
 
@@ -171,16 +176,19 @@ int fancontrol() {
 	return errcnt;
 }
 
-
-
 void sigHandler(int signum) {
+	char *tstat;
 	switch(signum) {
 	case SIGHUP:
-		interrupted = signum;
-		break;
 	case SIGINT:
 	case SIGTERM:
 		interrupted = signum;
+		break;
+	case SIGUSR1:
+		tstat = get_tstat();
+		report(LOG_INFO, LOG_INFO, tstat);
+		free(tstat);
+		if (nodaemon) fputs("\n", stderr);
 		break;
 	}
 }
@@ -215,6 +223,7 @@ int main(int argc, char **argv) {
 	temps = NULL;
 	cur_lvl = NULL;
 	tempidx = 0;
+	triggered_tidx = -1;
 
 	char *optstring = "c:s:b:p::hnqDz"
 #ifdef USE_ATASMART
@@ -232,7 +241,8 @@ int main(int argc, char **argv) {
 	handler.sa_handler = sigHandler;
 	if (sigaction(SIGHUP, &handler, NULL) \
 	 || sigaction(SIGINT, &handler, NULL) \
-	 || sigaction(SIGTERM, &handler, NULL)) perror("sigaction");
+	 || sigaction(SIGTERM, &handler, NULL) \
+	 || sigaction(SIGUSR1, &handler, NULL)) perror("sigaction");
 
 	while ((opt = getopt(argc, argv, optstring)) != -1) {
 		switch(opt) {

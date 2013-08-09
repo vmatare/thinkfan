@@ -106,14 +106,18 @@ int sensoridx; // separate since one sensor may have multiple temps (ibm)
 int found_temps; // how may temperatures we actually found
 unsigned int watchdog_timeout, num_temps;
 char quiet, nodaemon, resume_is_safe, chk_sanity;
-#ifdef USE_ATASMART
-char dnd_disk;
-#endif
 char *config_file, *prefix, *rbuf,
 	*cur_lvl,
 	*oldpwm; // old contents of pwm*_enable, used for uninit_fan()
 float bias_level, depulse_tmp;
 useconds_t depulse;
+
+int triggered_tidx;
+
+#ifdef USE_ATASMART
+char dnd_disk;
+#endif
+
 #define FALSE 0
 #define TRUE !FALSE
 #define TEMP_UNUSED INT_MAX

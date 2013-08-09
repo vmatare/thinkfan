@@ -38,3 +38,30 @@ void report(int nlevel, int dlevel, char *format, ...) {
 		vsyslog(level, format, ap);
 	}
 }
+
+char *get_tstat() {
+	char *rv = NULL, *tmp;
+	int i, len;
+
+	rv = calloc(24, sizeof(char));
+	strcpy(rv, "current temperatures: (");
+
+	for (i=0; likely(i < num_temps); i++) {
+		if (unlikely(i == triggered_tidx))
+			len = asprintf(&tmp, "<%d>, ", temps[i]);
+		else len = asprintf(&tmp, "%d, ", temps[i]);
+
+		if (len < 1) goto fail;
+
+		rv = realloc(rv, strlen(rv) + len + 1);
+		strcat(rv, tmp);
+		free(tmp);
+	}
+	rv[strlen(rv) - 2] = ')';
+	rv[strlen(rv) - 1] = '\0';
+	return rv;
+fail:
+	free(rv);
+	errcnt++;
+	return NULL;
+}
