@@ -1,5 +1,7 @@
 project(thinkfan)
 
+cmake_minimum_required(VERSION 2.6)
+
 option(USE_ATASMART "Enable reading temperatures from HDDs via S.M.A.R.T")
 set(MAXERR 2 CACHE STRING "Fail after this many consecutive errors when in DANGEROUS
 mode")
