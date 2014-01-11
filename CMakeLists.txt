@@ -9,7 +9,10 @@ mode")
 add_executable(thinkfan thinkfan.c config.c message.c parser.c system.c)
 
 set(CMAKE_C_FLAGS_DEBUG "-O0 -g3 -Wall -DDEBUG")
-set(CMAKE_C_FLAGS "-O3 -Wall")
+
+if(NOT DEFINED CMAKE_C_FLAGS)
+	set(CMAKE_C_FLAGS "-O3 -Wall")
+endif(NOT DEFINED CMAKE_C_FLAGS)
 
 if(MAXERR)
 	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DMAXERR=${MAXERR}")
