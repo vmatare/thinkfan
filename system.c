@@ -436,4 +436,4 @@ end:
 	sk_disk_free(disk);
 	return;
 }
-#endif
+#endif /* USE_ATASMART */
