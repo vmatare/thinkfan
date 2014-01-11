@@ -6,7 +6,7 @@ After=syslog.target
 Type=forking
 ExecStart=/usr/sbin/thinkfan
 PIDFile=/var/run/thinkfan.pid
-ExecReload=/bin/kill -HUP $(</var/run/thinkfan.pid)
+ExecReload=/bin/kill -HUP $MAINPID
 
 [Install]
 WantedBy=multi-user.target
