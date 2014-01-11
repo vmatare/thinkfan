@@ -32,7 +32,6 @@ void get_temp_sysfs();
 void get_temp_atasmart();
 #endif
 void depulse_and_get_temps();
-void depulse_and_get_temps();
 void get_temps();
 void setfan_ibm();
 void setfan_sysfs();
