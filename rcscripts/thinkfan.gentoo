@@ -11,7 +11,7 @@ depend() {
 
 start() {
 	ebegin "Starting thinkfan"
-	start-stop-daemon --start --exec /usr/sbin/thinkfan -- -q -s5
+	start-stop-daemon --start --exec /usr/sbin/thinkfan -- -q -s5 -c /etc/thinkfan.com
 	eend $?
 }
 
