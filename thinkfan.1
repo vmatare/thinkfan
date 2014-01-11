@@ -40,16 +40,16 @@ configuration. That means that you can set your temperature limits as insane
 as you like.
 .P
 There are two general modes of operation:
-.SS COMPLEX MODE (recommended)
+.SS COMPLEX MODE
 In complex mode, temperature limits are defined for each sensor thinkfan knows
 about. Setting suitable limits for each sensor in your system will probably
 require a bit of experimentation and good knowledge about your hardware, but
 it's the safest way of keeping each component within its specified temperature
-range. See \fIhttp://www.thinkwiki.org/wiki/Thermal_Sensors\fR for details on
+range. See http://www.thinkwiki.org/wiki/Thermal_Sensors for details on
 which sensor measures what temperature in a Thinkpad. On other systems you'll
 have to find out on your own. See the example configs to learn about the
 syntax.
-.SS SIMPLE MODE (discouraged)
+.SS SIMPLE MODE
 In simple mode, Thinkfan uses only the highest temperature found in the
 system. That may be dangerous, e.g. for hard disks.  That's why you should
 provide a correction value (i.e. add 10\-15 \°C) for the sensor that has the
