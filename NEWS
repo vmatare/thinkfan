@@ -1,3 +1,13 @@
+thinkfan 0.9.1
+==============
+
+This is a minor update which adds a small but useful feature:
+
+On receipt of a SIGUSR1, thinkfan will now print the current known
+temperatures. See the manpage for details. This is the only change in
+functionality over the previously released 0.9_beta2.
+
+
 thinkfan 0.9
 ============
 
