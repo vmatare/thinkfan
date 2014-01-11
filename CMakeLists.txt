@@ -24,3 +24,9 @@ if(USE_ATASMART)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_ATASMART")
 	target_link_libraries(thinkfan atasmart)
 endif(USE_ATASMART)
+
+install(TARGETS thinkfan DESTINATION bin)
+install(FILES NEWS COPYING README examples/thinkfan.conf.complex
+	examples/thinkfan.conf.simple DESTINATION share/doc/thinkfan)
+install(FILES thinkfan.1 DESTINATION man/man1)
+
