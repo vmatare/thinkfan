@@ -181,8 +181,7 @@ int fancontrol() {
 	return errcnt;
 }
 
-void sigHandler(int signum) {
-	char *tstat;
+void sig_handler(int signum) {
 	switch(signum) {
 	case SIGHUP:
 	case SIGINT:
@@ -190,10 +189,7 @@ void sigHandler(int signum) {
 		interrupted = signum;
 		break;
 	case SIGUSR1:
-		tstat = get_tstat();
-		report(LOG_INFO, LOG_INFO, tstat);
-		free(tstat);
-		if (nodaemon) fputs("\n", stderr);
+		report_tstat();
 		break;
 	}
 }
@@ -243,7 +239,7 @@ int main(int argc, char **argv) {
 
 	interrupted = 0;
 	memset(&handler, 0, sizeof(handler));
-	handler.sa_handler = sigHandler;
+	handler.sa_handler = sig_handler;
 	if (sigaction(SIGHUP, &handler, NULL) \
 	 || sigaction(SIGINT, &handler, NULL) \
 	 || sigaction(SIGTERM, &handler, NULL) \
@@ -412,7 +408,7 @@ int run() {
 			}
 			else report(LOG_ERR, LOG_ERR, MSG_ERR_CONF_RELOAD);
 		}
-		else if (SIGINT <= interrupted && interrupted <= SIGTERM) {
+		else if (SIGINT == interrupted || interrupted == SIGTERM) {
 			report(LOG_WARNING, LOG_INFO, "\nCaught deadly signal. ");
 			break;
 		}

@@ -39,7 +39,7 @@ void report(int nlevel, int dlevel, char *format, ...) {
 	}
 }
 
-char *get_tstat() {
+void report_tstat() {
 	char *rv = NULL, *tmp;
 	int i, len;
 
@@ -51,7 +51,10 @@ char *get_tstat() {
 			len = asprintf(&tmp, "<%d>, ", temps[i]);
 		else len = asprintf(&tmp, "%d, ", temps[i]);
 
-		if (len < 1) goto fail;
+		if (len < 1) {
+			errcnt++;
+			goto fail;
+		}
 
 		rv = realloc(rv, strlen(rv) + len + 1);
 		strcat(rv, tmp);
@@ -59,9 +62,12 @@ char *get_tstat() {
 	}
 	rv[strlen(rv) - 2] = ')';
 	rv[strlen(rv) - 1] = '\0';
-	return rv;
+	if (nodaemon) {
+		puts(rv);
+	}
+	else {
+		syslog(LOG_INFO, "%s", rv);
+	}
 fail:
 	free(rv);
-	errcnt++;
-	return NULL;
 }

@@ -23,7 +23,7 @@
 
 void report(int nlevel, int dlevel, char *format, ...);
 
-char *get_tstat();
+void report_tstat();
 
 #ifdef USE_ATASMART
 #define DND_DISK_HELP \
