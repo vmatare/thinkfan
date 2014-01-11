@@ -1,5 +1,5 @@
 /**************************************************************************
- * thinkfan version 0.9 -- copyleft 06-2012, Victor Mataré
+ * thinkfan version 0.9 -- copyleft 01-2013, Victor Mataré
  *
  * thinkfan is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -319,6 +319,9 @@ control:
  kill -HUP $(</var/run/thinkfan.pid)
 
 SIGINT and SIGTERM are caught to make for a clean exit.
+
+SIGUSR1 will cause thinkfan to dump all currently known temperatures, either
+to syslog, or to the console.
 
 
 

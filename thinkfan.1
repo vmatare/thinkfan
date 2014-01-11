@@ -105,8 +105,18 @@ disk to wake up unnecessarily.
 .TP
 \fB\-D\fR
 DANGEROUS mode: Disable all sanity checks. May damage your hardware!!
+.SH SIGNALS
+SIGINT and SIGTERM simply interrupt operation and should cause thinkfan to
+terminate cleanly.
+.P
+SIGHUP makes thinkfan reload its config. If there's any problem with the new
+config, we keep the old one.
+.P
+SIGUSR1 causes thinkfan to dump all currently known temperatures either to
+syslog, or to the console (if running with the -n option).
 .SH SEE ALSO
 git://git.code.sf.net/p/thinkfan/code
+
 .SH BUGS
 If you have any problems with thinkfan, please go to the help forum at sf.net:
 .RS
