@@ -236,6 +236,7 @@ struct tf_config *readconfig(char* fname) {
 		cfg_local->sensors->path = (char *) calloc(
 				strlen(IBM_TEMP)+1, sizeof(char));
 		strcpy(cfg_local->sensors->path, IBM_TEMP);
+		cfg_local->sensors->get_temp = get_temp_ibm;
 		cfg_local->num_sensors++;
 	}
 
