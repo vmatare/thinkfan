@@ -226,18 +226,16 @@ struct tf_config *readconfig(char* fname) {
 		}
 	}
 
-	// configure sensor interface
 	if (cfg_local->num_sensors == 0) {
+		// Use the default sensor in /proc/acpi/ibm/thermal
 		prefix = "\n";
 		report(LOG_WARNING, LOG_NOTICE, MSG_WRN_SENSOR_DEFAULT);
-		cfg_local->sensors = malloc(sizeof(struct sensor));
-		cfg_local->sensors = memset(cfg_local->sensors, 0,
-				sizeof(struct sensor));
-		cfg_local->sensors->path = (char *) calloc(
-				strlen(IBM_TEMP)+1, sizeof(char));
-		strcpy(cfg_local->sensors->path, IBM_TEMP);
-		cfg_local->sensors->get_temp = get_temp_ibm;
-		cfg_local->num_sensors++;
+		struct sensor *default_sensor = (struct sensor *) malloc(sizeof(struct sensor));
+		memset(default_sensor->bias, 0, 16 * sizeof(int));
+		default_sensor->path = (char *) calloc(strlen(IBM_TEMP) + 1, sizeof(char));
+		strcpy(default_sensor->path, IBM_TEMP);
+		default_sensor->get_temp = get_temp_ibm;
+		add_sensor(cfg_local, default_sensor);
 	}
 
 	/* Bleh. This is awful.
