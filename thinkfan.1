@@ -69,7 +69,7 @@ Show a short help message
 Maximum seconds between temperature updates (default: 5)
 .TP
 \fB\-b\fR BIAS
-Floating point number (-10 to 30) to control rising temperature exaggeration.
+Floating point number (\-10 to 30) to control rising temperature exaggeration.
 If the temperature increases by more than 2 °C during one cycle, this number
 is used to calculate a bias, which is added to the current highest temperature
 seen in the system:
@@ -77,10 +77,10 @@ seen in the system:
  current_tmax = current_tmax + delta_t * BIAS / 10
 
 This means that negative numbers can be used to even out short and sudden
-temperature spikes like those seen on some on-DIE sensors. Use DANGEROUS mode
-to remove the -10 to +30 limit. Note that you can't have a space between -b
+temperature spikes like those seen on some on\-DIE sensors. Use DANGEROUS mode
+to remove the \-10 to +30 limit. Note that you can't have a space between \-b
 and a negative argument, because otherwise getopt will interpret things like
--10 as an option and fail (i.e. write "-b-10" instead of "-b -10").
+\-10 as an option and fail (i.e. write "\-b\-10" instead of "\-b \-10").
 
 Default is 15.0
 .TP
@@ -98,14 +98,14 @@ Assume we don't have to worry about resuming from standby when using the sysfs
 interface (see README!)
 .TP
 \fB\-p\fR [SECONDS]
-Use the pulsing-fan workaround (for older Thinkpads). Takes an optional
-floating-point argument (0-10s) as depulsing duration. Default 0.5s.
+Use the pulsing\-fan workaround (for older Thinkpads). Takes an optional
+floating\-point argument (0\-10s) as depulsing duration. Default 0.5s.
 .TP
 \fB\-d\fR
 Do not read temperature from sleeping disks. Instead, 0 °C is used as that
 disk's temperature. This is needed if reading the temperature causes your
 disk to wake up unnecessarily.
-\fBNote\fR: This option is only available if thinkfan was built with -D USE_ATASMART.
+\fBNote\fR: This option is only available if thinkfan was built with \-D USE_ATASMART.
 .TP
 \fB\-D\fR
 DANGEROUS mode: Disable all sanity checks. May damage your hardware!!
@@ -117,7 +117,7 @@ SIGHUP makes thinkfan reload its config. If there's any problem with the new
 config, we keep the old one.
 .P
 SIGUSR1 causes thinkfan to dump all currently known temperatures either to
-syslog, or to the console (if running with the -n option).
+syslog, or to the console (if running with the \-n option).
 .SH SEE ALSO
 git://git.code.sf.net/p/thinkfan/code
 
