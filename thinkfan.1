@@ -52,7 +52,7 @@ syntax.
 .SS SIMPLE MODE
 In simple mode, Thinkfan uses only the highest temperature found in the
 system. That may be dangerous, e.g. for hard disks.  That's why you should
-provide a correction value (i.e. add 10\-15 \°C) for the sensor that has the
+provide a correction value (i.e. add 10\-15 \Â°C) for the sensor that has the
 temperature of your hard disk (or battery...). See the example config files
 for details about that.
 .SH CONFIGURATION
@@ -70,7 +70,7 @@ Maximum seconds between temperature updates (default: 5)
 .TP
 \fB\-b\fR BIAS
 Floating point number (-10 to 30) to control rising temperature exaggeration.
-If the temperature increases by more than 2 °C during one cycle, this number
+If the temperature increases by more than 2 Â°C during one cycle, this number
 is used to calculate a bias, which is added to the current highest temperature
 seen in the system:
 
@@ -102,7 +102,7 @@ Use the pulsing-fan workaround (for older Thinkpads). Takes an optional
 floating-point argument (0-10s) as depulsing duration. Default 0.5s.
 .TP
 \fB\-d\fR
-Do not read temperature from sleeping disks. Instead, 0 °C is used as that
+Do not read temperature from sleeping disks. Instead, 0 Â°C is used as that
 disk's temperature. This is needed if reading the temperature causes your
 disk to wake up unnecessarily.
 \fBNote\fR: This option is only available if thinkfan was built with -D USE_ATASMART.
