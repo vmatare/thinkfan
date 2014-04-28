@@ -25,8 +25,8 @@ if(USE_ATASMART)
 	target_link_libraries(thinkfan atasmart)
 endif(USE_ATASMART)
 
-install(TARGETS thinkfan DESTINATION bin)
+install(TARGETS thinkfan DESTINATION sbin)
 install(FILES NEWS COPYING README examples/thinkfan.conf.complex
 	examples/thinkfan.conf.simple DESTINATION share/doc/thinkfan)
-install(FILES thinkfan.1 DESTINATION man/man1)
+install(FILES thinkfan.1 DESTINATION share/man/man1)
 
