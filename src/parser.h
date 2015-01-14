@@ -13,7 +13,6 @@
 #include <string>
 #include <iterator>
 #include <exception>
-#include <tuple>
 #include <string.h>
 
 namespace thinkfan {
@@ -24,72 +23,35 @@ class ParserMisdefinition : public std::exception {};
 
 class ParserOOM : public std::exception {};
 
+class SimpleLevel;
+class Config;
+class Fan;
 
 template<typename ResultT>
 class Parser {
 public:
-	typedef ResultT ResultT_;
+	typedef ResultT* ResultT_;
 
 	virtual ~Parser() = default;
 	virtual ResultT *parse(const std::string &input, std::string::size_type &pos) const = 0;
-};
 
-
-
-template<typename ResultT, class... ParserTs>
-class ConcatParser;
-
-
-template<typename ResultT, typename P1>
-class ConcatParser<ResultT, P1> : public Parser<ResultT> {
-private:
-	P1 piece1_;
-	tuple<ResultT *> cat_parse(const string &input, string::size_type &pos, P1 piece1) const {
-		return tie(piece1.parse(input, pos));
-	}
-public:
-	ConcatParser(P1 p1)
-	: piece1_(p1)
-	{}
-
-	ResultT *parse(const string &input, string::size_type &pos) const override {
-		return piece1_.parse(input, pos);
+	bool match(const string &input, string::size_type &pos) const {
+		ResultT *result = parse(input, pos);
+		if (result) {
+			delete result;
+			return true;
+		}
+		return false;
 	}
 };
-
-
-
-
-template<typename ResultT, class P1, class... ParserTs>
-class ConcatParser<ResultT, P1, ParserTs...> : public Parser<ResultT> {
-private:
-	P1 piece1_;
-	tuple<ParserTs...> nextPieces_;
-	/*tuple<ResultT *> cat_parse(const string &input, string::size_type &pos, P1 piece1) const {
-		return tie(piece1.parse(input, pos));
-	}*/
-	tuple<typename P1::ResultT_, typename ParserTs::ResultT_...> cat_parse(const string &input, string::size_type &pos, P1 piece1, tuple<ParserTs...> nextPieces) const {
-		return tuple_cat(tie(piece1.parse(input, pos)), nextPieces.parse(input, pos));
-	}
-public:
-	ConcatParser(P1 piece1, ParserTs... nextPieces)
-	: piece1_(piece1),
-	  nextPieces_(nextPieces...)
-	{}
-
-	ResultT *parse(const string &input, string::size_type &pos) const override {
-		return new ResultT(cat_parse(input, pos, piece1_, nextPieces_));
-	}
-};
-
 
 
 class RegexParser : public Parser<std::string> {
 private:
 	regex_t *expr_;
-	const unsigned int data_idx_;
+	unsigned int data_idx_;
 public:
-	RegexParser(const std::string expr, const unsigned int data_idx);
+	RegexParser(const std::string expr, const unsigned int data_idx = 0);
 	virtual ~RegexParser();
 	std::string *parse(const std::string &input, std::string::size_type &pos) const override;
 };
@@ -101,6 +63,14 @@ public:
 };
 
 
+class FanParser : public Parser<Fan> {
+private:
+	const KeywordParser parser_fan, parser_tp_fan, parser_pwm_fan;
+public:
+	FanParser();
+	Fan *parse(const string &input, string::size_type &pos) const override;
+};
+
 class IntListParser : public Parser<std::vector<long int>> {
 private:
 	RegexParser int_parser_, sep_parser_;
@@ -110,23 +80,33 @@ public:
 };
 
 
-class Level;
 
-/*class BracketParser : public RegexParser {
+class BracketParser : public RegexParser {
 public:
 	BracketParser(const std::string opening, const std::string closing);
-};*/
-
-class SimpleLimitParser : public ConcatParser<Level, RegexParser, IntListParser, RegexParser> {
-private:
-	/*BracketParser round_parser_;
-	BracketParser curly_parser_;
-	BracketParser quot_parser_;*/
-public:
-	SimpleLimitParser();
-	Level *parse(const string &input, string::size_type &pos) const override;
 };
 
+class SimpleLevelParser : public Parser<SimpleLevel> {
+private:
+	BracketParser round_parser_, curly_parser_, quot_parser_;
+	IntListParser int_parser_;
+public:
+	SimpleLevelParser();
+	SimpleLevel *parse(const string &input, string::size_type &pos) const override;
+};
+
+
+
+class ConfigParser : public Parser<Config> {
+private:
+	const RegexParser parser_comment, parser_space;
+	const KeywordParser parser_sensor, parser_hwmon, parser_tp_thermal;
+	const FanParser parser_fan;
+	const SimpleLevelParser parser_simple_lvl;
+public:
+	ConfigParser();
+	Config *parse(const string &input, string::size_type &pos) const override;
+};
 } /* namespace thinkfan */
 
 

@@ -27,19 +27,18 @@ using namespace std;
 class Config {
 private:
 	Fan *fan_;
-	const RegexParser parser_comment;
-
-	const KeywordParser parser_fan;
-	const KeywordParser parser_tp_fan;
-	const KeywordParser parser_pwm_fan;
-
-	const KeywordParser parser_sensor;
-	const KeywordParser parser_hwmon;
-	const KeywordParser parser_tp_thermal;
 
 public:
-	Config(string filename);
+	Config();
+	static Config *parse_config(string filename);
 	virtual ~Config();
+};
+
+
+class SimpleConfig : public Config {
+private:
+	vector<SimpleLevel> levels;
+public:
 };
 
 
@@ -47,21 +46,30 @@ class Level {
 private:
 	int level_n_;
 	string level_s_;
+protected:
+	Level(int level);
+	Level(string level);
 public:
-	Level(string *level);
+
 };
 
 
-class SimpleLevel {
+class SimpleLevel : public Level {
+private:
+	long lower_limit_;
+	long upper_limit_;
+public:
+	SimpleLevel(string level, long lower_limit, long upper_limit);
+	SimpleLevel(long level, long lower_limit, long upper_limit);
 };
 
 
-class ComplexLevel {
+class ComplexLevel : public Level {
 private:
 	vector<long> lower_limit_;
 	vector<long> upper_limit_;
 public:
-	ComplexLevel(int level, vector<long> lower_limit, vector<long> upper_limit);
+	ComplexLevel(long level, vector<long> lower_limit, vector<long> upper_limit);
 	ComplexLevel(string level, vector<long> lower_limit, vector<long> upper_limit);
 };
 
@@ -72,7 +80,8 @@ private:
 	FanDriver *driver;
 public:
 	Fan(std::string path);
-	virtual ~Fan();
+	Fan(FanDriver *driver);
+	virtual ~Fan() = default;
 };
 
 
@@ -82,6 +91,10 @@ public:
 };
 
 
+class PwmFan : public Fan {
+public:
+	PwmFan(string path);
+};
 
 
 }
