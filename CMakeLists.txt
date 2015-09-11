@@ -6,7 +6,7 @@ option(USE_ATASMART "Enable reading temperatures from HDDs via S.M.A.R.T")
 set(MAXERR 2 CACHE STRING "Fail after this many consecutive errors when in DANGEROUS
 mode")
 
-add_executable(thinkfan thinkfan.c config.c message.c parser.c system.c)
+add_executable(thinkfan src/thinkfan.c src/config.c src/message.c src/parser.c src/system.c)
 
 set(CMAKE_C_FLAGS_DEBUG "-O0 -g3 -Wall -DDEBUG")
 
