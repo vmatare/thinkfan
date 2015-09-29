@@ -156,7 +156,8 @@ int fancontrol() {
 		// Write current fan level to IBM_FAN one cycle before the watchdog
 		// timeout ends, to let it know we're alive.
 		if (unlikely((wt -= tmp_sleeptime) <= sleeptime)) {
-			set_fan;
+			cur_lvl = config->limits[lvl_idx].level;
+			config->setfan();
 			wt = watchdog_timeout;
 		}
 
