@@ -25,6 +25,9 @@
 #include <cstring>
 #include <string>
 #include <unistd.h>
+#include <cstdlib>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include <iostream>
 #include <memory>
@@ -56,7 +59,9 @@ struct TemperatureState temp_state;
 
 string report_tstat() {
 	string rv = "Current temperatures: ";
-
+	for (int temp : temp_state.temps) {
+		rv += std::to_string(temp) + ", ";
+	}
 	return rv;
 }
 
@@ -70,6 +75,27 @@ void sig_handler(int signum) {
 		break;
 	case SIGUSR1:
 		log(TF_INF, TF_INF) << report_tstat() << flush;
+		break;
+	case SIGSEGV:
+		struct rlimit core_sz;
+		log(TF_ERR, TF_ERR) << "Segmentation fault." << flush;
+		if (getrlimit(RLIMIT_CORE, &core_sz) == -1) {
+			string msg = strerror(errno);
+			log(TF_ERR, TF_ERR) << SystemError("getrlimit(): " + msg) << flush;
+		}
+		else {
+			if (core_sz.rlim_cur <= 0)
+				log(TF_ERR, TF_ERR)
+				<< "Please enable core dumps with \"ulimit -c unlimited\","
+				<< " trigger this error again"
+				<< " and attach the core file to a bug report. Thanks."
+				<< flush;
+			else
+				log(TF_ERR, TF_ERR) << "Please file a bug report with the core dump attached "
+				<< "at https://github.com/vmatare/thinkfan/issues/new ." << flush
+				<< "Thank you." << flush;
+		}
+		abort();
 		break;
 	}
 }
@@ -182,7 +208,11 @@ int main(int argc, char **argv) {
 	if (sigaction(SIGHUP, &handler, NULL) \
 	 || sigaction(SIGINT, &handler, NULL) \
 	 || sigaction(SIGTERM, &handler, NULL) \
-	 || sigaction(SIGUSR1, &handler, NULL)) perror("sigaction");
+	 || sigaction(SIGUSR1, &handler, NULL) \
+	 || sigaction(SIGSEGV, &handler, NULL)) {
+		string msg = strerror(errno);
+		log(TF_ERR, TF_ERR) << "sigaction: " << msg;
+	}
 
 
 	while ((opt = getopt(argc, argv, optstring)) != -1) {
