@@ -1,23 +1,291 @@
+/********************************************************************
+ * drivers.cpp: Interface to the kernel drivers.
+ * (C) 2015, Victor Mataré
+ *
+ * this file is part of thinkfan. See thinkfan.c for further information.
+ *
+ * thinkfan is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * thinkfan is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with thinkfan.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * ******************************************************************/
+
 #include "drivers.h"
+#include "message.h"
+#include "config.h"
+#include "error.h"
+
+#include <fstream>
+#include <cstring>
+#include <thread>
 
 namespace thinkfan {
 
 
-TpFanDriver::TpFanDriver(string path) :
-		path(path)
+/*----------------------------------------------------------------------------
+| FanDriver: Superclass of TpFanDriver and HwmonFanDriver. Can set the speed |
+| on its own since an implementation-specific string representation is       |
+| provided by its subclasses.                                                |
+----------------------------------------------------------------------------*/
+
+FanDriver::FanDriver(const std::string &path, const unsigned int watchdog_timeout)
+: path_(path),
+  watchdog_(watchdog_timeout),
+  depulse_(0)
 {}
 
 
-void TpFanDriver::set_speed(int speed)
-{}
+void FanDriver::set_speed(const string &level)
+{
+	try {
+		std::ofstream f_out(path_);
+		f_out.exceptions(f_out.failbit | f_out.badbit);
+		f_out << level << std::flush;
+	} catch (std::ios_base::failure &e) {
+		string msg = std::strerror(errno);
+		fail(TF_ERR) << MSG_FAN_CTRL(path_) << SystemError(msg) << flush;
+	}
+}
 
 
-HwmonFanDriver::HwmonFanDriver(string path) :
-		path(path)
-{}
+/*----------------------------------------------------------------------------
+| TpFanDriver: Driver for fan control via thinkpad_acpi, typically in        |
+| /proc/acpi/ibm/fan. Supports fan watchdog and depulsing (an alleged remedy |
+| for noise oscillation with old & worn-out fans).                           |
+----------------------------------------------------------------------------*/
+
+TpFanDriver::TpFanDriver(const std::string &path)
+: FanDriver(path, 120)
+{
+	bool ctrl_supported = false;
+	try {
+		std::fstream f(path_);
+		f.exceptions(f.failbit | f.badbit);
+		std::string line;
+		line.resize(256);
+
+		f.exceptions(f.badbit);
+		while (	f.getline(&*line.begin(), 255)) {
+			if (line.rfind("level:") != string::npos) {
+				// remember initial level, restore it in d'tor
+				initial_state_ = line.substr(line.find_last_of(" \t") + 1);
+			}
+			else if (line.rfind("commands:") != std::string::npos && line.rfind("level <level>") != std::string::npos) {
+				ctrl_supported = true;
+			}
+		}
+	} catch (std::exception &e) {
+		string msg = std::strerror(errno);
+		fail(TF_ERR) << MSG_FAN_INIT(path_) << SystemError(string(e.what()) + ": " + msg) << flush;
+	}
+
+	if (!ctrl_supported) fail(TF_ERR) << SystemError(MSG_FAN_MODOPTS) << flush;
+}
 
 
-void HwmonFanDriver::set_speed(int speed)
-{}
+TpFanDriver::~TpFanDriver()
+{
+	try {
+		std::ofstream f(path_);
+		f.exceptions(f.failbit | f.badbit);
+		f << "level " << initial_state_ << std::endl;
+	} catch (std::exception &e) {
+		string msg = std::strerror(errno);
+		fail(TF_ERR) << MSG_FAN_RESET(path_) << SystemError(string(e.what()) + ": " + msg) << flush;
+	}
+}
+
+
+void TpFanDriver::set_watchdog(const unsigned int timeout)
+{ watchdog_ = std::chrono::duration<unsigned int>(timeout); }
+
+
+void TpFanDriver::set_depulse(float duration)
+{ depulse_ = std::chrono::duration<float>(duration); }
+
+
+void TpFanDriver::set_speed(const string &level)
+{
+	FanDriver::set_speed(level);
+	last_watchdog_ping_ = std::chrono::system_clock::now();
+}
+
+
+void TpFanDriver::ping_watchdog_and_depulse(const string &level)
+{
+	std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+	if (depulse_ > std::chrono::milliseconds(0)) {
+		set_speed("level disengaged");
+		std::this_thread::sleep_for(depulse_);
+		set_speed(level);
+	}
+	else if (now - last_watchdog_ping_ >= watchdog_) set_speed(level);
+}
+
+
+void TpFanDriver::init() const
+{
+	try {
+		std::fstream f(path_);
+		f.exceptions(f.failbit | f.badbit);
+		f << "watchdog " << watchdog_.count() << std::endl;
+	} catch (std::exception &e) {
+		string msg = std::strerror(errno);
+		fail(TF_ERR) << MSG_FAN_INIT(path_) << SystemError(string(e.what()) + ": " + msg) << flush;
+	}
+}
+
+
+/*----------------------------------------------------------------------------
+| HwmonFanDriver: Driver for PWM fans, typically somewhere in sysfs.         |
+----------------------------------------------------------------------------*/
+
+HwmonFanDriver::HwmonFanDriver(const std::string &path)
+: FanDriver(path, 0)
+{
+	try {
+		std::ifstream f(path_ + "_enable");
+		f.exceptions(f.failbit | f.badbit);
+		std::string line;
+		line.resize(64);
+		f.getline(&*line.begin(), 63);
+		initial_state_ = line;
+	} catch (std::exception &e) {
+		string msg = std::strerror(errno);
+		fail(TF_ERR) << MSG_FAN_INIT(path_) << SystemError(string(e.what()) + ": " + msg) << flush;
+	}
+}
+
+
+void HwmonFanDriver::init() const
+{
+	try {
+		std::ofstream f(path_ + "_enable");
+		f.exceptions(f.failbit | f.badbit);
+		f << "1" << std::endl;
+	} catch (std::exception &e) {
+		string msg = std::strerror(errno);
+		fail(TF_ERR) << MSG_FAN_INIT(path_) << SystemError(string(e.what()) + ": " + msg) << flush;
+	}
+}
+
+
+/*----------------------------------------------------------------------------
+| SensorDriver: The superclass of HwmonSensorDriver and TpSensorDriver       |
+----------------------------------------------------------------------------*/
+
+SensorDriver::SensorDriver(std::string path)
+: path_(path),
+  num_temps_(0)
+{
+	try {
+		std::ifstream f(path_);
+		f.exceptions(f.failbit | f.badbit);
+	} catch (std::exception &e) {
+		string msg = std::strerror(errno);
+		fail(TF_ERR) << path_ + ": " << SystemError(string(e.what()) + ": " + msg) << flush;
+	}
+}
+
+
+void SensorDriver::set_correction(const std::vector<int> &correction)
+{
+	if (correction.size() > num_temps())
+		fail(TF_WRN) << ConfigError(MSG_CONF_CORRECTION_LEN(path_, correction.size(), num_temps_)) << flush;
+	else if (correction.size() < num_temps())
+		log(TF_WRN, TF_WRN) << MSG_CONF_CORRECTION_LEN(path_, correction.size(), num_temps_) << flush;
+	correction_ = correction;
+}
+
+
+inline void update_tempstate(int correction) {
+	*temp_state.temp_idx += correction;
+	if (*temp_state.temp_idx > temp_state.tmax) {
+		temp_state.b_tmax = temp_state.temp_idx;
+		temp_state.tmax = *temp_state.temp_idx;
+	}
+	++temp_state.temp_idx;
+}
+
+
+/*----------------------------------------------------------------------------
+| HwmonSensorDriver: A driver for sensors provided by other kernel drivers,  |
+| typically somewhere in sysfs.                                              |
+----------------------------------------------------------------------------*/
+
+HwmonSensorDriver::HwmonSensorDriver(std::string path)
+: SensorDriver(path)
+{
+	num_temps_ = 1;
+	correction_ = std::vector<int>(num_temps(), 0);
+}
+
+
+void HwmonSensorDriver::read_temps() const
+{
+	try {
+		std::ifstream f(path_);
+		f.exceptions(f.failbit | f.badbit);
+		int tmp;
+		f >> tmp;
+		*temp_state.temp_idx = tmp / 1000;
+		update_tempstate(correction_[0]);
+	} catch (std::exception &e) {
+		string msg = std::strerror(errno);
+		fail(TF_ERR) << MSG_T_GET(path_) + ": " << SystemError(string(e.what()) + ": " + msg) << flush;
+	}
+}
+
+
+/*----------------------------------------------------------------------------
+| TpSensorDriver: A driver for sensors provided by thinkpad_acpi, typically  |
+| in /proc/acpi/ibm/thermal.                                                 |
+----------------------------------------------------------------------------*/
+
+TpSensorDriver::TpSensorDriver(std::string path)
+: SensorDriver(path)
+{
+	try {
+		std::ifstream f(path_);
+		f.exceptions(f.failbit | f.badbit);
+		int tmp;
+
+		while (!f.eof()) {
+			f >> tmp;
+			++num_temps_;
+		}
+	} catch (std::exception &e) {
+		string msg = std::strerror(errno);
+		fail(TF_ERR) << path_ + ": " << SystemError(string(e.what()) + ": " + msg) << flush;
+	}
+	correction_ = std::vector<int>(num_temps_, 0);
+}
+
+
+void TpSensorDriver::read_temps() const
+{
+	try {
+		std::ifstream f(path_);
+		f.exceptions(f.failbit | f.badbit);
+		unsigned int tidx = 0;
+		while (!f.eof()) {
+			f >> *temp_state.temp_idx;
+			update_tempstate(correction_[tidx++]);
+		}
+	} catch (std::exception &e) {
+		string msg = std::strerror(errno);
+		fail(TF_ERR) << MSG_T_GET(path_) + ": " << SystemError(string(e.what()) + ": " + msg) << flush;
+	}
+}
+
 
 }

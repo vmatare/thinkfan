@@ -52,7 +52,7 @@ syntax.
 .SS SIMPLE MODE
 In simple mode, Thinkfan uses only the highest temperature found in the
 system. That may be dangerous, e.g. for hard disks.  That's why you should
-provide a correction value (i.e. add 10\-15 \°C) for the sensor that has the
+provide a correction value (i.e. add 10\-15 °C) for the sensor that has the
 temperature of your hard disk (or battery...). See the example config files
 for details about that.
 .SH CONFIGURATION
@@ -118,6 +118,19 @@ config, we keep the old one.
 .P
 SIGUSR1 causes thinkfan to dump all currently known temperatures either to
 syslog, or to the console (if running with the \-n option).
+.SH RETURN VALUE
+.TP
+\fB0\fR
+Normal exit
+.TP
+\fB1\fR
+Runtime error
+.TP
+\fB2\fR
+Unexpected runtime error
+.TP
+\fB3\fR
+Invalid commandline option
 .SH SEE ALSO
 git://git.code.sf.net/p/thinkfan/code
 

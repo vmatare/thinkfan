@@ -1,32 +1,50 @@
-project(thinkfan)
+project(THINKFAN)
 
 cmake_minimum_required(VERSION 2.6)
 
-option(USE_ATASMART "Enable reading temperatures from HDDs via S.M.A.R.T")
+# Generate absolute paths or something
+cmake_policy(SET CMP0015 NEW)
+
+#option(USE_ATASMART "Enable reading temperatures from HDDs via S.M.A.R.T")
 set(MAXERR 2 CACHE STRING "Fail after this many consecutive errors when in DANGEROUS
 mode")
 
-add_executable(thinkfan thinkfan.c config.c message.c parser.c system.c)
+#
+# Default to DEBUG build
+#
+if(NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Choose the type of build,
+		options are: Debug Release RelWithDebInfo MinSizeRel."
+		FORCE)
+endif(NOT CMAKE_BUILD_TYPE)
 
-set(CMAKE_C_FLAGS_DEBUG "-O0 -g3 -Wall -DDEBUG")
-
-if(NOT DEFINED CMAKE_C_FLAGS)
-	set(CMAKE_C_FLAGS "-O3 -Wall")
-endif(NOT DEFINED CMAKE_C_FLAGS)
+set(CMAKE_CXX_FLAGS "-O3 ${CMAKE_CXX_FLAGS} -Wall -std=c++11")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g3 ${CMAKE_CXX_FLAGS_DEBUG} -Wall -DDEBUG -std=c++11")
 
 if(MAXERR)
-	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DMAXERR=${MAXERR}")
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DMAXERR=${MAXERR}")
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DMAXERR=${MAXERR}")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMAXERR=${MAXERR}")
 endif(MAXERR)
 
 if(USE_ATASMART)
-	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DUSE_ATASMART")
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_ATASMART")
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DUSE_ATASMART")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_ATASMART")
 	target_link_libraries(thinkfan atasmart)
 endif(USE_ATASMART)
 
-install(TARGETS thinkfan DESTINATION sbin)
-install(FILES NEWS COPYING README examples/thinkfan.conf.complex
-	examples/thinkfan.conf.simple DESTINATION share/doc/thinkfan)
-install(FILES thinkfan.1 DESTINATION share/man/man1)
+
+#include_directories(
+#	"${THINKFAN_SOURCE_DIR}"
+#	"${THINKFAN_SOURCE_DIR}/config"
+#	"${GRAMPA_INCLUDE}")
+
+
+add_executable(thinkfan src/thinkfan.cpp src/config.cpp src/drivers.cpp
+	src/message.cpp src/parser.cpp src/error.cpp)
+
+
+#install(TARGETS thinkfan DESTINATION sbin)
+#install(FILES NEWS COPYING README examples/thinkfan.conf.complex
+#	examples/thinkfan.conf.simple DESTINATION share/doc/thinkfan)
+#install(FILES thinkfan.1 DESTINATION share/man/man1)
 

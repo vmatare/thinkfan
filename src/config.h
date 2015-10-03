@@ -1,99 +1,102 @@
-/*
- * Config.h
+/********************************************************************
+ * config.h: Config data structures and consistency checking.
+ * (C) 2015, Victor Mataré
  *
- *  Created on: 22.06.2014
- *      Author: ich
- */
+ * this file is part of thinkfan. See thinkfan.c for further information.
+ *
+ * thinkfan is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * thinkfan is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with thinkfan.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * ******************************************************************/
 
 #ifndef THINKFAN_CONFIG_H_
 #define THINKFAN_CONFIG_H_
 
-#include <list>
 #include <string>
-#include <regex.h>
-
-namespace thinkfan {
-class Fan;
-class Level;
-}
+#include <vector>
+#include <memory>
 
 #include "drivers.h"
-#include "parser.h"
+#include "error.h"
+#include "thinkfan.h"
 
 namespace thinkfan {
 
-using namespace std;
-
-class Config {
-private:
-	Fan *fan_;
-
-public:
-	Config();
-	static Config *parse_config(string filename);
-	virtual ~Config();
-};
-
-
-class SimpleConfig : public Config {
-private:
-	vector<SimpleLevel> levels;
-public:
-};
-
-
 class Level {
-private:
-	int level_n_;
-	string level_s_;
 protected:
-	Level(int level);
-	Level(string level);
+	string level_s_;
+	int level_n_;
+	std::vector<int> lower_limit_;
+	std::vector<int> upper_limit_;
 public:
+	Level(int level, int lower_limit, int upper_limit);
+	Level(string level, int lower_limit, int upper_limit);
+	Level(int level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit);
+	Level(string level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit);
 
+	virtual ~Level() = default;
+
+	const std::vector<int> &lower_limit() const;
+	const std::vector<int> &upper_limit() const;
+
+	virtual bool operator <= (const TemperatureState &temp_state) const;
+	virtual bool operator > (const TemperatureState &temp_state) const;
+
+	const string &str() const;
+	int num() const;
 };
 
 
 class SimpleLevel : public Level {
-private:
-	long lower_limit_;
-	long upper_limit_;
 public:
-	SimpleLevel(string level, long lower_limit, long upper_limit);
-	SimpleLevel(long level, long lower_limit, long upper_limit);
+	SimpleLevel(int level, int lower_limit, int upper_limit);
+	SimpleLevel(string level, int lower_limit, int upper_limit);
+	bool operator <= (const TemperatureState &temp_state) const override;
+	bool operator > (const TemperatureState &temp_state) const override;
 };
 
 
 class ComplexLevel : public Level {
+public:
+	ComplexLevel(int level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit);
+	ComplexLevel(string level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit);
+	bool operator <= (const TemperatureState &temp_state) const override;
+	bool operator > (const TemperatureState &temp_state) const override;
+};
+
+
+class Config {
+public:
+	Config();
+	Config(const Config &) = delete;
+	~Config();
+	static const Config *read_config(const string &filename);
+	bool add_fan(std::unique_ptr<FanDriver> &&fan);
+	bool add_sensor(std::unique_ptr<const SensorDriver> &&sensor);
+	bool add_level(std::unique_ptr<const Level> &&level);
+
+	unsigned int num_temps() const;
+	FanDriver *fan() const;
+	const std::vector<const Level *> &levels() const;
+	const std::vector<const SensorDriver *> &sensors() const;
+
+	Config &operator = (const Config &) = delete;
+
 private:
-	vector<long> lower_limit_;
-	vector<long> upper_limit_;
-public:
-	ComplexLevel(long level, vector<long> lower_limit, vector<long> upper_limit);
-	ComplexLevel(string level, vector<long> lower_limit, vector<long> upper_limit);
-};
-
-
-class Fan {
-private:
-	static const string tpacpi_path;
-	FanDriver *driver;
-public:
-	Fan(std::string path);
-	Fan(FanDriver *driver);
-	virtual ~Fan() = default;
-};
-
-
-class TpFan : public Fan {
-public:
-	TpFan(std::string path);
-};
-
-
-class PwmFan : public Fan {
-public:
-	PwmFan(string path);
+	std::vector<const SensorDriver *> sensors_;
+	std::vector<const Level *> levels_;
+	unsigned int num_temps_;
+	FanDriver *fan_;
 };
 
 
