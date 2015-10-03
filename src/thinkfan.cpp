@@ -45,15 +45,20 @@ bool quiet(false);
 std::chrono::duration<unsigned int> sleeptime(5);
 float bias_level(5);
 volatile int interrupted(0);
+#ifdef USE_ATASMART
+/** Do Not Disturb disk, i.e. don't get temperature from a sleeping disk */
+bool dnd_disk = false;
+#endif /* USE_ATASMART */
+
 
 struct TemperatureState temp_state;
+
 
 string report_tstat() {
 	string rv = "Current temperatures: ";
 
 	return rv;
 }
-
 
 
 void sig_handler(int signum) {
@@ -162,7 +167,6 @@ int main(int argc, char **argv) {
 	const char *optstring = "c:s:b:p::hqDz"
 #ifdef USE_ATASMART
 			"d";
-	dnd_disk = FALSE;
 #else
 	;
 #endif

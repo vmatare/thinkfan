@@ -28,7 +28,6 @@
 #include <iterator>
 #include <exception>
 #include <string.h>
-#include <cassert>
 #include "drivers.h"
 
 namespace thinkfan {
@@ -105,19 +104,13 @@ public:
 
 
 class FanParser : public Parser<FanDriver> {
-private:
-	const KeywordParser parser_fan, parser_tp_fan, parser_pwm_fan;
 public:
-	FanParser();
 	FanDriver *_parse(const char *&input) const override;
 };
 
 
 class SensorParser : public Parser<SensorDriver> {
-private:
-	const KeywordParser parser_sensor, parser_hwmon, parser_tp_thermal;
 public:
-	SensorParser();
 	SensorDriver *_parse(const char *&input) const override;
 };
 

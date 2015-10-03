@@ -207,6 +207,13 @@ void SensorDriver::set_correction(const std::vector<int> &correction)
 }
 
 
+void SensorDriver::set_num_temps(unsigned int n)
+{
+	num_temps_ = n;
+	correction_.resize(n, 0);
+}
+
+
 inline void update_tempstate(int correction) {
 	*temp_state.temp_idx += correction;
 	if (*temp_state.temp_idx > temp_state.tmax) {
@@ -224,10 +231,7 @@ inline void update_tempstate(int correction) {
 
 HwmonSensorDriver::HwmonSensorDriver(std::string path)
 : SensorDriver(path)
-{
-	num_temps_ = 1;
-	correction_ = std::vector<int>(num_temps(), 0);
-}
+{ set_num_temps(1); }
 
 
 void HwmonSensorDriver::read_temps() const
@@ -258,16 +262,17 @@ TpSensorDriver::TpSensorDriver(std::string path)
 		std::ifstream f(path_);
 		f.exceptions(f.failbit | f.badbit);
 		int tmp;
+		unsigned int count;
 
 		while (!f.eof()) {
 			f >> tmp;
-			++num_temps_;
+			++count;
 		}
+		set_num_temps(count);
 	} catch (std::exception &e) {
 		string msg = std::strerror(errno);
 		fail(TF_ERR) << path_ + ": " << SystemError(string(e.what()) + ": " + msg) << flush;
 	}
-	correction_ = std::vector<int>(num_temps_, 0);
 }
 
 
@@ -283,9 +288,73 @@ void TpSensorDriver::read_temps() const
 		}
 	} catch (std::exception &e) {
 		string msg = std::strerror(errno);
-		fail(TF_ERR) << MSG_T_GET(path_) + ": " << SystemError(string(e.what()) + ": " + msg) << flush;
+		fail(TF_ERR) << MSG_T_GET(path_) << SystemError(string(e.what()) + ": " + msg) << flush;
 	}
 }
 
 
+#ifdef USE_ATASMART
+/*----------------------------------------------------------------------------
+| AtssmartSensorDriver: Reads temperatures from hard disks using S.M.A.R.T.  |
+| via device files like /dev/sda.                                            |
+----------------------------------------------------------------------------*/
+
+AtasmartSensorDriver::AtasmartSensorDriver(string device_path)
+: SensorDriver(device_path)
+{
+	if (sk_disk_open(device_path.c_str(), &disk_) < 0) {
+		string msg = std::strerror(errno);
+		fail(TF_ERR) << SystemError("sk_disk_open(" + device_path + "): " + msg);
+	}
+	//set_num_temps(1);
 }
+
+
+AtasmartSensorDriver::~AtasmartSensorDriver()
+{ sk_disk_free(disk_); }
+
+
+void AtasmartSensorDriver::read_temps() const
+{
+	SkBool disk_sleeping = false;
+
+	if (unlikely(dnd_disk && (sk_disk_check_sleep_mode(disk_, &disk_sleeping) < 0))) {
+		string msg = strerror(errno);
+		fail(TF_ERR) << SystemError("sk_disk_check_sleep_mode(" + path_ + "): " + msg) << flush;
+	}
+
+	if (unlikely(disk_sleeping)) {
+		*temp_state.temp_idx = 0;
+		update_tempstate(correction_[0]);
+	}
+	else {
+		uint64_t mKelvin;
+		double tmp;
+
+		if (unlikely(sk_disk_smart_read_data(disk_) < 0)) {
+			string msg = strerror(errno);
+			fail(TF_ERR) << SystemError("sk_disk_smart_read_data(" + path_ + "): " + msg) << flush;
+		}
+		if (unlikely(sk_disk_smart_get_temperature(disk_, &mKelvin)) < 0) {
+			string msg = strerror(errno);
+			fail(TF_ERR) << SystemError("sk_disk_smart_get_temperature(" + path_ + "): " + msg) << flush;
+		}
+
+		tmp = mKelvin / 1000.0f;
+		tmp -= 273.15f;
+
+		if (unlikely(tmp > std::numeric_limits<int>::max() || tmp < std::numeric_limits<int>::min())) {
+			fail(TF_ERR) << MSG_T_GET(path_) << SystemError(std::to_string(tmp) + " isn't a valid temperature.") << flush;
+		}
+
+		*temp_state.temp_idx = tmp;
+		update_tempstate(correction_[0]);
+	}
+}
+#endif /* USE_ATASMART */
+
+
+}
+
+
+

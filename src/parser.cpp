@@ -40,11 +40,13 @@ RegexParser::RegexParser(const string expr, const unsigned int data_idx, bool bo
 	}
 }
 
+
 RegexParser::~RegexParser()
 {
 	regfree(expr_);
 	free(expr_);
 }
+
 
 std::string *RegexParser::_parse(const char *&input) const
 {
@@ -72,60 +74,49 @@ KeywordParser::KeywordParser(const string keyword)
 {}
 
 
-FanParser::FanParser()
-: parser_fan("fan"),
-  parser_tp_fan("tp_fan"),
-  parser_pwm_fan("pwm_fan")
-{}
-
 FanDriver *FanParser::_parse(const char *&input) const
 {
 	FanDriver *fan = nullptr;
 	unique_ptr<string> path;
 
-	if ((path = unique_ptr<string>(parser_fan.parse(input)))) {
-		if (path->substr(0, tpacpi_path.length()) == tpacpi_path)
-			fan = new TpFanDriver(*path);
-		else
-			fan = new HwmonFanDriver(*path);
-	}
-	else if ((path = unique_ptr<string>(parser_tp_fan.parse(input))))
+	if ((path = unique_ptr<string>(KeywordParser("fan").parse(input))))
+		log(TF_ERR, TF_ERR) << MSG_CONF_FAN_DEPRECATED << flush;
+	else if ((path = unique_ptr<string>(KeywordParser("tp_fan").parse(input))))
 		fan = new TpFanDriver(*path);
-	else if ((path = unique_ptr<string>(parser_pwm_fan.parse(input))))
+	else if ((path = unique_ptr<string>(KeywordParser("pwm_fan").parse(input))))
 		fan = new HwmonFanDriver(*path);
 
 	return fan;
 }
 
 
-SensorParser::SensorParser()
-: parser_sensor("sensor"),
-  parser_hwmon("hwmon"),
-  parser_tp_thermal("tp_thermal")
-{}
-
 SensorDriver *SensorParser::_parse(const char *&input) const
 {
 	SensorDriver *sensor = nullptr;
 	unique_ptr<string> path;
 
-	if ((path = unique_ptr<string>(parser_sensor.parse(input)))) {
-		if (path->substr(0, tpacpi_path.length()) == tpacpi_path)
-			sensor = new TpSensorDriver(*path);
-		else
-			sensor = new HwmonSensorDriver(*path);
-	}
-	else if ((path = unique_ptr<string>(parser_tp_thermal.parse(input))))
+	if ((path = unique_ptr<string>(KeywordParser("sensor").parse(input))))
+		log(TF_ERR, TF_ERR) << MSG_CONF_SENSOR_DEPRECATED << flush;
+	else if ((path = unique_ptr<string>(KeywordParser("tp_thermal").parse(input))))
 		sensor = new TpSensorDriver(*path);
-	else if ((path = unique_ptr<string>(parser_hwmon.parse(input))))
+	else if ((path = unique_ptr<string>(KeywordParser("hwmon").parse(input))))
 		sensor = new HwmonSensorDriver(*path);
+	else if ((path = unique_ptr<string>(KeywordParser("atasmart").parse(input)))) {
+#ifdef USE_ATASMART
+		sensor = new AtasmartSensorDriver(*path);
+#else
+		log(TF_ERR, TF_ERR) << MSG_CONF_ATASMART_UNSUPP << flush;
+#endif /* USE_ATASMART */
+	}
 
-	unique_ptr<string> list_inner;
-	if ((list_inner = unique_ptr<string>(BracketParser("(", ")", false).parse(input)))
-			|| (list_inner = unique_ptr<string>(BracketParser("{", "}", false).parse(input)))) {
-		const char *list_inner_c = list_inner->c_str();
-		unique_ptr<vector<int>> correction(TupleParser().parse(list_inner_c));
-		if (correction) sensor->set_correction(*correction);
+	if (sensor) {
+		unique_ptr<string> list_inner;
+		if ((list_inner = unique_ptr<string>(BracketParser("(", ")", false).parse(input)))
+				|| (list_inner = unique_ptr<string>(BracketParser("{", "}", false).parse(input)))) {
+			const char *list_inner_c = list_inner->c_str();
+			unique_ptr<vector<int>> correction(TupleParser().parse(list_inner_c));
+			if (correction) sensor->set_correction(*correction);
+		}
 	}
 
 	return sensor;
@@ -217,22 +208,19 @@ ComplexLevel *ComplexLevelParser::_parse(const char *&input) const
 	unique_ptr<vector<int>> lower_lim, upper_lim, lvl_int;
 
 	if (!((list_inner = unique_ptr<string>(round_parser_.parse(input)))
-			|| (list_inner = unique_ptr<string>(curly_parser_.parse(input))))) {
+			|| (list_inner = unique_ptr<string>(curly_parser_.parse(input)))))
 		return nullptr;
-	}
 
 	const char *list_inner_c = list_inner->c_str();
 	if (!((lvl_str = unique_ptr<string>(quot_parser_.parse(list_inner_c)))
-			|| ((lvl_int = unique_ptr<vector<int>>(int_parser_.parse(list_inner_c))) && lvl_int->size() == 1))) {
+			|| ((lvl_int = unique_ptr<vector<int>>(int_parser_.parse(list_inner_c))) && lvl_int->size() == 1)))
 		return nullptr;
-	}
 
 	TupleParser tp;
 
 	if (!((lower_lim = unique_ptr<vector<int>>(tp.parse(list_inner_c)))
-			&& (upper_lim = unique_ptr<vector<int>>(tp.parse(list_inner_c))))) {
+			&& (upper_lim = unique_ptr<vector<int>>(tp.parse(list_inner_c)))))
 		return nullptr;
-	}
 
 	if (lvl_str) rv = new ComplexLevel(*lvl_str, *lower_lim, *upper_lim);
 	else if (lvl_int) rv = new ComplexLevel(lvl_int->at(0), *lower_lim, *upper_lim);
@@ -250,41 +238,20 @@ ConfigParser::ConfigParser()
 Config *ConfigParser::_parse(const char *&input) const
 {
 	// Use smart pointers here since we may cause an exception (rv->add_*()...)
-
 	unique_ptr<Config> rv(new Config());
 
 	bool some_match;
 	do {
-		some_match = false;
-
-		some_match = parser_comment.match(input);
-		some_match = parser_space.match(input) || some_match;
-
-		if (rv->add_fan(unique_ptr<FanDriver>(parser_fan.parse(input)))) {
-			some_match = true;
-			continue;
-		}
-
-		if (rv->add_sensor(unique_ptr<SensorDriver>(parser_sensor.parse(input)))) {
-			some_match = true;
-			continue;
-		}
-
-		if (rv->add_level(unique_ptr<SimpleLevel>(parser_simple_lvl.parse(input)))) {
-			some_match = true;
-			continue;
-		}
-
-		if (rv->add_level(unique_ptr<ComplexLevel>(parser_complex_lvl.parse(input)))) {
-			some_match = true;
-			continue;
-		}
-
+		some_match = parser_comment.match(input)
+				|| parser_space.match(input)
+				|| rv->add_fan(unique_ptr<FanDriver>(parser_fan.parse(input)))
+				|| rv->add_sensor(unique_ptr<SensorDriver>(parser_sensor.parse(input)))
+				|| rv->add_level(unique_ptr<SimpleLevel>(parser_simple_lvl.parse(input)))
+				|| rv->add_level(unique_ptr<ComplexLevel>(parser_complex_lvl.parse(input)));
 	} while(*input != 0 && some_match);
 
-	if (*input != 0 && !some_match) {
-		return nullptr;
-	}
+	if (*input != 0 && !some_match) return nullptr;
+
 	return rv.release();
 }
 

@@ -175,6 +175,8 @@ Logger &log(LogLevel lvl_sane, LogLevel lvl_insane);
 #define MSG_CONF_CORRECTION_LEN(path, clen, ntemp) std::string("Sensor ") + path + " has " \
 	+ std::to_string(ntemp) + " temperatures," \
 	" but you have " + std::to_string(clen) + " correction values for it."
+#define MSG_CONF_ATASMART_UNSUPP "S.M.A.R.T support is not compiled in. Recompile with -DUSE_ATASMART or " \
+	"contact your distribution's package maintainer."
 #define MSG_TEMP_COUNT(t_conf, t_found) "Your config requires at least " << t_conf << " temperatures, " \
 	"but only " << t_found << " temperatures were found."
 

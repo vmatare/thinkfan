@@ -61,6 +61,9 @@ struct TemperatureState {
 extern bool chk_sanity;
 extern bool resume_is_safe;
 extern bool quiet;
+#ifdef USE_ATASMART
+extern bool dnd_disk;
+#endif /* USE_ATASMART */
 extern seconds sleeptime;
 extern float bias_level;
 extern volatile int interrupted;

@@ -23,6 +23,9 @@
 #define THINKFAN_DRIVERS_H_
 
 #include <string>
+#ifdef USE_ATASMART
+#include "atasmart.h"
+#endif /* USE_ATASMART */
 #include "thinkfan.h"
 
 namespace thinkfan {
@@ -69,7 +72,6 @@ public:
 class SensorDriver {
 protected:
 	string path_;
-	unsigned int num_temps_;
 	SensorDriver(string path);
 	std::vector<int> correction_;
 public:
@@ -77,6 +79,9 @@ public:
 	virtual void read_temps() const = 0;
 	unsigned int num_temps() const { return num_temps_; }
 	void set_correction(const std::vector<int> &correction);
+	void set_num_temps(unsigned int n);
+private:
+	unsigned int num_temps_;
 };
 
 
@@ -92,6 +97,18 @@ public:
 	HwmonSensorDriver(string path);
 	void read_temps() const override;
 };
+
+
+#ifdef USE_ATASMART
+class AtasmartSensorDriver : public SensorDriver {
+public:
+	AtasmartSensorDriver(string device_path);
+	~AtasmartSensorDriver();
+	void read_temps() const override;
+private:
+	SkDisk *disk_;
+};
+#endif /* USE_ATASMART */
 
 
 }
