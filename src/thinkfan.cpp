@@ -62,7 +62,7 @@ string report_tstat() {
 	for (int temp : temp_state.temps) {
 		rv += std::to_string(temp) + ", ";
 	}
-	return rv;
+	return rv.substr(0, rv.length()-2);
 }
 
 
