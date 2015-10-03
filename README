@@ -1,19 +1,16 @@
-/**************************************************************************
- * thinkfan version 0.9 -- copyleft 01-2013, Victor Mataré
- *
- * thinkfan is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * thinkfan is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with thinkfan.  If not, see <http://www.gnu.org/licenses/>.
- **************************************************************************/
+thinkfan version 1.0 -- copyleft 2015, Victor Mataré
+====================================================
+
+thinkfan is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+thinkfan is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with thinkfan.  If not, see <http://www.gnu.org/licenses/>.
 
 Thinkfan is a simple, lightweight fan control program. Originally designed
 specifically for IBM/Lenovo Thinkpads, it now supports any kind of system via
@@ -25,24 +22,24 @@ CPU power as possible.
 Contents of this file
 =====================
 
-(0) WARNING
+  1. WARNING
 
-(1) How it works
+  2. How it works
 
-(2) Install and configure
-(2.1)  Build
-(2.2a) Configure hardware interface (IBM/Lenovo Thinkpads)
-(2.2b) Configure hardware interface (any system)
-(2.3)  Configure fan behaviour
-(2.4)  Test and install
+  3. Install and configure
+  3.1  Build
+  3.2a Configure hardware interface (IBM/Lenovo Thinkpads)
+  3.2b Configure hardware interface (any system)
+  3.3  Configure fan behaviour
+  3.4  Test and install
 
-(3) Usage
-(3.1)  Invocation
-(3.2)  Temperature biasing (the -b option)
-(3.3)  Pulsing-fan workaround
-(3.4)  Signals
+  4 Usage
+  4.1  Invocation
+  4.2  Temperature biasing (the -b option)
+  4.3  Pulsing-fan workaround
+  4.4  Signals
 
-(4) Contact/Bugs
+  5 Contact/Bugs
 
 
 
