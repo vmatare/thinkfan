@@ -118,10 +118,8 @@ Logger &log(LogLevel lvl_sane, LogLevel lvl_insane);
 	"safe way of handling this."
 
 
-#define MSG_T_GET(file) __func__ << ": Error getting temperature(s) from " + file + ": "
-#define MSG_T_GARBAGE(s) s <<": Trailing garbage after temperature!"
+#define MSG_T_GET(file) std::string("Failed to read temperature(s) from ") + file + ": "
 #define MSG_T_INVALID(s, d) s << ": Invalid temperature: " << d
-#define MSG_T_PARSE(str) "Error parsing temperatures: " << str
 
 
 #define MSG_FAN_MODOPTS \
@@ -176,6 +174,8 @@ Logger &log(LogLevel lvl_sane, LogLevel lvl_insane);
 	+ std::to_string(ntemp) + " temperatures," \
 	" but you have " + std::to_string(clen) + " correction values for it."
 #define MSG_CONF_ATASMART_UNSUPP "S.M.A.R.T support is not compiled in. Recompile with -DUSE_ATASMART or " \
+	"contact your distribution's package maintainer."
+#define MSG_CONF_NVML_UNSUPP "NVML support is not compiled in. Recompile with -DUSE_NVML or " \
 	"contact your distribution's package maintainer."
 #define MSG_TEMP_COUNT(t_conf, t_found) "Your config requires at least " << t_conf << " temperatures, " \
 	"but only " << t_found << " temperatures were found."

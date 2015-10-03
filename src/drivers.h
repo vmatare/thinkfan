@@ -23,10 +23,16 @@
 #define THINKFAN_DRIVERS_H_
 
 #include <string>
-#ifdef USE_ATASMART
-#include "atasmart.h"
-#endif /* USE_ATASMART */
+
 #include "thinkfan.h"
+
+#ifdef USE_ATASMART
+#include <atasmart.h>
+#endif /* USE_ATASMART */
+
+#ifdef USE_NVML
+#include <nvidia/gdk/nvml.h>
+#endif /* USE_NVML */
 
 namespace thinkfan {
 
@@ -73,6 +79,7 @@ class SensorDriver {
 protected:
 	string path_;
 	SensorDriver(string path);
+	SensorDriver() : num_temps_(0) {}
 	std::vector<int> correction_;
 public:
 	virtual ~SensorDriver() = default;
@@ -109,6 +116,18 @@ private:
 	SkDisk *disk_;
 };
 #endif /* USE_ATASMART */
+
+
+#ifdef USE_NVML
+class NvmlSensorDriver : public SensorDriver {
+public:
+	NvmlSensorDriver(string bus_id);
+	~NvmlSensorDriver();
+	void read_temps() const override;
+private:
+	nvmlDevice_t device_;
+};
+#endif /* USE_NVML */
 
 
 }

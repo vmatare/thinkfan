@@ -108,6 +108,13 @@ SensorDriver *SensorParser::_parse(const char *&input) const
 		log(TF_ERR, TF_ERR) << MSG_CONF_ATASMART_UNSUPP << flush;
 #endif /* USE_ATASMART */
 	}
+	else if ((path = unique_ptr<string>(KeywordParser("nv_thermal").parse(input)))) {
+#ifdef USE_NVML
+		sensor = new NvmlSensorDriver(*path);
+#else
+		log(TF_ERR, TF_ERR) << MSG_CONF_NVML_UNSUPP << flush;
+#endif /* USE_ATASMART */
+	}
 
 	if (sensor) {
 		unique_ptr<string> list_inner;

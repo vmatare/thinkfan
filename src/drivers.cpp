@@ -27,6 +27,7 @@
 #include <fstream>
 #include <cstring>
 #include <thread>
+#include <iostream>
 
 namespace thinkfan {
 
@@ -306,7 +307,7 @@ AtasmartSensorDriver::AtasmartSensorDriver(string device_path)
 		string msg = std::strerror(errno);
 		fail(TF_ERR) << SystemError("sk_disk_open(" + device_path + "): " + msg);
 	}
-	//set_num_temps(1);
+	set_num_temps(1);
 }
 
 
@@ -352,6 +353,42 @@ void AtasmartSensorDriver::read_temps() const
 	}
 }
 #endif /* USE_ATASMART */
+
+
+#ifdef USE_NVML
+NvmlSensorDriver::NvmlSensorDriver(string bus_id)
+{
+	nvmlReturn_t ret;
+	string name, brand;
+	name.resize(256);
+	brand.resize(256);
+	if ((ret = nvmlInit_v2()))
+		fail(TF_ERR) << SystemError("Failed to initialize NVML driver.") << flush;
+	if ((ret = nvmlDeviceGetHandleByPciBusId_v2(bus_id.c_str(), &device_)))
+		fail(TF_ERR) << SystemError("Failed to open PCI device " + bus_id) << flush;
+	nvmlDeviceGetName(device_, &*name.begin(), 255);
+	log(TF_DBG, TF_DBG) << "Initialized NVML sensor on " << name << " at PCI " << bus_id << "." << flush;
+	set_num_temps(1);
+}
+
+
+NvmlSensorDriver::~NvmlSensorDriver()
+{
+	if (nvmlShutdown())
+		log(TF_ERR, TF_ERR) << "Failed to shutdown NVML driver." << flush;
+}
+
+void NvmlSensorDriver::read_temps() const
+{
+	nvmlReturn_t ret;
+	unsigned int tmp;
+	if ((ret = nvmlDeviceGetTemperature(device_, NVML_TEMPERATURE_GPU, &tmp)))
+		fail(TF_ERR) << SystemError(MSG_T_GET(string("NVML"))) << "Error #" << ret << flush;
+	*temp_state.temp_idx = tmp;
+	update_tempstate(correction_[0]);
+}
+#endif /* USE_NVML */
+
 
 
 }
