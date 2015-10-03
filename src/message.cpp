@@ -96,7 +96,10 @@ Logger &Logger::flush()
 Logger &Logger::level(const LogLevel &lvl)
 {
 	flush();
+	if (this->log_lvl_ != lvl && !syslog_) std::cerr << std::endl;
+
 	this->log_lvl_ = lvl;
+
 	switch (lvl) {
 	case TF_WRN:
 		log_str_ = "WARNING: ";
