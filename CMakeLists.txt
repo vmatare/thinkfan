@@ -33,12 +33,6 @@ if(USE_ATASMART)
 endif(USE_ATASMART)
 
 
-#include_directories(
-#	"${THINKFAN_SOURCE_DIR}"
-#	"${THINKFAN_SOURCE_DIR}/config"
-#	"${GRAMPA_INCLUDE}")
-
-
 add_executable(thinkfan src/thinkfan.cpp src/config.cpp src/drivers.cpp
 	src/message.cpp src/parser.cpp src/error.cpp)
 
