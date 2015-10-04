@@ -302,11 +302,24 @@ int main(int argc, char **argv) {
 		}
 		if (depulse > 0) log(TF_INF, TF_INF) << MSG_DEPULSE(depulse, sleeptime.count()) << flush;
 
+		const Config *config = Config::read_config(config_file);
 		do {
-			const Config *config = Config::read_config(config_file);
 			run(*config);
-			delete config;
+			if (interrupted == SIGHUP) {
+				log(TF_INF, TF_INF) << MSG_RELOAD_CONF << flush;
+				try {
+					const Config *config_new = Config::read_config(config_file);
+					delete config;
+					config = config_new;
+				} catch(Error &e) {
+					log(TF_ERR, TF_ERR) << MSG_CONF_RELOAD_ERR << flush;
+				} catch(std::exception &e) {
+					log(TF_ERR, TF_ERR) << "read_config: " << e.what() << flush;
+					log(TF_ERR, TF_ERR) << MSG_CONF_RELOAD_ERR << flush;
+				}
+			}
 		} while (interrupted == SIGHUP);
+		delete config;
 
 		log(TF_INF, TF_INF) << MSG_TERM << flush;
 	}
