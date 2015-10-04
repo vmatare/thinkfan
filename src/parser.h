@@ -91,7 +91,8 @@ private:
 	string re_str;
 	bool bol_only_;
 public:
-	RegexParser(const std::string expr, const unsigned int data_idx = 0, bool bol_only = true);
+	RegexParser(const std::string expr, const unsigned int data_idx = 0,
+			bool bol_only = true, bool match_nl = false);
 	virtual ~RegexParser();
 	std::string *_parse(const char *&input) const override;
 };
@@ -137,12 +138,6 @@ public:
 };
 
 
-static const BracketParser round_parser_("(", ")");
-static const BracketParser curly_parser_("{", "}");
-static const BracketParser quot_parser_("\"", "\"");
-static const IntListParser int_parser_;
-
-
 class SimpleLevelParser : public Parser<SimpleLevel> {
 public:
 	SimpleLevelParser() {}
@@ -159,7 +154,7 @@ public:
 
 class ConfigParser : public Parser<Config> {
 private:
-	const RegexParser parser_comment, parser_space;
+	const RegexParser parser_comment;
 	const FanParser parser_fan;
 	const SensorParser parser_sensor;
 	const SimpleLevelParser parser_simple_lvl;

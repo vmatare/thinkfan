@@ -29,13 +29,13 @@ namespace thinkfan {
 
 using namespace std;
 
-RegexParser::RegexParser(const string expr, const unsigned int data_idx, bool bol_only)
+RegexParser::RegexParser(const string expr, const unsigned int data_idx, bool bol_only, bool match_nl)
 : data_idx_(data_idx),
   re_str(expr),
   bol_only_(bol_only && expr[0] == '^')
 {
 	this->expr_ = (regex_t *) malloc(sizeof(regex_t));
-	if (regcomp(this->expr_, expr.c_str(), REG_EXTENDED | REG_NEWLINE)) {
+	if (regcomp(this->expr_, expr.c_str(), REG_EXTENDED | (!match_nl & REG_NEWLINE))) {
 		throw ParserMisdefinition();
 	}
 }
@@ -63,6 +63,7 @@ std::string *RegexParser::_parse(const char *&input) const
 		}
 	}
 	else if (err == REG_ESPACE) {
+		delete rv;
 		throw ParserOOM();
 	}
 	return rv;
@@ -157,20 +158,21 @@ vector<int> *IntListParser::_parse(const char *&input) const
 
 
 BracketParser::BracketParser(const string opening, const string closing, bool nl)
-: RegexParser((nl ? "^[[:space:]]*\\" : "^[[:blank:]]*\\") + opening + "(.*)\\" + closing, 1)
+: RegexParser((nl ? "^[[:space:]]*\\" : "^[[:blank:]]*\\")
+		+ opening + "([^" + opening + closing + "]+)\\" + closing, 1, nl)
 {}
 
 
 vector<int> *TupleParser::_parse(const char *&input) const
 {
 	string *list_inner = nullptr;
-	if (!((list_inner = (round_parser_.parse(input)))
-			|| (list_inner = (curly_parser_.parse(input))))) {
+	if (!((list_inner = (BracketParser("(", ")").parse(input)))
+			|| (list_inner = (BracketParser("{", "}").parse(input))))) {
 		return nullptr;
 	}
 	const char *list_inner_c = list_inner->c_str();
 
-	vector<int> *rv = int_parser_.parse(list_inner_c);
+	vector<int> *rv = IntListParser().parse(list_inner_c);
 	delete list_inner;
 	return rv;
 }
@@ -180,17 +182,17 @@ SimpleLevel *SimpleLevelParser::_parse(const char *&input) const
 {
 	SimpleLevel *rv = nullptr;
 	string *list_inner = nullptr;
-	if (!((list_inner = (round_parser_.parse(input)))
-			|| (list_inner = (curly_parser_.parse(input))))) {
+	if (!((list_inner = (BracketParser("(", ")").parse(input)))
+			|| (list_inner = (BracketParser("{", "}").parse(input))))) {
 		return nullptr;
 	}
 
 	vector<int> *ints = nullptr;
 	string *lvl_str = nullptr;
 	const char *list_inner_c = list_inner->c_str();
-	if (!((ints = int_parser_.parse(list_inner_c))
-			|| ((lvl_str = quot_parser_.parse(list_inner_c))
-					&& (ints = int_parser_.parse(list_inner_c))))) {
+	if (!((ints = IntListParser().parse(list_inner_c))
+			|| ((lvl_str = BracketParser("\"", "\"").parse(list_inner_c))
+					&& (ints = IntListParser().parse(list_inner_c))))) {
 		delete lvl_str;
 		delete list_inner;
 		return nullptr;
@@ -214,20 +216,22 @@ ComplexLevel *ComplexLevelParser::_parse(const char *&input) const
 	unique_ptr<string> list_inner, lvl_str;
 	unique_ptr<vector<int>> lower_lim, upper_lim, lvl_int;
 
-	if (!((list_inner = unique_ptr<string>(round_parser_.parse(input)))
-			|| (list_inner = unique_ptr<string>(curly_parser_.parse(input)))))
+	if (!((list_inner = unique_ptr<string>(BracketParser("(", ")", true).parse(input)))
+			|| (list_inner = unique_ptr<string>(BracketParser("{", "}", true).parse(input)))))
 		return nullptr;
 
 	const char *list_inner_c = list_inner->c_str();
-	if (!((lvl_str = unique_ptr<string>(quot_parser_.parse(list_inner_c)))
-			|| ((lvl_int = unique_ptr<vector<int>>(int_parser_.parse(list_inner_c))) && lvl_int->size() == 1)))
+	if (!((lvl_str = unique_ptr<string>(BracketParser("\"", "\"").parse(list_inner_c)))
+			|| ((lvl_int = unique_ptr<vector<int>>(IntListParser().parse(list_inner_c))) && lvl_int->size() == 1)))
 		return nullptr;
 
 	TupleParser tp;
-
-	if (!((lower_lim = unique_ptr<vector<int>>(tp.parse(list_inner_c)))
-			&& (upper_lim = unique_ptr<vector<int>>(tp.parse(list_inner_c)))))
-		return nullptr;
+	RegexParser sep_parser("^[[:space:]]+|^[[:space:]]*,?[[:space:]]*", 0);
+	sep_parser.match(list_inner_c);
+	lower_lim = unique_ptr<vector<int>>(tp.parse(list_inner_c));
+	sep_parser.match(list_inner_c);
+	upper_lim = unique_ptr<vector<int>>(tp.parse(list_inner_c));
+	if (!(lower_lim && upper_lim)) return nullptr;
 
 	if (lvl_str) rv = new ComplexLevel(*lvl_str, *lower_lim, *upper_lim);
 	else if (lvl_int) rv = new ComplexLevel(lvl_int->at(0), *lower_lim, *upper_lim);
@@ -237,8 +241,7 @@ ComplexLevel *ComplexLevelParser::_parse(const char *&input) const
 
 
 ConfigParser::ConfigParser()
-: parser_comment("^[[:space:]]*#.*$", 0),
-  parser_space("^[[:space:]]+")
+: parser_comment("^[[:space:]]*#.*$", 0)
 {}
 
 
@@ -246,11 +249,12 @@ Config *ConfigParser::_parse(const char *&input) const
 {
 	// Use smart pointers here since we may cause an exception (rv->add_*()...)
 	unique_ptr<Config> rv(new Config());
+	RegexParser space_parser_("^[[:space:]]+", 0);
 
 	bool some_match;
 	do {
 		some_match = parser_comment.match(input)
-				|| parser_space.match(input)
+				|| space_parser_.match(input)
 				|| rv->add_fan(unique_ptr<FanDriver>(parser_fan.parse(input)))
 				|| rv->add_sensor(unique_ptr<SensorDriver>(parser_sensor.parse(input)))
 				|| rv->add_level(unique_ptr<SimpleLevel>(parser_simple_lvl.parse(input)))
