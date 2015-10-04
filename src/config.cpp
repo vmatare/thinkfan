@@ -178,7 +178,7 @@ Level::Level(string level, const std::vector<int> &lower_limit, const std::vecto
 		level_n_ = std::numeric_limits<int>::min();
 	else if (sscanf(level.c_str(), "level %d", &level_n_) == 1)
 		return;
-	try {
+	else try {
 		level_n_ = std::stoi(level);
 		level_s_ = "level " + level;
 	} catch (std::out_of_range &e) {
