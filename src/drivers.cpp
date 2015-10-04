@@ -265,7 +265,7 @@ TpSensorDriver::TpSensorDriver(std::string path)
 		std::ifstream f(path_);
 		f.exceptions(f.failbit | f.badbit);
 		int tmp;
-		unsigned int count;
+		unsigned int count = 0;
 
 		while (!f.eof()) {
 			f >> tmp;
