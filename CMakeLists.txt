@@ -5,11 +5,19 @@ cmake_minimum_required(VERSION 2.6)
 # Generate absolute paths or something
 cmake_policy(SET CMP0015 NEW)
 
-option(USE_ATASMART "Enable reading temperatures from HDDs via S.M.A.R.T")
-option(USE_NVML "Enable NVML to get temperatures directly from nVidia GPUs
-(when using the proprietary driver)")
-set(MAXERR 2 CACHE STRING "Fail after this many consecutive errors when in DANGEROUS
-mode")
+#
+# Defaults to OFF because libatasmart seems to be horribly inefficient
+#
+option(USE_ATASMART "Enable reading temperatures from HDDs via S.M.A.R.T" OFF)
+
+#
+# Defaults to ON because it seems reasonably fast. The libnvidia-ml.so is
+# loaded at runtime, so we don't add a compile-time dependency on the
+# proprietary nVidia driver.
+#
+option(USE_NVML "Get temperatures directly from nVidia GPUs via their
+proprietary NVML API" ON)
+
 
 add_executable(thinkfan src/thinkfan.cpp src/config.cpp src/drivers.cpp
 	src/message.cpp src/parser.cpp src/error.cpp)
@@ -38,9 +46,10 @@ if(USE_ATASMART)
 endif(USE_ATASMART)
 
 if(USE_NVML)
+	include_directories(AFTER "include")
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DUSE_NVML")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_NVML")
-	target_link_libraries(thinkfan nvidia-ml)
+	target_link_libraries(thinkfan dl)
 endif(USE_NVML)
 
 

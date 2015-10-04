@@ -126,6 +126,14 @@ public:
 	void read_temps() const override;
 private:
 	nvmlDevice_t device_;
+	void *nvml_so_handle_;
+
+	nvmlReturn_t (*dl_nvmlInit_v2)();
+	nvmlReturn_t (*dl_nvmlDeviceGetHandleByPciBusId_v2)(const char *, nvmlDevice_t *);
+	nvmlReturn_t (*dl_nvmlDeviceGetName)(nvmlDevice_t, char *, unsigned int);
+	nvmlReturn_t (*dl_nvmlDeviceGetTemperature)(nvmlDevice_t, nvmlTemperatureSensors_t, unsigned int *);
+	nvmlReturn_t (*dl_nvmlShutdown)();
+
 };
 #endif /* USE_NVML */
 

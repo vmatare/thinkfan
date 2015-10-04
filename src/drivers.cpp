@@ -29,6 +29,8 @@
 #include <thread>
 #include <iostream>
 
+#include <dlfcn.h>
+
 namespace thinkfan {
 
 
@@ -356,17 +358,44 @@ void AtasmartSensorDriver::read_temps() const
 
 
 #ifdef USE_NVML
+/*----------------------------------------------------------------------------
+| NvmlSensorDriver: Gets temperatures directly from GPUs supported by the    |
+| nVidia Management Library that is included with the proprietary driver.    |
+----------------------------------------------------------------------------*/
+
 NvmlSensorDriver::NvmlSensorDriver(string bus_id)
+: dl_nvmlInit_v2(nullptr),
+  dl_nvmlDeviceGetHandleByPciBusId_v2(nullptr),
+  dl_nvmlDeviceGetName(nullptr),
+  dl_nvmlDeviceGetTemperature(nullptr),
+  dl_nvmlShutdown(nullptr)
 {
+	if (!(nvml_so_handle_ = dlopen("libnvidia-ml.so", RTLD_LAZY))) {
+		string msg = strerror(errno);
+		fail(TF_ERR) << SystemError("Failed to load NVML driver: " + msg) << flush;
+	}
+
+	*reinterpret_cast<void **>(&dl_nvmlInit_v2) = dlsym(nvml_so_handle_, "nvmlInit_v2");
+	*reinterpret_cast<void **>(&dl_nvmlDeviceGetHandleByPciBusId_v2) = dlsym(
+			nvml_so_handle_, "nvmlDeviceGetHandleByPciBusId_v2");
+	*reinterpret_cast<void **>(&dl_nvmlDeviceGetName) = dlsym(nvml_so_handle_, "nvmlDeviceGetName");
+	*reinterpret_cast<void **>(&dl_nvmlDeviceGetTemperature) = dlsym(nvml_so_handle_, "nvmlDeviceGetTemperature");
+	*reinterpret_cast<void **>(&dl_nvmlShutdown) = dlsym(nvml_so_handle_, "nvmlShutdown");
+
+	if (!(dl_nvmlDeviceGetHandleByPciBusId_v2 && dl_nvmlDeviceGetName &&
+			dl_nvmlDeviceGetTemperature && dl_nvmlInit_v2 && dl_nvmlShutdown))
+		fail(TF_ERR) << SystemError("Incompatible NVML driver.") << flush;
+
 	nvmlReturn_t ret;
 	string name, brand;
 	name.resize(256);
 	brand.resize(256);
-	if ((ret = nvmlInit_v2()))
+
+	if ((ret = dl_nvmlInit_v2()))
 		fail(TF_ERR) << SystemError("Failed to initialize NVML driver.") << flush;
-	if ((ret = nvmlDeviceGetHandleByPciBusId_v2(bus_id.c_str(), &device_)))
+	if ((ret = dl_nvmlDeviceGetHandleByPciBusId_v2(bus_id.c_str(), &device_)))
 		fail(TF_ERR) << SystemError("Failed to open PCI device " + bus_id) << flush;
-	nvmlDeviceGetName(device_, &*name.begin(), 255);
+	dl_nvmlDeviceGetName(device_, &*name.begin(), 255);
 	log(TF_DBG, TF_DBG) << "Initialized NVML sensor on " << name << " at PCI " << bus_id << "." << flush;
 	set_num_temps(1);
 }
@@ -374,15 +403,17 @@ NvmlSensorDriver::NvmlSensorDriver(string bus_id)
 
 NvmlSensorDriver::~NvmlSensorDriver()
 {
-	if (nvmlShutdown())
+	if (dl_nvmlShutdown())
 		log(TF_ERR, TF_ERR) << "Failed to shutdown NVML driver." << flush;
+	dlclose(nvml_so_handle_);
+	delete dlerror();
 }
 
 void NvmlSensorDriver::read_temps() const
 {
 	nvmlReturn_t ret;
 	unsigned int tmp;
-	if ((ret = nvmlDeviceGetTemperature(device_, NVML_TEMPERATURE_GPU, &tmp)))
+	if ((ret = dl_nvmlDeviceGetTemperature(device_, NVML_TEMPERATURE_GPU, &tmp)))
 		fail(TF_ERR) << SystemError(MSG_T_GET(string("NVML"))) << "Error #" << ret << flush;
 	*temp_state.temp_idx = tmp;
 	update_tempstate(correction_[0]);
