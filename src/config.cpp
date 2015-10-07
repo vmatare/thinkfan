@@ -52,7 +52,7 @@ const Config *Config::read_config(const string &filename)
 		fail(TF_ERR) << SyntaxError(filename, parser.get_max_addr() - start, f_data) << flush;
 	}
 	else {
-		if (rv->levels().size() == 0) throw ConfigError("No fan levels specified.");
+		if (rv->levels().size() == 0) fail(TF_ERR) << ConfigError("No fan levels specified.") << flush;
 
 		if (!rv->fan()) {
 			log(TF_WRN, TF_WRN) << MSG_CONF_DEFAULT_FAN << flush;
