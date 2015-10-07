@@ -34,7 +34,7 @@ RegexParser::RegexParser(const string expr, const unsigned int data_idx, bool bo
   bol_only_(bol_only && expr[0] == '^')
 {
 	this->expr_ = (regex_t *) malloc(sizeof(regex_t));
-	if (regcomp(this->expr_, expr.c_str(), REG_EXTENDED | (!match_nl & REG_NEWLINE))) {
+	if (regcomp(this->expr_, expr.c_str(), REG_EXTENDED | (match_nl ? 0 : REG_NEWLINE))) {
 		throw ParserMisdefinition();
 	}
 }
@@ -70,7 +70,7 @@ std::string *RegexParser::_parse(const char *&input) const
 
 
 KeywordParser::KeywordParser(const string keyword)
-: RegexParser("[[:space:]]*" + keyword + "[[:space:]]+([^[:space:]]+|\"[^\"]+\")", 1)
+: RegexParser("^[[:space:]]*" + keyword + "[[:space:]]+([^[:space:]]+|\"[^\"]+\")", 1)
 {}
 
 
@@ -80,7 +80,7 @@ FanDriver *FanParser::_parse(const char *&input) const
 	unique_ptr<string> path;
 
 	if ((path = unique_ptr<string>(KeywordParser("fan").parse(input))))
-		log(TF_ERR, TF_ERR) << MSG_CONF_FAN_DEPRECATED << flush;
+		fail(TF_ERR) << ConfigError(MSG_CONF_FAN_DEPRECATED) << flush;
 	else if ((path = unique_ptr<string>(KeywordParser("tp_fan").parse(input))))
 		fan = new TpFanDriver(*path);
 	else if ((path = unique_ptr<string>(KeywordParser("pwm_fan").parse(input))))
@@ -158,7 +158,7 @@ vector<int> *IntListParser::_parse(const char *&input) const
 
 BracketParser::BracketParser(const string opening, const string closing, bool nl)
 : RegexParser((nl ? "^[[:space:]]*\\" : "^[[:blank:]]*\\")
-		+ opening + "([^" + opening + closing + "]+)\\" + closing, 1, nl)
+		+ opening + "([^" + opening + closing + "]+)\\" + closing, 1, true, nl)
 {}
 
 
@@ -225,7 +225,7 @@ ComplexLevel *ComplexLevelParser::_parse(const char *&input) const
 		return nullptr;
 
 	TupleParser tp;
-	RegexParser sep_parser("^[[:space:]]+|^[[:space:]]*,?[[:space:]]*", 0);
+	RegexParser sep_parser("^[[:space:]]+|^[[:space:]]*,?[[:space:]]*", 0, true, true);
 	sep_parser.match(list_inner_c);
 	lower_lim = unique_ptr<vector<int>>(tp.parse(list_inner_c));
 	sep_parser.match(list_inner_c);
@@ -248,7 +248,7 @@ Config *ConfigParser::_parse(const char *&input) const
 {
 	// Use smart pointers here since we may cause an exception (rv->add_*()...)
 	unique_ptr<Config> rv(new Config());
-	RegexParser space_parser_("^[[:space:]]+", 0);
+	RegexParser space_parser_("^[[:space:]]+", 0, true, true);
 
 	bool some_match;
 	do {
