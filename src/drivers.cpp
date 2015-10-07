@@ -27,8 +27,6 @@
 #include <fstream>
 #include <cstring>
 #include <thread>
-#include <iostream>
-
 #include <dlfcn.h>
 
 namespace thinkfan {

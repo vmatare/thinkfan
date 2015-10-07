@@ -25,8 +25,6 @@
 #include <regex.h>
 #include <vector>
 #include <string>
-#include <iterator>
-#include <exception>
 #include <string.h>
 #include "drivers.h"
 

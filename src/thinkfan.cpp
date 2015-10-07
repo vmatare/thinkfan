@@ -21,7 +21,6 @@
 
 #include <getopt.h>
 #include <signal.h>
-#include <signal.h>
 #include <cstring>
 #include <string>
 #include <unistd.h>
@@ -31,7 +30,6 @@
 
 #include <iostream>
 #include <memory>
-#include <system_error>
 #include <thread>
 
 #include "thinkfan.h"

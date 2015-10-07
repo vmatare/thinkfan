@@ -20,7 +20,6 @@
  * ******************************************************************/
 
 #include "config.h"
-#include <stdexcept>
 #include <fstream>
 #include <limits>
 #include "parser.h"

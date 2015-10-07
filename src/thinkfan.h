@@ -22,7 +22,6 @@
 #ifndef THINKFAN_H_
 #define THINKFAN_H_
 
-#include <unistd.h>
 #include <vector>
 #include <chrono>
 
