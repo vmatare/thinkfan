@@ -167,6 +167,19 @@ HwmonFanDriver::HwmonFanDriver(const std::string &path)
 }
 
 
+HwmonFanDriver::~HwmonFanDriver()
+{
+	try {
+		std::ofstream f(path_ + "_enable");
+		f.exceptions(f.failbit | f.badbit);
+		f << initial_state_ << std::endl;
+	} catch (std::exception &e) {
+		string msg = std::strerror(errno);
+		fail(TF_WRN) << MSG_FAN_RESET(path_) << SystemError(string(e.what()) + ": " + msg) << flush;
+	}
+}
+
+
 void HwmonFanDriver::init() const
 {
 	try {
@@ -373,6 +386,10 @@ NvmlSensorDriver::NvmlSensorDriver(string bus_id)
 		fail(TF_ERR) << SystemError("Failed to load NVML driver: " + msg) << flush;
 	}
 
+	/* Apparently GCC doesn't want to cast to function pointers, so we have to do
+	 * this kind of weird stuff.
+	 * See http://stackoverflow.com/questions/1096341/function-pointers-casting-in-c
+	 */
 	*reinterpret_cast<void **>(&dl_nvmlInit_v2) = dlsym(nvml_so_handle_, "nvmlInit_v2");
 	*reinterpret_cast<void **>(&dl_nvmlDeviceGetHandleByPciBusId_v2) = dlsym(
 			nvml_so_handle_, "nvmlDeviceGetHandleByPciBusId_v2");

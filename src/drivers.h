@@ -71,6 +71,7 @@ public:
 class HwmonFanDriver : public FanDriver {
 public:
 	HwmonFanDriver(const string &path);
+	~HwmonFanDriver() override;
 	void init() const override;
 };
 
