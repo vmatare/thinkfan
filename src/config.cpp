@@ -173,7 +173,7 @@ Level::Level(string level, const std::vector<int> &lower_limit, const std::vecto
 		if (*l_it >= *u_it) fail(TF_WRN) << ConfigError(MSG_CONF_LOWHIGH) << flush;
 	}
 
-	if (level == "level auto" || level == "level disengaged")
+	if (level == "level auto" || level == "level disengaged" || level == "level full-speed")
 		level_n_ = std::numeric_limits<int>::min();
 	else if (sscanf(level.c_str(), "level %d", &level_n_) == 1)
 		return;
