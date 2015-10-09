@@ -15,7 +15,7 @@ option(USE_ATASMART "Enable reading temperatures from HDDs via S.M.A.R.T" OFF)
 # loaded at runtime, so we don't add a compile-time dependency on the
 # proprietary nVidia driver.
 #
-option(USE_NVML "Get temperatures directly from nVidia GPUs via their
+option(USE_NVML "Get temperatures directly from nVidia GPUs via their \
 proprietary NVML API" ON)
 
 
