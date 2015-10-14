@@ -27,7 +27,10 @@
 #include <fstream>
 #include <cstring>
 #include <thread>
+
+#ifdef USE_NVML
 #include <dlfcn.h>
+#endif
 
 namespace thinkfan {
 
@@ -407,9 +410,13 @@ NvmlSensorDriver::NvmlSensorDriver(string bus_id)
 	brand.resize(256);
 
 	if ((ret = dl_nvmlInit_v2()))
-		fail(TF_ERR) << SystemError("Failed to initialize NVML driver.") << flush;
+		fail(TF_ERR)
+		<< SystemError("Failed to initialize NVML driver. Error code (cf. nvml.h): " + std::to_string(ret))
+		<< flush;
 	if ((ret = dl_nvmlDeviceGetHandleByPciBusId_v2(bus_id.c_str(), &device_)))
-		fail(TF_ERR) << SystemError("Failed to open PCI device " + bus_id) << flush;
+		fail(TF_ERR)
+		<< SystemError("Failed to open PCI device " + bus_id + ". Error code (cf. nvml.h): " + std::to_string(ret))
+		<< flush;
 	dl_nvmlDeviceGetName(device_, &*name.begin(), 255);
 	log(TF_DBG, TF_DBG) << "Initialized NVML sensor on " << name << " at PCI " << bus_id << "." << flush;
 	set_num_temps(1);
@@ -418,8 +425,9 @@ NvmlSensorDriver::NvmlSensorDriver(string bus_id)
 
 NvmlSensorDriver::~NvmlSensorDriver()
 {
-	if (dl_nvmlShutdown())
-		log(TF_ERR, TF_ERR) << "Failed to shutdown NVML driver." << flush;
+	nvmlReturn_t ret;
+	if ((ret = dl_nvmlShutdown()))
+		log(TF_ERR, TF_ERR) << "Failed to shutdown NVML driver. Error code (cf. nvml.h): " << ret << flush;
 	dlclose(nvml_so_handle_);
 	delete dlerror();
 }
@@ -429,7 +437,9 @@ void NvmlSensorDriver::read_temps() const
 	nvmlReturn_t ret;
 	unsigned int tmp;
 	if ((ret = dl_nvmlDeviceGetTemperature(device_, NVML_TEMPERATURE_GPU, &tmp)))
-		fail(TF_ERR) << SystemError(MSG_T_GET(string("NVML"))) << "Error #" << ret << flush;
+		fail(TF_ERR)
+		<< SystemError(MSG_T_GET(path_) + "Error code (cf. nvml.h): " + std::to_string(ret))
+		<< flush;
 	*temp_state.temp_idx = tmp;
 	update_tempstate(correction_[0]);
 }
