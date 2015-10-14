@@ -126,13 +126,13 @@ void TpFanDriver::set_speed(const string &level)
 
 void TpFanDriver::ping_watchdog_and_depulse(const string &level)
 {
-	std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
 	if (depulse_ > std::chrono::milliseconds(0)) {
 		set_speed("level disengaged");
 		std::this_thread::sleep_for(depulse_);
 		set_speed(level);
 	}
-	else if (now - last_watchdog_ping_ >= watchdog_) set_speed(level);
+	else if (last_watchdog_ping_ + watchdog_ + sleeptime >= std::chrono::system_clock::now())
+		set_speed(level);
 }
 
 
