@@ -46,6 +46,7 @@ bool quiet(false);
 std::chrono::duration<unsigned int> sleeptime(5);
 float bias_level(5);
 volatile int interrupted(0);
+
 #ifdef USE_ATASMART
 /** Do Not Disturb disk, i.e. don't get temperature from a sleeping disk */
 bool dnd_disk = false;
@@ -123,6 +124,9 @@ void run(const Config &config)
 		for (const SensorDriver *sensor : config.sensors())
 			sensor->read_temps();
 
+		if (unlikely(temp_state.temp_idx - 1 != &temp_state.temps.back()))
+			fail(TF_ERR) << SystemError(MSG_SENSOR_LOST) << flush;
+
 		int diff = temp_state.tmax - temp_state.last_tmax;
 		if (unlikely(diff > 2)) {
 			// Apply bias if temperature changed quickly
@@ -140,9 +144,6 @@ void run(const Config &config)
 		}
 		// Apply bias to maximum temperature only
 		*temp_state.b_tmax = temp_state.tmax + bias;
-
-		if (unlikely(temp_state.temp_idx - 1 != &temp_state.temps.back()))
-			fail(TF_ERR) << SystemError(MSG_SENSOR_LOST) << flush;
 
 		if (unlikely(**cur_lvl <= temp_state)) {
 			while (cur_lvl != config.levels().end() && **cur_lvl <= temp_state)
@@ -315,8 +316,10 @@ int main(int argc, char **argv) {
 					log(TF_ERR, TF_ERR) << "read_config: " << e.what() << flush;
 					log(TF_ERR, TF_ERR) << MSG_CONF_RELOAD_ERR << flush;
 				}
+				interrupted = 0;
 			}
-		} while (interrupted == SIGHUP);
+		} while (!interrupted);
+
 		delete config;
 
 		log(TF_INF, TF_INF) << MSG_TERM << flush;
