@@ -22,6 +22,7 @@
 #include "config.h"
 #include <fstream>
 #include <limits>
+#include <cstring>
 #include "parser.h"
 #include "message.h"
 #include "thinkfan.h"
@@ -34,36 +35,44 @@ Config::Config() : num_temps_(0), fan_(nullptr) {}
 
 const Config *Config::read_config(const string &filename)
 {
-	ifstream f_in(filename);
-	f_in.seekg(0, f_in.end);
-	ifstream::pos_type f_size = f_in.tellg();
-	f_in.seekg(0, f_in.beg);
-	string f_data;
-	f_data.resize(f_size, 0);
-	f_in.read(&*f_data.begin(), f_size);
+	Config *rv = nullptr;
+	try {
+		ConfigParser parser;
 
-	ConfigParser parser;
-	const char *input = f_data.c_str();
-	const char *start = input;
+		ifstream f_in(filename);
+		f_in.exceptions(f_in.badbit | f_in.failbit);
+		f_in.seekg(0, f_in.end);
+		ifstream::pos_type f_size = f_in.tellg();
+		f_in.seekg(0, f_in.beg);
+		string f_data;
+		f_data.resize(f_size, 0);
+		f_in.read(&*f_data.begin(), f_size);
 
-	Config *rv = parser.parse_config(input);
+		const char *input = f_data.c_str();
+		const char *start = input;
 
-	if (!rv) {
-		fail(TF_ERR) << SyntaxError(filename, parser.get_max_addr() - start, f_data) << flush;
-	}
-	else {
-		if (rv->levels().size() == 0) fail(TF_ERR) << ConfigError("No fan levels specified.") << flush;
-
-		if (!rv->fan()) {
-			log(TF_WRN, TF_WRN) << MSG_CONF_DEFAULT_FAN << flush;
-			rv->add_fan(unique_ptr<TpFanDriver>(new TpFanDriver(DEFAULT_FAN)));
+		rv = parser.parse_config(input);
+		if (!rv) {
+			fail(TF_ERR) << SyntaxError(filename, parser.get_max_addr() - start, f_data) << flush;
 		}
+		else {
+			if (rv->levels().size() == 0) fail(TF_ERR) << ConfigError("No fan levels specified.") << flush;
 
-		if (rv->sensors().size() < 1) {
-			log(TF_WRN, TF_WRN) << MSG_SENSOR_DEFAULT << flush;
-			rv->add_sensor(unique_ptr<TpSensorDriver>(new TpSensorDriver(DEFAULT_SENSOR)));
+			if (!rv->fan()) {
+				log(TF_WRN, TF_WRN) << MSG_CONF_DEFAULT_FAN << flush;
+				rv->add_fan(unique_ptr<TpFanDriver>(new TpFanDriver(DEFAULT_FAN)));
+			}
+
+			if (rv->sensors().size() < 1) {
+				log(TF_WRN, TF_WRN) << MSG_SENSOR_DEFAULT << flush;
+				rv->add_sensor(unique_ptr<TpSensorDriver>(new TpSensorDriver(DEFAULT_SENSOR)));
+			}
 		}
+	} catch (std::ios_base::failure &e) {
+		string msg = std::strerror(errno);
+		fail(TF_ERR) << ConfigError(filename + ": " + msg) << flush;;
 	}
+	// This should be in the try block, but then gcc complains since it doesn't know that fail() << exception << flush will throw
 	return rv;
 }
 
