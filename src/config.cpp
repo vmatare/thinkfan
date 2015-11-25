@@ -36,10 +36,10 @@ Config::Config() : num_temps_(0), fan_(nullptr) {}
 const Config *Config::read_config(const string &filename)
 {
 	Config *rv = nullptr;
+	ifstream f_in(filename);
 	try {
 		ConfigParser parser;
 
-		ifstream f_in(filename);
 		f_in.exceptions(f_in.badbit | f_in.failbit);
 		f_in.seekg(0, f_in.end);
 		ifstream::pos_type f_size = f_in.tellg();

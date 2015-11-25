@@ -50,8 +50,8 @@ FanDriver::FanDriver(const std::string &path, const unsigned int watchdog_timeou
 
 void FanDriver::set_speed(const string &level)
 {
+	std::ofstream f_out(path_);
 	try {
-		std::ofstream f_out(path_);
 		f_out.exceptions(f_out.failbit | f_out.badbit);
 		f_out << level << std::flush;
 	} catch (std::ios_base::failure &e) {
@@ -71,8 +71,8 @@ TpFanDriver::TpFanDriver(const std::string &path)
 : FanDriver(path, 120)
 {
 	bool ctrl_supported = false;
+	std::fstream f(path_);
 	try {
-		std::fstream f(path_);
 		f.exceptions(f.failbit | f.badbit);
 		std::string line;
 		line.resize(256);
@@ -98,8 +98,8 @@ TpFanDriver::TpFanDriver(const std::string &path)
 
 TpFanDriver::~TpFanDriver()
 {
+	std::ofstream f(path_);
 	try {
-		std::ofstream f(path_);
 		f.exceptions(f.failbit | f.badbit);
 		f << "level " << initial_state_ << std::endl;
 	} catch (std::ios_base::failure &e) {
@@ -138,8 +138,8 @@ void TpFanDriver::ping_watchdog_and_depulse(const Level *level)
 
 void TpFanDriver::init() const
 {
+	std::fstream f(path_);
 	try {
-		std::fstream f(path_);
 		f.exceptions(f.failbit | f.badbit);
 		f << "watchdog " << watchdog_.count() << std::endl;
 	} catch (std::ios_base::failure &e) {
@@ -156,8 +156,8 @@ void TpFanDriver::init() const
 HwmonFanDriver::HwmonFanDriver(const std::string &path)
 : FanDriver(path, 0)
 {
+	std::ifstream f(path_ + "_enable");
 	try {
-		std::ifstream f(path_ + "_enable");
 		f.exceptions(f.failbit | f.badbit);
 		std::string line;
 		line.resize(64);
@@ -172,8 +172,8 @@ HwmonFanDriver::HwmonFanDriver(const std::string &path)
 
 HwmonFanDriver::~HwmonFanDriver()
 {
+	std::ofstream f(path_ + "_enable");
 	try {
-		std::ofstream f(path_ + "_enable");
 		f.exceptions(f.failbit | f.badbit);
 		f << initial_state_ << std::endl;
 	} catch (std::ios_base::failure &e) {
@@ -185,8 +185,8 @@ HwmonFanDriver::~HwmonFanDriver()
 
 void HwmonFanDriver::init() const
 {
+	std::ofstream f(path_ + "_enable");
 	try {
-		std::ofstream f(path_ + "_enable");
 		f.exceptions(f.failbit | f.badbit);
 		f << "1" << std::endl;
 	} catch (std::ios_base::failure &e) {
@@ -208,8 +208,8 @@ SensorDriver::SensorDriver(std::string path)
 : path_(path),
   num_temps_(0)
 {
+	std::ifstream f(path_);
 	try {
-		std::ifstream f(path_);
 		f.exceptions(f.failbit | f.badbit);
 	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
@@ -257,8 +257,8 @@ HwmonSensorDriver::HwmonSensorDriver(std::string path)
 
 void HwmonSensorDriver::read_temps() const
 {
+	std::ifstream f(path_);
 	try {
-		std::ifstream f(path_);
 		f.exceptions(f.failbit | f.badbit);
 		int tmp;
 		f >> tmp;
@@ -279,8 +279,8 @@ void HwmonSensorDriver::read_temps() const
 TpSensorDriver::TpSensorDriver(std::string path)
 : SensorDriver(path)
 {
+	std::ifstream f(path_);
 	try {
-		std::ifstream f(path_);
 		f.exceptions(f.failbit | f.badbit);
 		int tmp;
 		unsigned int count = 0;
@@ -310,8 +310,8 @@ TpSensorDriver::TpSensorDriver(std::string path)
 
 void TpSensorDriver::read_temps() const
 {
+	std::ifstream f(path_);
 	try {
-		std::ifstream f(path_);
 		f.exceptions(f.failbit | f.badbit);
 		f.seekg(skip_bytes_);
 
