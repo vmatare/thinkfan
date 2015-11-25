@@ -117,17 +117,17 @@ void TpFanDriver::set_depulse(float duration)
 { depulse_ = std::chrono::duration<float>(duration); }
 
 
-void TpFanDriver::set_speed(const string &level)
+void TpFanDriver::set_speed(const Level *level)
 {
-	FanDriver::set_speed(level);
+	FanDriver::set_speed(level->str());
 	last_watchdog_ping_ = std::chrono::system_clock::now();
 }
 
 
-void TpFanDriver::ping_watchdog_and_depulse(const string &level)
+void TpFanDriver::ping_watchdog_and_depulse(const Level *level)
 {
 	if (depulse_ > std::chrono::milliseconds(0)) {
-		set_speed("level disengaged");
+		FanDriver::set_speed("level disengaged");
 		std::this_thread::sleep_for(depulse_);
 		set_speed(level);
 	}
@@ -194,6 +194,10 @@ void HwmonFanDriver::init() const
 		fail(TF_ERR) << SystemError(MSG_FAN_INIT(path_) + msg) << flush;
 	}
 }
+
+
+void HwmonFanDriver::set_speed(const Level *level)
+{ FanDriver::set_speed(std::to_string(level->num())); }
 
 
 /*----------------------------------------------------------------------------

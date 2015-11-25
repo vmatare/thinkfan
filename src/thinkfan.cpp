@@ -121,7 +121,7 @@ void run(const Config &config)
 	log(TF_DBG, TF_DBG) << MSG_T_STAT(tmp_sleeptime.count(), temp_state.tmax,
 			temp_state.last_tmax, *temp_state.b_tmax,
 			(*cur_lvl)->str()) << flush;
-	config.fan()->set_speed((*cur_lvl)->str());
+	config.fan()->set_speed(*cur_lvl);
 
 	while (likely(!interrupted)) {
 		temp_state.temp_idx = temp_state.temps.data();
@@ -158,7 +158,7 @@ void run(const Config &config)
 			log(TF_DBG, TF_DBG) << MSG_T_STAT(tmp_sleeptime.count(), temp_state.tmax,
 					temp_state.last_tmax, *temp_state.b_tmax,
 					(*cur_lvl)->str()) << flush;
-			config.fan()->set_speed((*cur_lvl)->str());
+			config.fan()->set_speed(*cur_lvl);
 		}
 		else if (unlikely(**cur_lvl > temp_state)) {
 			while (cur_lvl != config.levels().begin() && **cur_lvl > temp_state)
@@ -166,10 +166,10 @@ void run(const Config &config)
 			log(TF_DBG, TF_DBG) << MSG_T_STAT(tmp_sleeptime.count(), temp_state.tmax,
 					temp_state.last_tmax, *temp_state.b_tmax,
 					(*cur_lvl)->str()) << flush;
-			config.fan()->set_speed((*cur_lvl)->str());
+			config.fan()->set_speed(*cur_lvl);
 			tmp_sleeptime = sleeptime;
 		}
-		else config.fan()->ping_watchdog_and_depulse((*cur_lvl)->str());
+		else config.fan()->ping_watchdog_and_depulse(*cur_lvl);
 
 		std::this_thread::sleep_for(sleeptime);
 
