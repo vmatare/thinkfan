@@ -86,7 +86,9 @@ Logger &Logger::flush()
 	log_str_ = "";
 
 	if (log_lvl_ == TF_ERR && exception_) {
-		std::rethrow_exception(exception_);
+		std::exception_ptr e = std::move(exception_);
+		exception_ = nullptr;
+		std::rethrow_exception(std::move(e));
 	}
 	exception_ = nullptr;
 	return *this;
