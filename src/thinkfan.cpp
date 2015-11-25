@@ -104,17 +104,24 @@ void sig_handler(int signum) {
 
 void run(const Config &config)
 {
-	std::vector<const Level *>::const_iterator cur_lvl = config.levels().begin();
 	temp_state.temps.resize(config.num_temps());
-
-	config.fan()->init();
 
 	float bias = 0;
 	seconds tmp_sleeptime = sleeptime;
 
 	temp_state.temp_idx = temp_state.temps.data();
 	temp_state.tmax = -128;
+
+	std::vector<const Level *>::const_iterator cur_lvl = config.levels().begin();
+	config.fan()->init();
+
 	for (const SensorDriver *sensor : config.sensors()) sensor->read_temps();
+	while (cur_lvl != config.levels().end() && **cur_lvl <= temp_state)
+		cur_lvl++;
+	log(TF_DBG, TF_DBG) << MSG_T_STAT(tmp_sleeptime.count(), temp_state.tmax,
+			temp_state.last_tmax, *temp_state.b_tmax,
+			(*cur_lvl)->str()) << flush;
+	config.fan()->set_speed((*cur_lvl)->str());
 
 	while (likely(!interrupted)) {
 		temp_state.temp_idx = temp_state.temps.data();
