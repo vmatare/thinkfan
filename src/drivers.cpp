@@ -442,7 +442,6 @@ NvmlSensorDriver::~NvmlSensorDriver()
 	if ((ret = dl_nvmlShutdown()))
 		log(TF_ERR, TF_ERR) << "Failed to shutdown NVML driver. Error code (cf. nvml.h): " << ret << flush;
 	dlclose(nvml_so_handle_);
-	delete dlerror();
 }
 
 void NvmlSensorDriver::read_temps() const
