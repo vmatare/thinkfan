@@ -42,8 +42,8 @@ class FanDriver {
 protected:
 	string path_;
 	string initial_state_;
-	std::chrono::duration<unsigned int> watchdog_;
-	std::chrono::duration<float> depulse_;
+	seconds watchdog_;
+	secondsf depulse_;
 	std::chrono::system_clock::time_point last_watchdog_ping_;
 	FanDriver(const string &path, const unsigned int watchdog_timeout = 120);
 public:

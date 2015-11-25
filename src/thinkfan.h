@@ -48,6 +48,7 @@ typedef std::ifstream ifstream;
 typedef std::ofstream ofstream;
 typedef std::fstream fstream;
 typedef std::chrono::duration<unsigned int> seconds;
+typedef std::chrono::duration<float> secondsf;
 
 struct TemperatureState {
 	std::vector<int> temps;
