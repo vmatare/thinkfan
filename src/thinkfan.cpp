@@ -31,6 +31,7 @@
 #include <iostream>
 #include <memory>
 #include <thread>
+#include <cmath>
 
 #include "thinkfan.h"
 #include "config.h"
@@ -186,6 +187,76 @@ void run(const Config &config)
 		}
 	}
 }
+
+
+void run_pid(const Config &config)
+{
+	std::vector<const Level *>::const_iterator cur_lvl = config.levels().begin();
+	temp_state.temps.resize(config.num_temps());
+
+	config.fan()->init();
+
+	seconds tmp_sleeptime = sleeptime;
+
+	temp_state.temp_idx = temp_state.temps.data();
+	temp_state.tmax = -128;
+	for (const SensorDriver *sensor : config.sensors()) sensor->read_temps();
+
+	const float setpoint = 50;
+	float integral = (temp_state.tmax - setpoint) * sleeptime.count();
+	float last_integral = 0, last_err = 0, err = 0, derivative;
+	const float k_p = 3;
+	const float k_i = 1;
+	const float k_d = 20;
+	float v_p, v_i, v_d;
+	const float t_full = 83;
+	const float t_mid = setpoint + 0.5*(t_full - setpoint);
+
+	float mid_err;
+
+	float err_max = t_full - setpoint;
+	float integral_max = (2.0/(t_full - t_mid))*(t_full - t_mid)*sleeptime.count();
+	float derivative_max = err_max / sleeptime.count();
+	float v_max = k_p * err_max + k_i * integral_max + k_d * derivative_max;
+
+	float scale = 7.0 / v_max;
+	float v_pid = 0;
+
+	while(likely(!interrupted)) {
+		temp_state.temp_idx = temp_state.temps.data();
+		temp_state.last_tmax = temp_state.tmax;
+		temp_state.tmax = -128;
+
+		for (const SensorDriver *sensor : config.sensors())
+			sensor->read_temps();
+
+		if (unlikely(temp_state.temp_idx - 1 != &temp_state.temps.back()))
+			fail(TF_ERR) << SystemError(MSG_SENSOR_LOST) << flush;
+
+		last_err = err;
+		err = float(temp_state.tmax) - setpoint;
+		mid_err = float(temp_state.tmax) - t_mid;
+
+		float wi = mid_err > 0 ? 1.0/(mid_err) : 0;
+
+		last_integral = integral;
+		integral = last_err * sleeptime.count() + err * sleeptime.count();
+		derivative = (err - last_err) / sleeptime.count();
+
+		v_p = scale * k_p * err;
+		v_i = scale * k_i * integral;
+		v_d = scale * k_d * derivative;
+
+		v_pid = std::max(0.0f, std::min(7.0f, v_p + v_i + v_d));
+
+		log(TF_DBG, TF_DBG) << "err=" << err << " vp=" << v_p << " vi=" << v_i
+				<< " vd=" << v_d << " v=" << v_pid << flush;
+
+		std::this_thread::sleep_for(sleeptime);
+		config.fan()->set_speed("level " + std::to_string(std::round(v_pid)));
+	}
+}
+
 
 }
 
