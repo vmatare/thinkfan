@@ -105,28 +105,29 @@ Logger &log(LogLevel lvl_sane, LogLevel lvl_insane);
 #define MSG_INSANITY "Sanity checks are off. Continuing."
 #define MSG_CONFIG(path) \
  "Config as read from " + path + ":\nFan level\tLow\tHigh"
-#define MSG_CONF_ITEM(level, low, high) " " + std::to_string(level) + "\t\t" std::to_string(low) + "\t" + std::to_string(high)
+#define MSG_CONF_ITEM(level, low, high) " " + std::to_string(level) + "\t\t" + std::to_string(low) + "\t" + std::to_string(high)
 #define MSG_TERM "Cleaning up and resetting fan control."
 #define MSG_DEPULSE(delay, time) "Disengaging the fan controller for " \
-	<< time <<" seconds every " << delay << " seconds"
+	<< time << " seconds every " << delay << " seconds"
 #define MSG_SYSFS_SAFE "Using safe but wasteful way of setting PWM value. Check README to know more."
-#define MSG_SENSOR_DEFAULT "Using default temperature inputs in " << DEFAULT_SENSOR << "."
 #define MSG_RUNNING PID_FILE " already exists. Either thinkfan is " \
 	"already running, or it was killed by SIGKILL. If you're sure thinkfan" \
-	" is not running, delete " << PID_FILE << " manually."
+	" is not running, delete " PID_FILE " manually."
 #define MSG_SENSOR_LOST "A sensor has vanished! Exiting since there's no " \
 	"safe way of handling this."
 
 
-#define MSG_T_GET(file) std::string("Failed to read temperature(s) from ") + file + ": "
-#define MSG_T_INVALID(s, d) s << ": Invalid temperature: " << d
+#define MSG_SENSOR_DEFAULT "Using default temperature inputs in " DEFAULT_SENSOR "."
+#define MSG_T_GET(file) string("Failed to read temperature(s) from ") + file + ": "
+#define MSG_T_INVALID(s, d) s + ": Invalid temperature: " + std::to_string(d)
+#define MSG_SENSOR_INIT(file) string(__func__) + ": Initializing sensor in " + file + ": "
 
 
 #define MSG_FAN_MODOPTS \
  "Module thinkpad_acpi doesn't seem to support fan_control"
-#define MSG_FAN_CTRL(str, fan) __func__ << ": Writing \"" + str + "\" to " + fan + ": "
-#define MSG_FAN_INIT(fan) __func__ << ": Initializing fan control in " << fan << ": "
-#define MSG_FAN_RESET(fan) __func__ << ": Resetting fan control in " << fan << ": "
+#define MSG_FAN_CTRL(str, fan) string(__func__) + ": Writing \"" + str + "\" to " + fan + ": "
+#define MSG_FAN_INIT(fan) string(__func__) + ": Initializing fan control in " + fan + ": "
+#define MSG_FAN_RESET(fan) string(__func__) + ": Resetting fan control in " + fan + ": "
 
 
 #define MSG_OPT_S_15(t) std::to_string(t) + " seconds of not realizing "\
@@ -170,7 +171,7 @@ Logger &log(LogLevel lvl_sane, LogLevel lvl_insane);
 #define MSG_CONF_LONG_LIMIT "You have configured more temperature limits " \
 	"than sensors. That doesn't make sense"
 #define MSG_CONF_LIMITLEN "Inconsistent limit length"
-#define MSG_CONF_CORRECTION_LEN(path, clen, ntemp) std::string("Sensor ") + path + " has " \
+#define MSG_CONF_CORRECTION_LEN(path, clen, ntemp) string("Sensor ") + path + " has " \
 	+ std::to_string(ntemp) + " temperatures," \
 	" but you have " + std::to_string(clen) + " correction values for it."
 #define MSG_CONF_ATASMART_UNSUPP "S.M.A.R.T support is not compiled in. Recompile with -DUSE_ATASMART or " \
