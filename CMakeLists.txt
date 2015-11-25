@@ -1,4 +1,5 @@
 project(THINKFAN)
+include(GNUInstallDirs)
 
 cmake_minimum_required(VERSION 2.6)
 
@@ -53,7 +54,7 @@ if(USE_NVML)
 endif(USE_NVML)
 
 
-install(TARGETS thinkfan DESTINATION sbin)
+install(TARGETS thinkfan DESTINATION "${CMAKE_INSTALL_SBINDIR}")
 install(FILES NEWS COPYING README examples/thinkfan.conf.complex
 	examples/thinkfan.conf.simple DESTINATION share/doc/thinkfan)
 install(FILES thinkfan.1 DESTINATION share/man/man1)
