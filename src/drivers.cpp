@@ -101,7 +101,7 @@ TpFanDriver::~TpFanDriver()
 	std::ofstream f(path_);
 	try {
 		f.exceptions(f.failbit | f.badbit);
-		f << "level " << initial_state_ << std::endl;
+		f << "level " << initial_state_ << std::flush;
 	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
 		fail(TF_ERR) << SystemError(MSG_FAN_RESET(path_) + msg) << flush;
@@ -141,7 +141,7 @@ void TpFanDriver::init() const
 	std::fstream f(path_);
 	try {
 		f.exceptions(f.failbit | f.badbit);
-		f << "watchdog " << watchdog_.count() << std::endl;
+		f << "watchdog " << watchdog_.count() << std::flush;
 	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
 		fail(TF_ERR) << SystemError(MSG_FAN_INIT(path_) + msg) << flush;
@@ -175,7 +175,7 @@ HwmonFanDriver::~HwmonFanDriver()
 	std::ofstream f(path_ + "_enable");
 	try {
 		f.exceptions(f.failbit | f.badbit);
-		f << initial_state_ << std::endl;
+		f << initial_state_ << std::flush;
 	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
 		fail(TF_WRN) << SystemError(MSG_FAN_RESET(path_) + msg) << flush;
@@ -188,7 +188,7 @@ void HwmonFanDriver::init() const
 	std::ofstream f(path_ + "_enable");
 	try {
 		f.exceptions(f.failbit | f.badbit);
-		f << "1" << std::endl;
+		f << "1" << std::flush;
 	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
 		fail(TF_ERR) << SystemError(MSG_FAN_INIT(path_) + msg) << flush;
