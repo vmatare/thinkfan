@@ -56,7 +56,7 @@ void FanDriver::set_speed(const string &level)
 		f_out << level << std::flush;
 	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
-		fail(TF_ERR) << MSG_FAN_CTRL(path_) << SystemError(msg) << flush;
+		fail(TF_ERR) << MSG_FAN_CTRL(level, path_) << SystemError(msg) << flush;
 	}
 }
 
@@ -87,7 +87,7 @@ TpFanDriver::TpFanDriver(const std::string &path)
 				ctrl_supported = true;
 			}
 		}
-	} catch (std::exception &e) {
+	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
 		fail(TF_ERR) << MSG_FAN_INIT(path_) << SystemError(string(e.what()) + ": " + msg) << flush;
 	}
@@ -102,7 +102,7 @@ TpFanDriver::~TpFanDriver()
 		std::ofstream f(path_);
 		f.exceptions(f.failbit | f.badbit);
 		f << "level " << initial_state_ << std::endl;
-	} catch (std::exception &e) {
+	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
 		fail(TF_ERR) << MSG_FAN_RESET(path_) << SystemError(string(e.what()) + ": " + msg) << flush;
 	}
@@ -142,7 +142,7 @@ void TpFanDriver::init() const
 		std::fstream f(path_);
 		f.exceptions(f.failbit | f.badbit);
 		f << "watchdog " << watchdog_.count() << std::endl;
-	} catch (std::exception &e) {
+	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
 		fail(TF_ERR) << MSG_FAN_INIT(path_) << SystemError(string(e.what()) + ": " + msg) << flush;
 	}
@@ -163,7 +163,7 @@ HwmonFanDriver::HwmonFanDriver(const std::string &path)
 		line.resize(64);
 		f.getline(&*line.begin(), 63);
 		initial_state_ = line;
-	} catch (std::exception &e) {
+	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
 		fail(TF_ERR) << MSG_FAN_INIT(path_) << SystemError(string(e.what()) + ": " + msg) << flush;
 	}
@@ -176,7 +176,7 @@ HwmonFanDriver::~HwmonFanDriver()
 		std::ofstream f(path_ + "_enable");
 		f.exceptions(f.failbit | f.badbit);
 		f << initial_state_ << std::endl;
-	} catch (std::exception &e) {
+	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
 		fail(TF_WRN) << MSG_FAN_RESET(path_) << SystemError(string(e.what()) + ": " + msg) << flush;
 	}
@@ -189,7 +189,7 @@ void HwmonFanDriver::init() const
 		std::ofstream f(path_ + "_enable");
 		f.exceptions(f.failbit | f.badbit);
 		f << "1" << std::endl;
-	} catch (std::exception &e) {
+	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
 		fail(TF_ERR) << MSG_FAN_INIT(path_) << SystemError(string(e.what()) + ": " + msg) << flush;
 	}
@@ -197,7 +197,7 @@ void HwmonFanDriver::init() const
 
 
 /*----------------------------------------------------------------------------
-| SensorDriver: The superclass of HwmonSensorDriver and TpSensorDriver       |
+| SensorDriver: The superclass of all hardware-specific sensor drivers       |
 ----------------------------------------------------------------------------*/
 
 SensorDriver::SensorDriver(std::string path)
@@ -207,7 +207,7 @@ SensorDriver::SensorDriver(std::string path)
 	try {
 		std::ifstream f(path_);
 		f.exceptions(f.failbit | f.badbit);
-	} catch (std::exception &e) {
+	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
 		fail(TF_ERR) << path_ + ": " << SystemError(string(e.what()) + ": " + msg) << flush;
 	}
@@ -260,9 +260,9 @@ void HwmonSensorDriver::read_temps() const
 		f >> tmp;
 		*temp_state.temp_idx = tmp / 1000;
 		update_tempstate(correction_[0]);
-	} catch (std::exception &e) {
+	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
-		fail(TF_ERR) << MSG_T_GET(path_) + ": " << SystemError(string(e.what()) + ": " + msg) << flush;
+		fail(TF_ERR) << MSG_T_GET(path_) + ": " << SystemError(msg) << flush;
 	}
 }
 
@@ -281,14 +281,25 @@ TpSensorDriver::TpSensorDriver(std::string path)
 		int tmp;
 		unsigned int count = 0;
 
+		string skip;
+		skip.resize(16);
+		f.getline(&*skip.begin(), 15, ':');
+		if (skip == "temperatures") {
+			// another stdlib messup, can't simply add one to a pos_type...
+			skip_bytes_ = f.tellg();
+			++skip_bytes_;
+		}
+		else
+			fail(TF_ERR) << SystemError(path_ + ": Unknown file format.") << flush;
+
 		while (!f.eof()) {
 			f >> tmp;
 			++count;
 		}
 		set_num_temps(count);
-	} catch (std::exception &e) {
+	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
-		fail(TF_ERR) << path_ + ": " << SystemError(string(e.what()) + ": " + msg) << flush;
+		fail(TF_ERR) << path_ + ": " << SystemError(msg) << flush;
 	}
 }
 
@@ -298,14 +309,16 @@ void TpSensorDriver::read_temps() const
 	try {
 		std::ifstream f(path_);
 		f.exceptions(f.failbit | f.badbit);
+		f.seekg(skip_bytes_);
+
 		unsigned int tidx = 0;
 		while (!f.eof()) {
 			f >> *temp_state.temp_idx;
 			update_tempstate(correction_[tidx++]);
 		}
-	} catch (std::exception &e) {
+	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
-		fail(TF_ERR) << MSG_T_GET(path_) << SystemError(string(e.what()) + ": " + msg) << flush;
+		fail(TF_ERR) << MSG_T_GET(path_) << SystemError(msg) << flush;
 	}
 }
 

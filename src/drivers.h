@@ -97,6 +97,8 @@ class TpSensorDriver : public SensorDriver {
 public:
 	TpSensorDriver(string path);
 	void read_temps() const override;
+private:
+	std::char_traits<char>::off_type skip_bytes_;
 };
 
 

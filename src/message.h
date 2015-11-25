@@ -124,7 +124,7 @@ Logger &log(LogLevel lvl_sane, LogLevel lvl_insane);
 
 #define MSG_FAN_MODOPTS \
  "Module thinkpad_acpi doesn't seem to support fan_control"
-#define MSG_FAN_CTRL(fan) __func__ << ": Writing to " + fan + ": "
+#define MSG_FAN_CTRL(str, fan) __func__ << ": Writing \"" + str + "\" to " + fan + ": "
 #define MSG_FAN_INIT(fan) __func__ << ": Initializing fan control in " << fan << ": "
 #define MSG_FAN_RESET(fan) __func__ << ": Resetting fan control in " << fan << ": "
 
