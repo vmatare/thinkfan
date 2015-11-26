@@ -68,7 +68,7 @@ void handle_uncaught()
 	try {
 		std::rethrow_exception(std::current_exception());
 	} catch (const std::exception &e) {
-		fail(TF_ERR) << "Unhandled exception: " << e.what() << " errno = " << err << "." << flush <<
+		fail(TF_ERR) << "Unhandled exception: " << e.what() << ". errno = " << err << "." << flush <<
 				"Backtrace:" << make_backtrace() << flush <<
 				MSG_BUG << flush;
 	}
