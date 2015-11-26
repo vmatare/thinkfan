@@ -180,6 +180,10 @@ Logger &log(LogLevel lvl_sane, LogLevel lvl_insane);
 	"contact your distribution's package maintainer."
 #define MSG_TEMP_COUNT(t_conf, t_found) "Your config requires at least " << t_conf << " temperatures, " \
 	"but only " << t_found << " temperatures were found."
+#define MSG_CONF_MAXLVL(n) "You're using a PWM fan, but your highest fan level is only " + std::to_string(n) \
+		+ ". Enable DANGEROUS mode if you're really sure you never need to max out your fan."
+#define MSG_CONF_TP_LVL7(n, max) "Your highest fan level is " + std::to_string(n) + \
+	", but fan levels greater than " + std::to_string(max) + " are not supported by thinkpad_acpi."
 
 
 

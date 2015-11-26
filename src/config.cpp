@@ -56,7 +56,10 @@ const Config *Config::read_config(const string &filename)
 			fail(TF_ERR) << SyntaxError(filename, parser.get_max_addr() - start, f_data) << flush;
 		}
 		else {
-			if (rv->levels().size() == 0) fail(TF_ERR) << ConfigError("No fan levels specified.") << flush;
+			// Consistency checks which require the complete config
+
+			if (rv->levels().size() == 0)
+				fail(TF_ERR) << ConfigError("No fan levels specified.") << flush;
 
 			if (!rv->fan()) {
 				log(TF_WRN, TF_WRN) << MSG_CONF_DEFAULT_FAN << flush;
@@ -67,6 +70,14 @@ const Config *Config::read_config(const string &filename)
 				log(TF_WRN, TF_WRN) << MSG_SENSOR_DEFAULT << flush;
 				rv->add_sensor(unique_ptr<TpSensorDriver>(new TpSensorDriver(DEFAULT_SENSOR)));
 			}
+
+			int maxlvl = (*rv->levels_.rbegin())->num();
+			if (dynamic_cast<HwmonFanDriver *>(rv->fan()) && maxlvl < 128)
+				fail(TF_WRN) << ConfigError(MSG_CONF_MAXLVL((*rv->levels_.rbegin())->num())) << flush;
+			else if (dynamic_cast<TpFanDriver *>(rv->fan())
+					&& maxlvl != std::numeric_limits<int>::max()
+					&& maxlvl > 7)
+				fail(TF_WRN) << ConfigError(MSG_CONF_TP_LVL7(maxlvl, 7)) << flush;
 		}
 	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
