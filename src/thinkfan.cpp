@@ -20,14 +20,14 @@
  * ******************************************************************/
 
 #include <getopt.h>
-#include <signal.h>
-#include <cstring>
-#include <string>
 #include <unistd.h>
 #include <cstdlib>
 #include <sys/time.h>
 #include <sys/resource.h>
 
+#include <csignal>
+#include <cstring>
+#include <string>
 #include <iostream>
 #include <memory>
 #include <thread>
@@ -45,6 +45,11 @@ bool resume_is_safe(false);
 bool quiet(false);
 std::chrono::duration<unsigned int> sleeptime(5);
 float bias_level(5);
+int opt;
+float depulse = 0;
+std::string config_file = CONFIG_DEFAULT;
+
+
 volatile int interrupted(0);
 
 #ifdef USE_ATASMART
@@ -78,28 +83,12 @@ void sig_handler(int signum) {
 		log(TF_INF, TF_INF) << report_tstat() << flush;
 		break;
 	case SIGSEGV:
-		struct rlimit core_sz;
-		log(TF_ERR, TF_ERR) << "Segmentation fault." << flush;
-		if (getrlimit(RLIMIT_CORE, &core_sz) == -1) {
-			string msg = strerror(errno);
-			log(TF_ERR, TF_ERR) << SystemError("getrlimit(): " + msg) << flush;
-		}
-		else {
-			if (core_sz.rlim_cur <= 0)
-				log(TF_ERR, TF_ERR)
-				<< "Please enable core dumps with \"ulimit -c unlimited\","
-				<< " trigger this error again"
-				<< " and attach the core file to a bug report. Thanks."
-				<< flush;
-			else
-				log(TF_ERR, TF_ERR) << "Please file a bug report with the core dump attached "
-				<< "at https://github.com/vmatare/thinkfan/issues/new ." << flush
-				<< "Thank you." << flush;
-		}
-		abort();
+		// Let's hope memory isn't too fucked up to get through with this ;)
+		throw Bug("Segmentation fault.");
 		break;
 	}
 }
+
 
 
 void run(const Config &config)
@@ -187,137 +176,151 @@ void run(const Config &config)
 	}
 }
 
-}
 
-
-int main(int argc, char **argv) {
-	using namespace thinkfan;
-
-	struct sigaction handler;
-	int opt;
-	float depulse = 0;
-	std::string config_file = CONFIG_DEFAULT;
-
+int set_options(int argc, char **argv)
+{
 	const char *optstring = "c:s:b:p::hqDz"
 #ifdef USE_ATASMART
 			"d";
 #else
 	;
 #endif
+	while ((opt = getopt(argc, argv, optstring)) != -1) {
+		switch(opt) {
+		case 'h':
+			std::cerr << MSG_USAGE << std::endl;
+			return 1;
+			break;
+#ifdef USE_ATASMART
+		case 'd':
+			dnd_disk = true;
+			break;
+#endif
+		case 'c':
+			config_file = optarg;
+			break;
+		case 'q':
+			quiet = true;
+			break;
+		case 'D':
+			chk_sanity = false;
+			break;
+		case 'z':
+			resume_is_safe = true;
+			break;
+		case 's':
+			if (optarg) {
+				try {
+					size_t invalid;
+					int s;
+					string arg(optarg);
+					s = std::stoul(arg, &invalid);
+					if (invalid < arg.length())
+						fail(TF_ERR) << InvocationError(MSG_OPT_S_INVAL(optarg)) << flush;
+					if (s > 15)
+						fail(TF_WRN) << InvocationError(MSG_OPT_S_15(s)) << flush;
+					else if (s < 0)
+						fail(TF_ERR) << InvocationError("Negative sleep time? Seriously?") << flush;
+					else if (s < 1)
+						fail(TF_WRN) << InvocationError(MSG_OPT_S_1(s)) << flush;
+					sleeptime = seconds(static_cast<unsigned int>(s));
+				} catch (std::invalid_argument &e) {
+					fail(TF_ERR) << InvocationError(MSG_OPT_S_INVAL(optarg)) << flush;
+				} catch (std::out_of_range &e) {
+					fail(TF_ERR) << InvocationError(MSG_OPT_S_INVAL(optarg)) << flush;
+				}
+			}
+			else fail(TF_ERR) << InvocationError(MSG_OPT_S) << flush;
+			break;
+		case 'b':
+			if (optarg) {
+				try {
+					size_t invalid;
+					float b;
+					string arg(optarg);
+					b = std::stof(arg, &invalid);
+					if (invalid < arg.length())
+						fail(TF_WRN) << InvocationError(MSG_OPT_B_INVAL(optarg)) << flush;
+					if (b < -10 || b > 30) {
+						fail(TF_WRN) << InvocationError(MSG_OPT_B) << flush;
+					}
+					bias_level = b / 10;
+				} catch (std::invalid_argument &e) {
+					fail(TF_ERR) << InvocationError(MSG_OPT_B_INVAL(optarg)) << flush;
+				} catch (std::out_of_range &e) {
+					fail(TF_ERR) << InvocationError(MSG_OPT_B_INVAL(optarg)) << flush;
+				}
+			}
+			else fail(TF_ERR) << InvocationError(MSG_OPT_B_NOARG) << flush;
+			break;
+		case 'p':
+			if (optarg) {
+				size_t invalid;
+				depulse = std::stof(optarg, &invalid);
+				if (invalid != 0 || depulse > 10 || depulse < 0) {
+					fail(depulse < 0 ? TF_ERR : TF_WRN) << InvocationError(MSG_OPT_P(optarg)) << flush;
+				}
+			}
+			else depulse = 0.5f;
+			break;
+		default:
+			std::cerr << "Invalid commandline option." << std::endl;
+			std::cerr << MSG_USAGE << std::endl;
+			return 3;
+		}
+	}
+	if (depulse > 0)
+		log(TF_INF, TF_INF) << MSG_DEPULSE(depulse, sleeptime.count()) << flush;
+
+	return 0;
+}
+
+}
+
+
+int main(int argc, char **argv) {
+	using namespace thinkfan;
+
 
 	if (!isatty(fileno(stdout))) Logger::instance().enable_syslog();
 
-
+	struct sigaction handler;
 	memset(&handler, 0, sizeof(handler));
 	handler.sa_handler = sig_handler;
 
 	// Install signal handler only after FanControl object has been created
 	// since it is used by the handler.
-	if (sigaction(SIGHUP, &handler, NULL) \
-	 || sigaction(SIGINT, &handler, NULL) \
-	 || sigaction(SIGTERM, &handler, NULL) \
-	 || sigaction(SIGUSR1, &handler, NULL) \
+	if (sigaction(SIGHUP, &handler, NULL)
+	 || sigaction(SIGINT, &handler, NULL)
+	 || sigaction(SIGTERM, &handler, NULL)
+	 || sigaction(SIGUSR1, &handler, NULL)
 	 || sigaction(SIGSEGV, &handler, NULL)) {
 		string msg = strerror(errno);
 		log(TF_ERR, TF_ERR) << "sigaction: " << msg;
+		return 1;
 	}
 
-	try {
-		while ((opt = getopt(argc, argv, optstring)) != -1) {
-			switch(opt) {
-			case 'h':
-				std::cerr << MSG_USAGE << std::endl;
-				return 0;
-				break;
-#ifdef USE_ATASMART
-			case 'd':
-				dnd_disk = true;
-				break;
-#endif
-			case 'c':
-				config_file = optarg;
-				break;
-			case 'q':
-				quiet = true;
-				break;
-			case 'D':
-				chk_sanity = false;
-				break;
-			case 'z':
-				resume_is_safe = true;
-				break;
-			case 's':
-				if (optarg) {
-					try {
-						size_t invalid;
-						int s;
-						string arg(optarg);
-						s = std::stoul(arg, &invalid);
-						if (invalid < arg.length())
-							fail(TF_ERR) << InvocationError(MSG_OPT_S_INVAL(optarg)) << flush;
-						if (s > 15)
-							fail(TF_WRN) << InvocationError(MSG_OPT_S_15(s)) << flush;
-						else if (s < 0)
-							fail(TF_ERR) << InvocationError("Negative sleep time? Seriously?") << flush;
-						else if (s < 1)
-							fail(TF_WRN) << InvocationError(MSG_OPT_S_1(s)) << flush;
-						sleeptime = seconds(static_cast<unsigned int>(s));
-					} catch (std::invalid_argument &e) {
-						fail(TF_ERR) << InvocationError(MSG_OPT_S_INVAL(optarg)) << flush;
-					} catch (std::out_of_range &e) {
-						fail(TF_ERR) << InvocationError(MSG_OPT_S_INVAL(optarg)) << flush;
-					}
-				}
-				else fail(TF_ERR) << InvocationError(MSG_OPT_S) << flush;
-				break;
-			case 'b':
-				if (optarg) {
-					try {
-						size_t invalid;
-						float b;
-						string arg(optarg);
-						b = std::stof(arg, &invalid);
-						if (invalid < arg.length())
-							fail(TF_WRN) << InvocationError(MSG_OPT_B_INVAL(optarg)) << flush;
-						if (b < -10 || b > 30) {
-							fail(TF_WRN) << InvocationError(MSG_OPT_B) << flush;
-						}
-						bias_level = b / 10;
-					} catch (std::invalid_argument &e) {
-						fail(TF_ERR) << InvocationError(MSG_OPT_B_INVAL(optarg)) << flush;
-					} catch (std::out_of_range &e) {
-						fail(TF_ERR) << InvocationError(MSG_OPT_B_INVAL(optarg)) << flush;
-					}
-				}
-				else fail(TF_ERR) << InvocationError(MSG_OPT_B_NOARG) << flush;
-				break;
-			case 'p':
-				if (optarg) {
-					size_t invalid;
-					depulse = std::stof(optarg, &invalid);
-					if (invalid != 0 || depulse > 10 || depulse < 0) {
-						fail(depulse < 0 ? TF_ERR : TF_WRN) << InvocationError(MSG_OPT_P(optarg)) << flush;
-					}
-				}
-				else depulse = 0.5f;
-				break;
-			default:
-				std::cerr << MSG_USAGE << std::endl;
-				return 3;
-			}
-		}
-		if (depulse > 0) log(TF_INF, TF_INF) << MSG_DEPULSE(depulse, sleeptime.count()) << flush;
+	std::set_terminate(handle_uncaught);
 
-		const Config *config = Config::read_config(config_file);
+	try {
+		switch (set_options(argc, argv)) {
+		case 1:
+			return 0;
+			break;
+		case 0:
+			break;
+		default:
+			return 3;
+		}
+		std::unique_ptr<const Config> config(Config::read_config(config_file));
 		do {
 			run(*config);
 			if (interrupted == SIGHUP) {
 				log(TF_INF, TF_INF) << MSG_RELOAD_CONF << flush;
 				try {
-					const Config *config_new = Config::read_config(config_file);
-					delete config;
-					config = config_new;
-				} catch(Error &e) {
+					std::unique_ptr<const Config> config_new(Config::read_config(config_file));
+					config.swap(config_new);
+				} catch(ExpectedError &e) {
 					log(TF_ERR, TF_ERR) << MSG_CONF_RELOAD_ERR << flush;
 				} catch(std::exception &e) {
 					log(TF_ERR, TF_ERR) << "read_config: " << e.what() << flush;
@@ -327,17 +330,17 @@ int main(int argc, char **argv) {
 			}
 		} while (!interrupted);
 
-		delete config;
-
 		log(TF_INF, TF_INF) << MSG_TERM << flush;
 	}
-	catch (Error &e) {
-		// Our own exceptions are thrown via the logger, thus no output here.
+	catch (ExpectedError &e) {
+		log(TF_DBG, TF_DBG) << "Backtrace:" << flush << e.backtrace() << flush;
 		return 1;
 	}
-	catch (std::exception &e) {
-		string msg(strerror(errno));
-		std::cerr << e.what() << ":" << std::endl << msg << std::endl;
+	catch (Bug &e) {
+		fail(TF_ERR) << e.what() << flush <<
+				"Backtrace:" << flush <<
+				e.backtrace() << flush <<
+				MSG_BUG << flush;
 		return 2;
 	}
 

@@ -20,19 +20,62 @@
  * ******************************************************************/
 
 #include "error.h"
+#include <execinfo.h>
+#include <cstring>
 
 namespace thinkfan {
 
-Error::Error(const std::string &message)
-: msg_(message)
+
+static string make_backtrace()
+{
+	string backtrace_;
+	void *bt_buffer[MAX_BACKTRACE_DEPTH];
+	int stack_depth = ::backtrace(bt_buffer, MAX_BACKTRACE_DEPTH);
+	if (stack_depth == MAX_BACKTRACE_DEPTH)
+		log(TF_ERR, TF_ERR) << "Max backtrace depth reached. Backtrace may be incomplete." << flush;
+
+	char **bt_pretty = backtrace_symbols(bt_buffer, stack_depth);
+	for (int i=0; i < stack_depth; ++i) {
+		backtrace_ += bt_pretty[i];
+		backtrace_ += '\n';
+	}
+	free(bt_pretty);
+	return std::move(backtrace_);
+}
+
+
+Error::Error(const string &message)
+: msg_(message), backtrace_(make_backtrace())
 {}
+
+
+const string &Error::backtrace() const
+{ return backtrace_; }
 
 
 const char* Error::what() const _GLIBCXX_USE_NOEXCEPT
 { return msg_.c_str(); }
 
 
-SyntaxError::SyntaxError(const std::string filename, const size_t offset, const std::string &input)
+Bug::Bug(const string &desc)
+: Error(desc)
+{}
+
+
+void handle_uncaught()
+{
+	std::string err = std::strerror(errno);
+	try {
+		std::rethrow_exception(std::current_exception());
+	} catch (const std::exception &e) {
+		fail(TF_ERR) << "Unhandled exception: " << e.what() << " errno = " << err << "." << flush <<
+				"Backtrace:" << make_backtrace() << flush <<
+				MSG_BUG << flush;
+	}
+}
+
+
+SyntaxError::SyntaxError(const string filename, const size_t offset, const string &input)
 {
 	unsigned int line = 1;
 	msg_ += filename + ":";
@@ -53,11 +96,11 @@ SyntaxError::SyntaxError(const std::string filename, const size_t offset, const 
 
 
 ConfigError::ConfigError(const std::string &reason)
-: Error("Invalid config: " + reason) {}
+: ExpectedError("Invalid config: " + reason) {}
 
 
 InvocationError::InvocationError(const std::string &message)
-: Error("Invalid command line: " + message) {}
+: ExpectedError("Invalid command line: " + message) {}
 
 
 }

@@ -98,47 +98,45 @@ Logger &Logger::flush()
 Logger &Logger::level(const LogLevel &lvl)
 {
 	flush();
-	if (this->log_lvl_ != lvl && !syslog_) std::cerr << std::endl;
+	if (this->log_lvl_ != lvl) {
+		if (!syslog_)
+			std::cerr << std::endl;
 
-	this->log_lvl_ = lvl;
+		if (lvl == TF_WRN)
+			log_str_ = "WARNING: ";
+		else if (lvl == TF_ERR)
+			log_str_ = "ERROR: ";
 
-	switch (lvl) {
-	case TF_WRN:
-		log_str_ = "WARNING: ";
-		break;
-	case TF_ERR:
-		log_str_ = "ERROR: ";
-		break;
-	default:
-		;
+		this->log_lvl_ = lvl;
 	}
 	return *this;
 }
 
 
-Logger &Logger::operator <<(const std::string &msg)
+Logger &Logger::operator<<( const std::string &msg)
 { log_str_ += msg; return *this; }
 
-Logger &Logger::operator <<(const int i)
+Logger &Logger::operator<< (const int i)
 { log_str_ += std::to_string(i); return *this; }
 
-Logger &Logger::operator <<(const unsigned int i)
+Logger &Logger::operator<< (const unsigned int i)
 { log_str_ += std::to_string(i); return *this; }
 
-Logger &Logger::operator <<(const float &i)
+Logger &Logger::operator<< (const float &i)
 { log_str_ += std::to_string(i); return *this; }
 
-Logger &Logger::operator <<(Logger & (*pf_flush)(Logger &))
+Logger &Logger::operator<< (const char *msg)
+{ log_str_ += msg; return *this; }
+
+Logger &Logger::operator<< (Logger & (*pf_flush)(Logger &))
 { return pf_flush(*this); }
 
-
-Logger &Logger::operator <<(Error e)
+Logger &Logger::operator<< (const ExpectedError &e)
 {
 	log_str_ += e.what();
 	exception_ = std::make_exception_ptr(e);
 	return *this;
 }
-
 
 
 }

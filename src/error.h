@@ -27,43 +27,57 @@
 #include "message.h"
 #include "thinkfan.h"
 
-namespace thinkfan {
+#ifndef MAX_BACKTRACE_DEPTH
+#define MAX_BACKTRACE_DEPTH 64
+#endif
 
+namespace thinkfan {
 
 class Error : public std::exception {
 protected:
 	string msg_;
+	string backtrace_;
 public:
 	Error(const string &message = "");
 
 	virtual const char* what() const _GLIBCXX_USE_NOEXCEPT override;
+	const string &backtrace() const;
 };
 
 
-class SyntaxError : public Error {
+class Bug : public Error {
+public:
+	Bug(const string &desc = "");
+};
+
+class ExpectedError : public Error {
+	using Error::Error;
+};
+
+class SyntaxError : public ExpectedError {
 public:
 	SyntaxError(const string filename, const size_t offset, const string &input);
 };
 
 
-class ConfigError : public Error {
+class ConfigError : public ExpectedError {
 public:
 	ConfigError(const string &reason);
 };
 
 
-class SystemError : public Error {
+class SystemError : public ExpectedError {
 public:
 	SystemError(const string &reason)
-	: Error(reason) {}
+	: ExpectedError(reason) {}
 };
-class DriverError : public Error {};
 
-class InvocationError : public Error {
+class InvocationError : public ExpectedError {
 public:
 	InvocationError(const string &message);
 };
 
+void handle_uncaught();
 
 
 }

@@ -36,7 +36,7 @@ enum LogLevel {
 	TF_DBG = LOG_DEBUG
 };
 
-class Error;
+class ExpectedError;
 
 class Logger {
 private:
@@ -49,12 +49,13 @@ public:
 	Logger &flush();
 	static Logger &instance();
 
-	Logger &operator << (const std::string &msg);
-	Logger &operator << (const unsigned int i);
-	Logger &operator << (const int i);
-	Logger &operator << (const float &d);
-	Logger &operator << (const Error e);
-	Logger &operator << (Logger & (*pf_flush)(Logger &));
+	Logger &operator<< (const std::string &msg);
+	Logger &operator<< (const unsigned int i);
+	Logger &operator<< (const int i);
+	Logger &operator<< (const float &d);
+	Logger &operator<< (Logger & (*pf_flush)(Logger &));
+	Logger &operator<< (const char *msg);
+	Logger &operator<< (const ExpectedError &e);
 private:
 	bool syslog_;
 	LogLevel log_lvl_;
@@ -115,6 +116,9 @@ Logger &log(LogLevel lvl_sane, LogLevel lvl_insane);
 	" is not running, delete " PID_FILE " manually."
 #define MSG_SENSOR_LOST "A sensor has vanished! Exiting since there's no " \
 	"safe way of handling this."
+
+#define TRACKER_URL "https://github.com/vmatare/thinkfan/issues"
+#define MSG_BUG "This is probably a bug. Please consider reporting this at " TRACKER_URL ". Thanks."
 
 
 #define MSG_SENSOR_DEFAULT "Using default temperature inputs in " DEFAULT_SENSOR "."
