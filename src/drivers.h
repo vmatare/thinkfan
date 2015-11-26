@@ -101,6 +101,7 @@ public:
 	void read_temps() const override;
 private:
 	std::char_traits<char>::off_type skip_bytes_;
+	static const string skip_prefix_;
 };
 
 

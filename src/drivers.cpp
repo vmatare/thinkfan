@@ -276,6 +276,8 @@ void HwmonSensorDriver::read_temps() const
 | in /proc/acpi/ibm/thermal.                                                 |
 ----------------------------------------------------------------------------*/
 
+const string TpSensorDriver::skip_prefix_("temperatures:");
+
 TpSensorDriver::TpSensorDriver(std::string path)
 : SensorDriver(path)
 {
@@ -286,17 +288,18 @@ TpSensorDriver::TpSensorDriver(std::string path)
 		unsigned int count = 0;
 
 		string skip;
-		skip.resize(16);
-		f.getline(&*skip.begin(), 15, ':');
-		if (skip == "temperatures") {
-			// another stdlib messup, can't simply add one to a pos_type...
+		skip.resize(skip_prefix_.size());
+
+		f.exceptions(f.badbit);
+		f.getline(&*skip.begin(), skip_prefix_.size()+1);
+		f.clear(f.rdstate() & ~f.failbit);
+
+		if (skip == skip_prefix_)
 			skip_bytes_ = f.tellg();
-			++skip_bytes_;
-		}
 		else
 			fail(TF_ERR) << SystemError(path_ + ": Unknown file format.") << flush;
 
-		while (!f.eof()) {
+		while (!(f.eof() || f.fail())) {
 			f >> tmp;
 			++count;
 		}
