@@ -344,6 +344,7 @@ void TpSensorDriver::read_temps() const
 		f.exceptions(f.failbit | f.badbit);
 		f.seekg(skip_bytes_);
 
+		f.exceptions(f.badbit);
 		unsigned int tidx = 0;
 		while (!f.eof()) {
 			f >> *temp_state->temp_it;
