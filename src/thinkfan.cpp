@@ -101,7 +101,7 @@ void run(const Config &config)
 
 	// Exception-safe pointer deletion
 	std::unique_ptr<TemperatureState> deleter1(temp_state);
-	std::unique_ptr<TemperatureState> deleter2(temp_state);
+	std::unique_ptr<TemperatureState> deleter2(last_temp_state);
 
 	tmp_sleeptime = sleeptime;
 
