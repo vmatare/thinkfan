@@ -92,7 +92,7 @@ public:
 	RegexParser(const std::string expr, const unsigned int data_idx = 0,
 			bool bol_only = true, bool match_nl = false);
 	virtual ~RegexParser();
-	std::string *_parse(const char *&input) const override;
+	virtual std::string *_parse(const char *&input) const override;
 };
 
 

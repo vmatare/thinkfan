@@ -236,12 +236,38 @@ void SensorDriver::set_num_temps(unsigned int n)
 
 
 inline void update_tempstate(int correction) {
-	*temp_state.temp_idx += correction;
-	if (*temp_state.temp_idx > temp_state.tmax) {
-		temp_state.b_tmax = temp_state.temp_idx;
-		temp_state.tmax = *temp_state.temp_idx;
+	*temp_state->temp_it += correction;
+
+	if (*temp_state->temp_it > temp_state->tmax) {
+		temp_state->b_tmax = temp_state->temp_it;
+		temp_state->tmax = *temp_state->temp_it;
 	}
-	++temp_state.temp_idx;
+
+	int diff = *temp_state->temp_it - *last_temp_state->temp_it;
+
+	if (unlikely(diff > 2)) {
+		// Apply bias if temperature changed quickly
+		temp_state->bias = ((float)diff * bias_level);
+		if (tmp_sleeptime > seconds(2)) tmp_sleeptime = seconds(2);
+	}
+	else {
+		if (unlikely(diff < 0)) {
+			// Return to normal operation if temperature dropped
+			tmp_sleeptime = sleeptime;
+			temp_state->bias = 0;
+		}
+		// Otherwise slowly return to normal sleeptime
+		else if (unlikely(tmp_sleeptime < sleeptime)) tmp_sleeptime++;
+	}
+
+	*temp_state->temp_it = *temp_state->temp_it + temp_state->bias;
+
+	if (*temp_state->temp_it > temp_state->tmax) {
+		temp_state->b_tmax = temp_state->temp_it;
+		temp_state->tmax = *temp_state->temp_it;
+	}
+	++temp_state->temp_it;
+	++last_temp_state->temp_it;
 }
 
 
@@ -262,7 +288,7 @@ void HwmonSensorDriver::read_temps() const
 		f.exceptions(f.failbit | f.badbit);
 		int tmp;
 		f >> tmp;
-		*temp_state.temp_idx = tmp / 1000;
+		*temp_state->temp_it = tmp / 1000;
 		update_tempstate(correction_[0]);
 	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
@@ -320,7 +346,7 @@ void TpSensorDriver::read_temps() const
 
 		unsigned int tidx = 0;
 		while (!f.eof()) {
-			f >> *temp_state.temp_idx;
+			f >> *temp_state->temp_it;
 			update_tempstate(correction_[tidx++]);
 		}
 	} catch (std::ios_base::failure &e) {
@@ -361,7 +387,7 @@ void AtasmartSensorDriver::read_temps() const
 	}
 
 	if (unlikely(disk_sleeping)) {
-		*temp_state.temp_idx = 0;
+		*temp_state->temp_it = 0;
 		update_tempstate(correction_[0]);
 	}
 	else {
@@ -384,7 +410,7 @@ void AtasmartSensorDriver::read_temps() const
 			fail(TF_ERR) << MSG_T_GET(path_) << SystemError(std::to_string(tmp) + " isn't a valid temperature.") << flush;
 		}
 
-		*temp_state.temp_idx = tmp;
+		*temp_state->temp_it = tmp;
 		update_tempstate(correction_[0]);
 	}
 }
@@ -459,7 +485,7 @@ void NvmlSensorDriver::read_temps() const
 		fail(TF_ERR)
 		<< SystemError(MSG_T_GET(path_) + "Error code (cf. nvml.h): " + std::to_string(ret))
 		<< flush;
-	*temp_state.temp_idx = tmp;
+	*temp_state->temp_it = tmp;
 	update_tempstate(correction_[0]);
 }
 #endif /* USE_NVML */

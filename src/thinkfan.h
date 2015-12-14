@@ -51,12 +51,21 @@ typedef std::fstream fstream;
 typedef std::chrono::duration<unsigned int> seconds;
 typedef std::chrono::duration<float> secondsf;
 
-struct TemperatureState {
+class TemperatureState {
+public:
 	std::vector<int> temps;
-	int *temp_idx;
-	int *b_tmax;
-	int last_tmax;
+	std::vector<int>::iterator temp_it;
+	std::vector<int>::iterator b_tmax;
 	int tmax;
+	float bias;
+
+	TemperatureState(unsigned int num_temps)
+	: temps(num_temps, 0),
+	  temp_it(temps.begin()),
+	  b_tmax(temps.begin()),
+	  tmax(-128),
+	  bias(0)
+	{}
 };
 
 extern bool chk_sanity;
@@ -65,10 +74,10 @@ extern bool quiet;
 #ifdef USE_ATASMART
 extern bool dnd_disk;
 #endif /* USE_ATASMART */
-extern seconds sleeptime;
+extern seconds sleeptime, tmp_sleeptime;
 extern float bias_level;
 extern volatile int interrupted;
-extern struct TemperatureState temp_state;
+extern struct TemperatureState *temp_state, *last_temp_state;
 
 
 }

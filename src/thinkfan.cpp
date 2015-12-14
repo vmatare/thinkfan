@@ -32,6 +32,8 @@
 #include <memory>
 #include <thread>
 
+#include <fstream>
+
 #include "thinkfan.h"
 #include "config.h"
 #include "message.h"
@@ -43,7 +45,8 @@ namespace thinkfan {
 bool chk_sanity(true);
 bool resume_is_safe(false);
 bool quiet(false);
-std::chrono::duration<unsigned int> sleeptime(5);
+seconds sleeptime(5);
+seconds tmp_sleeptime = sleeptime;
 float bias_level(5);
 int opt;
 float depulse = 0;
@@ -58,12 +61,12 @@ bool dnd_disk = false;
 #endif /* USE_ATASMART */
 
 
-struct TemperatureState temp_state;
+struct TemperatureState *temp_state = nullptr, *last_temp_state = nullptr;
 
 
 string report_tstat() {
 	string rv = "Current temperatures: ";
-	for (int temp : temp_state.temps) {
+	for (int temp : temp_state->temps) {
 		rv += std::to_string(temp) + ", ";
 	}
 	return rv.substr(0, rv.length()-2);
@@ -93,67 +96,62 @@ void sig_handler(int signum) {
 
 void run(const Config &config)
 {
-	temp_state.temps.resize(config.num_temps());
+	temp_state = new TemperatureState(config.num_temps());
+	last_temp_state = new TemperatureState(config.num_temps());
 
-	float bias = 0;
-	seconds tmp_sleeptime = sleeptime;
+	// Exception-safe pointer deletion
+	std::unique_ptr<TemperatureState> deleter1(temp_state);
+	std::unique_ptr<TemperatureState> deleter2(temp_state);
 
-	temp_state.temp_idx = temp_state.temps.data();
-	temp_state.tmax = -128;
+	tmp_sleeptime = sleeptime;
 
+	// Initially update both last_temp_state and temp_state with the same data
+	last_temp_state->temp_it = temp_state->temp_it;
+	for (const SensorDriver *sensor : config.sensors()) sensor->read_temps();
+
+	// Then switch back last_temp_state's own copy of the data
+	last_temp_state->temp_it = last_temp_state->temps.begin();
+
+	// Set initial fan level
 	std::vector<const Level *>::const_iterator cur_lvl = config.levels().begin();
 	config.fan()->init();
-
-	for (const SensorDriver *sensor : config.sensors()) sensor->read_temps();
-	while (cur_lvl != config.levels().end() && **cur_lvl <= temp_state)
+	while (cur_lvl != config.levels().end() && **cur_lvl <= *temp_state)
 		cur_lvl++;
-	log(TF_DBG, TF_DBG) << MSG_T_STAT(tmp_sleeptime.count(), temp_state.tmax,
-			temp_state.last_tmax, *temp_state.b_tmax,
+	log(TF_DBG, TF_DBG) << MSG_T_STAT(
+			tmp_sleeptime.count(),
+			temp_state->tmax,
+			last_temp_state->tmax, *temp_state->b_tmax,
 			(*cur_lvl)->str()) << flush;
 	config.fan()->set_speed(*cur_lvl);
 
 	while (likely(!interrupted)) {
-		temp_state.temp_idx = temp_state.temps.data();
-		temp_state.last_tmax = temp_state.tmax;
-		temp_state.tmax = -128;
+		std::swap(temp_state, last_temp_state);
+
+		temp_state->temp_it = temp_state->temps.begin();
+		last_temp_state->temp_it = last_temp_state->temps.begin();
+		temp_state->bias = last_temp_state->bias;
+
+		temp_state->tmax = -128;
 
 		for (const SensorDriver *sensor : config.sensors())
 			sensor->read_temps();
 
-		if (unlikely(temp_state.temp_idx - 1 != &temp_state.temps.back()))
+		if (unlikely(temp_state->temp_it != temp_state->temps.end()))
 			fail(TF_ERR) << SystemError(MSG_SENSOR_LOST) << flush;
 
-		int diff = temp_state.tmax - temp_state.last_tmax;
-		if (unlikely(diff > 2)) {
-			// Apply bias if temperature changed quickly
-			bias = ((float)diff * bias_level);
-			if (tmp_sleeptime > seconds(2)) tmp_sleeptime = seconds(2);
-		}
-		else {
-			if (unlikely(diff < 0)) {
-				// Return to normal operation if temperature dropped
-				tmp_sleeptime = sleeptime;
-				bias = 0;
-			}
-			// Otherwise slowly return to normal sleeptime
-			else if (unlikely(tmp_sleeptime < sleeptime)) tmp_sleeptime++;
-		}
-		// Apply bias to maximum temperature only
-		*temp_state.b_tmax = temp_state.tmax + bias;
-
-		if (unlikely(**cur_lvl <= temp_state)) {
-			while (cur_lvl != config.levels().end() && **cur_lvl <= temp_state)
+		if (unlikely(**cur_lvl <= *temp_state)) {
+			while (cur_lvl != config.levels().end() && **cur_lvl <= *temp_state)
 				cur_lvl++;
-			log(TF_DBG, TF_DBG) << MSG_T_STAT(tmp_sleeptime.count(), temp_state.tmax,
-					temp_state.last_tmax, *temp_state.b_tmax,
+			log(TF_DBG, TF_DBG) << MSG_T_STAT(tmp_sleeptime.count(), temp_state->tmax,
+					last_temp_state->tmax, *temp_state->b_tmax,
 					(*cur_lvl)->str()) << flush;
 			config.fan()->set_speed(*cur_lvl);
 		}
-		else if (unlikely(**cur_lvl > temp_state)) {
-			while (cur_lvl != config.levels().begin() && **cur_lvl > temp_state)
+		else if (unlikely(**cur_lvl > *temp_state)) {
+			while (cur_lvl != config.levels().begin() && **cur_lvl > *temp_state)
 				cur_lvl--;
-			log(TF_DBG, TF_DBG) << MSG_T_STAT(tmp_sleeptime.count(), temp_state.tmax,
-					temp_state.last_tmax, *temp_state.b_tmax,
+			log(TF_DBG, TF_DBG) << MSG_T_STAT(tmp_sleeptime.count(), temp_state->tmax,
+					last_temp_state->tmax, *temp_state->b_tmax,
 					(*cur_lvl)->str()) << flush;
 			config.fan()->set_speed(*cur_lvl);
 			tmp_sleeptime = sleeptime;
@@ -163,14 +161,14 @@ void run(const Config &config)
 		std::this_thread::sleep_for(sleeptime);
 
 		// slowly return bias to 0
-		if (unlikely(bias != 0)) {
-			if (likely(bias > 0)) {
-				if (bias < 0.5) bias = 0;
-				else bias -= bias/2 * bias_level;
+		if (unlikely(temp_state->bias != 0)) {
+			if (likely(temp_state->bias > 0)) {
+				if (temp_state->bias < 0.5) temp_state->bias = 0;
+				else temp_state->bias -= temp_state->bias/2 * bias_level;
 			}
 			else {
-				if (bias > -0.5) bias = 0;
-				else bias += bias/2 * bias_level;
+				if (temp_state->bias > -0.5) temp_state->bias = 0;
+				else temp_state->bias += temp_state->bias/2 * bias_level;
 			}
 		}
 	}
