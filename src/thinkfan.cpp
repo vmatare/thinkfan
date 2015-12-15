@@ -32,7 +32,7 @@
 #include <memory>
 #include <thread>
 
-#include <fstream>
+#include <unistd.h>
 
 #include "thinkfan.h"
 #include "config.h"
@@ -45,6 +45,7 @@ namespace thinkfan {
 bool chk_sanity(true);
 bool resume_is_safe(false);
 bool quiet(false);
+bool daemonize(true);
 seconds sleeptime(5);
 seconds tmp_sleeptime = sleeptime;
 float bias_level(5);
@@ -177,7 +178,7 @@ void run(const Config &config)
 
 int set_options(int argc, char **argv)
 {
-	const char *optstring = "c:s:b:p::hqDz"
+	const char *optstring = "c:s:b:p::hqDzn"
 #ifdef USE_ATASMART
 			"d";
 #else
@@ -205,6 +206,9 @@ int set_options(int argc, char **argv)
 			break;
 		case 'z':
 			resume_is_safe = true;
+			break;
+		case 'n':
+			daemonize = false;
 			break;
 		case 's':
 			if (optarg) {
@@ -271,18 +275,40 @@ int set_options(int argc, char **argv)
 	return 0;
 }
 
+
+PidFileHolder::PidFileHolder(unsigned int pid)
+: pid_file_(PID_FILE, std::ios_base::in)
+{
+	if (!pid_file_.fail())
+		fail(TF_WRN) << SystemError(MSG_RUNNING) << flush;
+	pid_file_.close();
+	pid_file_.open(PID_FILE, std::ios_base::out | std::ios_base::trunc);
+	pid_file_.exceptions(pid_file_.badbit | pid_file_.failbit);
+	pid_file_ << pid << std::flush;
+}
+
+
+PidFileHolder::~PidFileHolder()
+{
+	pid_file_.close();
+	if (::unlink(PID_FILE) == -1) {
+		string msg = std::strerror(errno);
+		log(TF_ERR, TF_ERR) << SystemError("Deleting " PID_FILE ": " + msg) << flush;
+	}
+}
+
+
 }
 
 
 int main(int argc, char **argv) {
 	using namespace thinkfan;
 
-
-	if (!isatty(fileno(stdout))) Logger::instance().enable_syslog();
-
 	struct sigaction handler;
 	memset(&handler, 0, sizeof(handler));
 	handler.sa_handler = sig_handler;
+
+	std::unique_ptr<PidFileHolder> pid_file;
 
 	// Install signal handler only after FanControl object has been created
 	// since it is used by the handler.
@@ -308,9 +334,41 @@ int main(int argc, char **argv) {
 		default:
 			return 3;
 		}
+
+		// Load the config temporarily once so we may fail before forking
+		delete Config::read_config(config_file);
+
+		if (daemonize) {
+			pid_t child_pid = ::fork();
+			if (child_pid < 0) {
+				string msg(strerror(errno));
+				fail(TF_WRN) << SystemError("Can't fork(): " + msg) << flush;
+			}
+			else if (child_pid > 0) {
+				log(TF_INF, TF_INF) << "Daemon PID: " << child_pid << flush;
+				return 0;
+			}
+			else {
+				Logger::instance().enable_syslog();
+				// Own PID file only in the child...
+				pid_file.reset(new PidFileHolder(::getpid()));
+			}
+		}
+		else {
+			// ... or when we're not forking at all
+			pid_file.reset(new PidFileHolder(::getpid()));
+		}
+
+		if (!isatty(fileno(stdout))) {
+			Logger::instance().enable_syslog();
+		}
+
+		// Load the config for real after forking & enabling syslog
 		std::unique_ptr<const Config> config(Config::read_config(config_file));
+
 		do {
 			run(*config);
+
 			if (interrupted == SIGHUP) {
 				log(TF_INF, TF_INF) << MSG_RELOAD_CONF << flush;
 				try {
@@ -342,4 +400,7 @@ int main(int argc, char **argv) {
 
 	return 0;
 }
+
+
+
 

@@ -24,6 +24,7 @@
 
 #include <vector>
 #include <chrono>
+#include <fstream>
 
 #define VERSION "0.99.0"
 #define PID_FILE "/var/run/thinkfan.pid"
@@ -51,6 +52,7 @@ typedef std::fstream fstream;
 typedef std::chrono::duration<unsigned int> seconds;
 typedef std::chrono::duration<float> secondsf;
 
+
 class TemperatureState {
 public:
 	std::vector<int> temps;
@@ -68,9 +70,20 @@ public:
 	{}
 };
 
+
+class PidFileHolder {
+public:
+	PidFileHolder(unsigned int pid);
+	~PidFileHolder();
+private:
+	std::fstream pid_file_;
+};
+
+
 extern bool chk_sanity;
 extern bool resume_is_safe;
 extern bool quiet;
+extern bool daemonize;
 #ifdef USE_ATASMART
 extern bool dnd_disk;
 #endif /* USE_ATASMART */
