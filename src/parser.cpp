@@ -240,7 +240,9 @@ ComplexLevel *ComplexLevelParser::_parse(const char *&input) const
 
 
 ConfigParser::ConfigParser()
-: parser_comment("^[[:space:]]*#.*$", 0)
+: parser_comment("^[[:space:]]*#.*$", 0),
+  parser_fan(),
+  parser_sensor()
 {}
 
 

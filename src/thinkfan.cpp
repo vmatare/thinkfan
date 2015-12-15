@@ -61,7 +61,7 @@ bool dnd_disk = false;
 #endif /* USE_ATASMART */
 
 
-struct TemperatureState *temp_state = nullptr, *last_temp_state = nullptr;
+TemperatureState *temp_state = nullptr, *last_temp_state = nullptr;
 
 
 string report_tstat() {
@@ -239,9 +239,8 @@ int set_options(int argc, char **argv)
 					b = std::stof(arg, &invalid);
 					if (invalid < arg.length())
 						fail(TF_WRN) << InvocationError(MSG_OPT_B_INVAL(optarg)) << flush;
-					if (b < -10 || b > 30) {
+					if (b < -10 || b > 30)
 						fail(TF_WRN) << InvocationError(MSG_OPT_B) << flush;
-					}
 					bias_level = b / 10;
 				} catch (std::invalid_argument &e) {
 					fail(TF_ERR) << InvocationError(MSG_OPT_B_INVAL(optarg)) << flush;
@@ -255,9 +254,8 @@ int set_options(int argc, char **argv)
 			if (optarg) {
 				size_t invalid;
 				depulse = std::stof(optarg, &invalid);
-				if (invalid != 0 || depulse > 10 || depulse < 0) {
+				if (invalid != 0 || depulse > 10 || depulse < 0)
 					fail(depulse < 0 ? TF_ERR : TF_WRN) << InvocationError(MSG_OPT_P(optarg)) << flush;
-				}
 			}
 			else depulse = 0.5f;
 			break;

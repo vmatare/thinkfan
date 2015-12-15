@@ -77,7 +77,7 @@ extern bool dnd_disk;
 extern seconds sleeptime, tmp_sleeptime;
 extern float bias_level;
 extern volatile int interrupted;
-extern struct TemperatureState *temp_state, *last_temp_state;
+extern TemperatureState *temp_state, *last_temp_state;
 
 
 }

@@ -64,7 +64,7 @@ public:
 	void set_watchdog(const unsigned int timeout);
 	void set_depulse(float duration);
 	void init() const override;
-	void set_speed(const Level *const level);
+	void set_speed(const Level *const level) override;
 	virtual void ping_watchdog_and_depulse(const Level *level) override;
 };
 

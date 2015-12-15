@@ -40,7 +40,7 @@ static string make_backtrace()
 		backtrace_ += '\n';
 	}
 	free(bt_pretty);
-	return std::move(backtrace_);
+	return backtrace_;
 }
 
 
@@ -88,7 +88,6 @@ SyntaxError::SyntaxError(const string filename, const size_t offset, const strin
 		}
 	}
 	msg_ += std::to_string(line) + ": Syntax error:\n";
-	std::string::size_type len_tmp = msg_.length();
 	std::string::size_type line_end = input.find('\n', line_start) - line_start;
 	msg_ += input.substr(line_start, line_end) + '\n';
 	msg_ += std::string(offset - line_start, ' ') + "^\n";
