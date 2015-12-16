@@ -32,6 +32,8 @@
 
 namespace thinkfan {
 
+
+
 class Level {
 protected:
 	string level_s_;

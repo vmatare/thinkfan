@@ -27,6 +27,8 @@
 #include <exception>
 #include <memory>
 
+#include "thinkfan.h"
+
 namespace thinkfan {
 
 enum LogLevel {
@@ -55,7 +57,18 @@ public:
 	Logger &operator<< (const float &d);
 	Logger &operator<< (Logger & (*pf_flush)(Logger &));
 	Logger &operator<< (const char *msg);
-	Logger &operator<< (const ExpectedError &e);
+
+	template<class ListT>
+	Logger &operator<< (const ListT &l) {
+		log_str_ += "(";
+		for (auto elem : l) {
+			log_str_ += std::to_string(elem) + ", ";
+		}
+		log_str_.pop_back(); log_str_.pop_back();
+		log_str_ += ")";
+		return *this;
+	}
+
 private:
 	bool syslog_;
 	LogLevel log_lvl_;
@@ -63,10 +76,15 @@ private:
 	std::exception_ptr exception_;
 };
 
-
 Logger &flush(Logger &l);
-Logger &fail(LogLevel lvl_insane);
-Logger &log(LogLevel lvl_sane, LogLevel lvl_insane);
+Logger &log(LogLevel lvl_insane);
+
+template<class ErrT> void error(const std::string &msg) {
+	if (chk_sanity)
+		throw ErrT(msg);
+	else
+		log(TF_ERR) << msg << flush;
+}
 
 }
 

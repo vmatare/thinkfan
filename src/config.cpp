@@ -53,38 +53,38 @@ const Config *Config::read_config(const string &filename)
 
 		rv = parser.parse_config(input);
 		if (!rv) {
-			fail(TF_ERR) << SyntaxError(filename, parser.get_max_addr() - start, f_data) << flush;
+			throw SyntaxError(filename, parser.get_max_addr() - start, f_data);
 		}
 		else {
 			// Consistency checks which require the complete config
 
 			if (rv->levels().size() == 0)
-				fail(TF_ERR) << ConfigError("No fan levels specified.") << flush;
+				throw ConfigError("No fan levels specified.");
 
 			if (!rv->fan()) {
-				log(TF_WRN, TF_WRN) << MSG_CONF_DEFAULT_FAN << flush;
+				log(TF_WRN) << MSG_CONF_DEFAULT_FAN << flush;
 				rv->add_fan(unique_ptr<TpFanDriver>(new TpFanDriver(DEFAULT_FAN)));
 			}
 
 			if (rv->sensors().size() < 1) {
-				log(TF_WRN, TF_WRN) << MSG_SENSOR_DEFAULT << flush;
+				log(TF_WRN) << MSG_SENSOR_DEFAULT << flush;
 				rv->add_sensor(unique_ptr<TpSensorDriver>(new TpSensorDriver(DEFAULT_SENSOR)));
 			}
 
 			int maxlvl = (*rv->levels_.rbegin())->num();
 			if (dynamic_cast<HwmonFanDriver *>(rv->fan()) && maxlvl < 128)
-				fail(TF_WRN) << ConfigError(MSG_CONF_MAXLVL((*rv->levels_.rbegin())->num())) << flush;
+				error<ConfigError>(MSG_CONF_MAXLVL((*rv->levels_.rbegin())->num()));
 			else if (dynamic_cast<TpFanDriver *>(rv->fan())
 					&& maxlvl != std::numeric_limits<int>::max()
 					&& maxlvl > 7)
-				fail(TF_WRN) << ConfigError(MSG_CONF_TP_LVL7(maxlvl, 7)) << flush;
+				error<ConfigError>(MSG_CONF_TP_LVL7(maxlvl, 7));
+
+			return rv;
 		}
 	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
-		fail(TF_ERR) << ConfigError(filename + ": " + msg) << flush;;
+		throw ConfigError(filename + ": " + msg);
 	}
-	// This should be in the try block, but then gcc complains since it doesn't know that fail() << exception << flush will throw
-	return rv;
 }
 
 
@@ -101,7 +101,7 @@ bool Config::add_fan(std::unique_ptr<FanDriver> &&fan)
 	if (!fan) return false;
 
 	if (fan_)
-		fail(TF_WRN) << ConfigError(MSG_CONF_FAN) << flush;
+		error<ConfigError>(MSG_CONF_FAN);
 	this->fan_ = fan.release();
 	return true;
 }
@@ -126,16 +126,16 @@ bool Config::add_level(std::unique_ptr<const Level> &&level)
 		if (level->num() != std::numeric_limits<int>::max()
 				&& level->num() != std::numeric_limits<int>::min()
 				&& last_lvl->num() >= level->num())
-			fail(TF_WRN) << ConfigError(MSG_CONF_LVLORDER) << flush;
+			error<ConfigError>(MSG_CONF_LVLORDER);
 
 		if (last_lvl->upper_limit().size() != level->upper_limit().size())
-			fail(TF_WRN) << ConfigError(MSG_CONF_LIMITLEN) << flush;
+			error<ConfigError>(MSG_CONF_LVLORDER);
 
 		for (std::vector<int>::const_iterator mit = last_lvl->upper_limit().begin(), oit = level->lower_limit().begin();
 				mit != last_lvl->upper_limit().end() && oit != level->lower_limit().end();
 				++mit, ++oit)
 		{
-			if (*mit < *oit) fail(TF_WRN) << ConfigError(MSG_CONF_OVERLAP) << flush;
+			if (*mit < *oit) error<ConfigError>(MSG_CONF_OVERLAP);
 		}
 	}
 
@@ -185,12 +185,12 @@ Level::Level(string level, const std::vector<int> &lower_limit, const std::vecto
   upper_limit_(upper_limit)
 {
 	if (lower_limit.size() != upper_limit.size())
-		fail(TF_WRN) << ConfigError(MSG_CONF_LIMITLEN) << flush;
+		error<ConfigError>(MSG_CONF_LIMITLEN);
 
 	for (std::vector<int>::const_iterator l_it = lower_limit.begin(), u_it = upper_limit.begin();
 			l_it != lower_limit.end() && u_it != upper_limit.end();
 			++u_it, ++l_it) {
-		if (*l_it >= *u_it) fail(TF_WRN) << ConfigError(MSG_CONF_LOWHIGH) << flush;
+		if (*l_it >= *u_it) error<ConfigError>(MSG_CONF_LOWHIGH);
 	}
 
 	if (level == "level auto" || level == "level disengaged" || level == "level full-speed")
@@ -201,9 +201,9 @@ Level::Level(string level, const std::vector<int> &lower_limit, const std::vecto
 		level_n_ = std::stoi(level);
 		level_s_ = "level " + level;
 	} catch (std::out_of_range &e) {
-		fail(TF_WRN) << ConfigError(MSG_CONF_LVLFORMAT(level)) << flush;
+		error<ConfigError>(MSG_CONF_LVLFORMAT(level));
 	} catch (std::invalid_argument &e) {
-		fail(TF_WRN) << ConfigError(MSG_CONF_LVLFORMAT(level)) << flush;
+		error<ConfigError>(MSG_CONF_LVLFORMAT(level));
 	}
 }
 

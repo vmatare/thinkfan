@@ -138,12 +138,12 @@ void run(const Config &config)
 			sensor->read_temps();
 
 		if (unlikely(temp_state->temp_it != temp_state->temps.end()))
-			fail(TF_ERR) << SystemError(MSG_SENSOR_LOST) << flush;
+			throw SystemError(MSG_SENSOR_LOST);
 
 		if (unlikely(**cur_lvl <= *temp_state)) {
 			while (cur_lvl != config.levels().end() && **cur_lvl <= *temp_state)
 				cur_lvl++;
-			log(TF_DBG, TF_DBG) << MSG_T_STAT(tmp_sleeptime.count(), temp_state->tmax,
+			log(TF_DBG) << MSG_T_STAT(tmp_sleeptime.count(), temp_state->tmax,
 					last_temp_state->tmax, *temp_state->b_tmax,
 					(*cur_lvl)->str()) << flush;
 			config.fan()->set_speed(*cur_lvl);
@@ -151,7 +151,7 @@ void run(const Config &config)
 		else if (unlikely(**cur_lvl > *temp_state)) {
 			while (cur_lvl != config.levels().begin() && **cur_lvl > *temp_state)
 				cur_lvl--;
-			log(TF_DBG, TF_DBG) << MSG_T_STAT(tmp_sleeptime.count(), temp_state->tmax,
+			log(TF_DBG) << MSG_T_STAT(tmp_sleeptime.count(), temp_state->tmax,
 					last_temp_state->tmax, *temp_state->b_tmax,
 					(*cur_lvl)->str()) << flush;
 			config.fan()->set_speed(*cur_lvl);
@@ -218,21 +218,21 @@ int set_options(int argc, char **argv)
 					string arg(optarg);
 					s = std::stoul(arg, &invalid);
 					if (invalid < arg.length())
-						fail(TF_ERR) << InvocationError(MSG_OPT_S_INVAL(optarg)) << flush;
+						throw InvocationError(MSG_OPT_S_INVAL(optarg));
 					if (s > 15)
-						fail(TF_WRN) << InvocationError(MSG_OPT_S_15(s)) << flush;
+						throw InvocationError(MSG_OPT_S_15(s));
 					else if (s < 0)
-						fail(TF_ERR) << InvocationError("Negative sleep time? Seriously?") << flush;
+						throw InvocationError("Negative sleep time? Seriously?");
 					else if (s < 1)
-						fail(TF_WRN) << InvocationError(MSG_OPT_S_1(s)) << flush;
+						throw InvocationError(MSG_OPT_S_1(s));
 					sleeptime = seconds(static_cast<unsigned int>(s));
 				} catch (std::invalid_argument &e) {
-					fail(TF_ERR) << InvocationError(MSG_OPT_S_INVAL(optarg)) << flush;
+					throw InvocationError(MSG_OPT_S_INVAL(optarg));
 				} catch (std::out_of_range &e) {
-					fail(TF_ERR) << InvocationError(MSG_OPT_S_INVAL(optarg)) << flush;
+					throw InvocationError(MSG_OPT_S_INVAL(optarg));
 				}
 			}
-			else fail(TF_ERR) << InvocationError(MSG_OPT_S) << flush;
+			else throw InvocationError(MSG_OPT_S);
 			break;
 		case 'b':
 			if (optarg) {
@@ -242,24 +242,26 @@ int set_options(int argc, char **argv)
 					string arg(optarg);
 					b = std::stof(arg, &invalid);
 					if (invalid < arg.length())
-						fail(TF_WRN) << InvocationError(MSG_OPT_B_INVAL(optarg)) << flush;
+						error<InvocationError>(MSG_OPT_B_INVAL(optarg));
 					if (b < -10 || b > 30)
-						fail(TF_WRN) << InvocationError(MSG_OPT_B) << flush;
+						error<InvocationError>(MSG_OPT_B);
 					bias_level = b / 10;
 				} catch (std::invalid_argument &e) {
-					fail(TF_ERR) << InvocationError(MSG_OPT_B_INVAL(optarg)) << flush;
+					throw InvocationError(MSG_OPT_B_INVAL(optarg));
 				} catch (std::out_of_range &e) {
-					fail(TF_ERR) << InvocationError(MSG_OPT_B_INVAL(optarg)) << flush;
+					throw InvocationError(MSG_OPT_B_INVAL(optarg));
 				}
 			}
-			else fail(TF_ERR) << InvocationError(MSG_OPT_B_NOARG) << flush;
+			else throw InvocationError(MSG_OPT_B_NOARG);
 			break;
 		case 'p':
 			if (optarg) {
 				size_t invalid;
 				depulse = std::stof(optarg, &invalid);
-				if (invalid != 0 || depulse > 10 || depulse < 0)
-					fail(depulse < 0 ? TF_ERR : TF_WRN) << InvocationError(MSG_OPT_P(optarg)) << flush;
+				if (invalid != 0 || depulse > 10 )
+					error<InvocationError>(MSG_OPT_P(optarg));
+				else if (depulse < 0)
+					throw InvocationError(MSG_OPT_P(optarg));
 			}
 			else depulse = 0.5f;
 			break;
@@ -270,7 +272,7 @@ int set_options(int argc, char **argv)
 		}
 	}
 	if (depulse > 0)
-		log(TF_INF, TF_INF) << MSG_DEPULSE(depulse, sleeptime.count()) << flush;
+		log(TF_INF) << MSG_DEPULSE(depulse, sleeptime.count()) << flush;
 
 	return 0;
 }
@@ -280,7 +282,7 @@ PidFileHolder::PidFileHolder(unsigned int pid)
 : pid_file_(PID_FILE, std::ios_base::in)
 {
 	if (!pid_file_.fail())
-		fail(TF_WRN) << SystemError(MSG_RUNNING) << flush;
+		error<SystemError>(MSG_RUNNING);
 	pid_file_.close();
 	pid_file_.open(PID_FILE, std::ios_base::out | std::ios_base::trunc);
 	pid_file_.exceptions(pid_file_.badbit | pid_file_.failbit);
@@ -342,10 +344,10 @@ int main(int argc, char **argv) {
 			pid_t child_pid = ::fork();
 			if (child_pid < 0) {
 				string msg(strerror(errno));
-				fail(TF_WRN) << SystemError("Can't fork(): " + msg) << flush;
+				error<SystemError>("Can't fork(): " + msg);
 			}
 			else if (child_pid > 0) {
-				log(TF_INF, TF_INF) << "Daemon PID: " << child_pid << flush;
+				log(TF_INF) << "Daemon PID: " << child_pid << flush;
 				return 0;
 			}
 			else {
@@ -370,28 +372,29 @@ int main(int argc, char **argv) {
 			run(*config);
 
 			if (interrupted == SIGHUP) {
-				log(TF_INF, TF_INF) << MSG_RELOAD_CONF << flush;
+				log(TF_INF) << MSG_RELOAD_CONF << flush;
 				try {
 					std::unique_ptr<const Config> config_new(Config::read_config(config_file));
 					config.swap(config_new);
 				} catch(ExpectedError &e) {
-					log(TF_ERR, TF_ERR) << MSG_CONF_RELOAD_ERR << flush;
+					log(TF_ERR) << MSG_CONF_RELOAD_ERR << flush;
 				} catch(std::exception &e) {
-					log(TF_ERR, TF_ERR) << "read_config: " << e.what() << flush;
-					log(TF_ERR, TF_ERR) << MSG_CONF_RELOAD_ERR << flush;
+					log(TF_ERR) << "read_config: " << e.what() << flush;
+					log(TF_ERR) << MSG_CONF_RELOAD_ERR << flush;
 				}
 				interrupted = 0;
 			}
 		} while (!interrupted);
 
-		log(TF_INF, TF_INF) << MSG_TERM << flush;
+		log(TF_INF) << MSG_TERM << flush;
 	}
 	catch (ExpectedError &e) {
-		log(TF_DBG, TF_DBG) << "Backtrace:" << flush << e.backtrace() << flush;
+		log(TF_ERR) << e.what() << flush;
+		log(TF_DBG) << "Backtrace:" << flush << e.backtrace() << flush;
 		return 1;
 	}
 	catch (Bug &e) {
-		fail(TF_ERR) << e.what() << flush <<
+		log(TF_ERR) << e.what() << flush <<
 				"Backtrace:" << flush <<
 				e.backtrace() << flush <<
 				MSG_BUG << flush;

@@ -80,7 +80,7 @@ FanDriver *FanParser::_parse(const char *&input) const
 	unique_ptr<string> path;
 
 	if ((path = unique_ptr<string>(KeywordParser("fan").parse(input))))
-		fail(TF_ERR) << ConfigError(MSG_CONF_FAN_DEPRECATED) << flush;
+		throw ConfigError(MSG_CONF_FAN_DEPRECATED);
 	else if ((path = unique_ptr<string>(KeywordParser("tp_fan").parse(input))))
 		fan = new TpFanDriver(*path);
 	else if ((path = unique_ptr<string>(KeywordParser("pwm_fan").parse(input))))
@@ -96,7 +96,7 @@ SensorDriver *SensorParser::_parse(const char *&input) const
 	unique_ptr<string> path;
 
 	if ((path = unique_ptr<string>(KeywordParser("sensor").parse(input))))
-		log(TF_ERR, TF_ERR) << MSG_CONF_SENSOR_DEPRECATED << flush;
+		throw ConfigError(MSG_CONF_SENSOR_DEPRECATED);
 	else if ((path = unique_ptr<string>(KeywordParser("tp_thermal").parse(input))))
 		sensor = new TpSensorDriver(*path);
 	else if ((path = unique_ptr<string>(KeywordParser("hwmon").parse(input))))
@@ -105,14 +105,14 @@ SensorDriver *SensorParser::_parse(const char *&input) const
 #ifdef USE_ATASMART
 		sensor = new AtasmartSensorDriver(*path);
 #else
-		log(TF_ERR, TF_ERR) << MSG_CONF_ATASMART_UNSUPP << flush;
+		error<SystemError>(MSG_CONF_ATASMART_UNSUPP);
 #endif /* USE_ATASMART */
 	}
 	else if ((path = unique_ptr<string>(KeywordParser("nv_thermal").parse(input)))) {
 #ifdef USE_NVML
 		sensor = new NvmlSensorDriver(*path);
 #else
-		log(TF_ERR, TF_ERR) << MSG_CONF_NVML_UNSUPP << flush;
+		error<SystemError>(MSG_CONF_NVML_UNSUPP);
 #endif /* USE_ATASMART */
 	}
 

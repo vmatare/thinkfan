@@ -45,14 +45,15 @@ Logger &Logger::instance()
 
 Logger &flush(Logger &l) { return l.flush(); }
 
-
+/*
 Logger &fail(LogLevel lvl_insane)
 { return log(TF_ERR, lvl_insane); }
+*/
 
-
-Logger &log(LogLevel lvl_sane, LogLevel lvl_insane)
+//Logger &log(LogLevel lvl_sane, LogLevel lvl_insane)
+Logger &log(LogLevel lvl)
 {
-	Logger::instance().level(chk_sanity ? lvl_sane : lvl_insane);
+	Logger::instance().level(lvl);
 	return Logger::instance();
 }
 
@@ -131,12 +132,13 @@ Logger &Logger::operator<< (const char *msg)
 Logger &Logger::operator<< (Logger & (*pf_flush)(Logger &))
 { return pf_flush(*this); }
 
+/*
 Logger &Logger::operator<< (const ExpectedError &e)
 {
 	log_str_ += e.what();
 	exception_ = std::make_exception_ptr(e);
 	return *this;
-}
+}*/
 
 
 }

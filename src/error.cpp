@@ -32,7 +32,7 @@ static string make_backtrace()
 	void *bt_buffer[MAX_BACKTRACE_DEPTH];
 	int stack_depth = ::backtrace(bt_buffer, MAX_BACKTRACE_DEPTH);
 	if (stack_depth == MAX_BACKTRACE_DEPTH)
-		log(TF_ERR, TF_ERR) << "Max backtrace depth reached. Backtrace may be incomplete." << flush;
+		log(TF_ERR) << "Max backtrace depth reached. Backtrace may be incomplete." << flush;
 
 	char **bt_pretty = backtrace_symbols(bt_buffer, stack_depth);
 	for (int i=0; i < stack_depth; ++i) {
@@ -68,7 +68,7 @@ void handle_uncaught()
 	try {
 		std::rethrow_exception(std::current_exception());
 	} catch (const std::exception &e) {
-		fail(TF_ERR) << "Unhandled exception: " << e.what() << ". errno = " << err << "." << flush <<
+		log(TF_ERR) << "Unhandled exception: " << e.what() << ". errno = " << err << "." << flush <<
 				"Backtrace:" << make_backtrace() << flush <<
 				MSG_BUG << flush;
 	}
