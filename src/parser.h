@@ -32,11 +32,6 @@ namespace thinkfan {
 
 using namespace std;
 
-class ParserMisdefinition : public std::exception {};
-class ParserOOM : public std::exception {};
-class MixedLevelSpecs : public std::exception {};
-class LimitLengthMismatch : public std::exception {};
-
 class SimpleLevel;
 class ComplexLevel;
 class Config;

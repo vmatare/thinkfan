@@ -66,6 +66,12 @@ public:
 };
 
 
+class ParserMisdefinition : public ExpectedError {};
+class ParserOOM : public ExpectedError {};
+class MixedLevelSpecs : public ExpectedError {};
+class LimitLengthMismatch : public ExpectedError {};
+
+
 class SystemError : public ExpectedError {
 public:
 	SystemError(const string &reason)
