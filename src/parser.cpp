@@ -47,6 +47,9 @@ RegexParser::~RegexParser()
 }
 
 
+RegexParser separator_parser("^([[:space:]]*,)|([[:space:]]+)", 0);
+
+
 std::string *RegexParser::_parse(const char *&input) const
 {
 	regmatch_t matches[data_idx_ + 1];
@@ -131,8 +134,7 @@ SensorDriver *SensorParser::_parse(const char *&input) const
 
 
 IntListParser::IntListParser()
-: int_parser_("^[[:space:]]*([[:digit:]]+)", 1),
-  sep_parser_("^([[:space:]]*,)|([[:space:]]+)", 0)
+: int_parser_("^[[:space:]]*([[:digit:]]+)", 1)
 {}
 
 vector<int> *IntListParser::_parse(const char *&input) const
@@ -146,7 +148,7 @@ vector<int> *IntListParser::_parse(const char *&input) const
 		delete s_int;
 
 		string *s_sep;
-		if (!(s_sep = sep_parser_.parse(input))) break;
+		if (!(s_sep = separator_parser.parse(input))) break;
 		delete s_sep;
 	}
 
@@ -188,16 +190,20 @@ SimpleLevel *SimpleLevelParser::_parse(const char *&input) const
 
 	vector<int> *ints = nullptr;
 	string *lvl_str = nullptr;
+	string *sep = nullptr;
 	const char *list_inner_c = list_inner->c_str();
 	if (!((ints = IntListParser().parse(list_inner_c))
 			|| ((lvl_str = BracketParser("\"", "\"").parse(list_inner_c))
+					&& (sep = separator_parser.parse(list_inner_c))
 					&& (ints = IntListParser().parse(list_inner_c))))) {
 		delete lvl_str;
 		delete list_inner;
+		delete sep;
 		return nullptr;
 	}
 
 	delete list_inner;
+	delete sep;
 
 	if (lvl_str && ints->size() == 2) rv = new SimpleLevel(*lvl_str, (*ints)[0], (*ints)[1]);
 	else if (ints->size() == 3) rv = new SimpleLevel((*ints)[0], (*ints)[1], (*ints)[2]);

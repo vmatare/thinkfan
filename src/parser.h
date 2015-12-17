@@ -111,7 +111,7 @@ public:
 
 class IntListParser : public Parser<std::vector<int>> {
 private:
-	RegexParser int_parser_, sep_parser_;
+	RegexParser int_parser_;
 public:
 	IntListParser();
 	virtual std::vector<int> *_parse(const char *&input) const override;
