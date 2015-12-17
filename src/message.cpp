@@ -132,6 +132,25 @@ Logger &Logger::operator<< (const char *msg)
 Logger &Logger::operator<< (Logger & (*pf_flush)(Logger &))
 { return pf_flush(*this); }
 
+
+Logger &Logger::operator<< (const TemperatureState &ts)
+{
+	log_str_ += "Temperatures(bias): ";
+
+	std::vector<float>::const_iterator bias_it;
+	std::vector<int>::const_iterator temp_it;
+
+	for (temp_it = ts.get().cbegin(),
+			bias_it = ts.biases().cbegin();
+			temp_it != ts.get().cend() && bias_it != ts.biases().cend();
+			++temp_it, ++bias_it) {
+		log_str_ += std::to_string(*temp_it) + "(" + std::to_string(int(*bias_it)) + "), ";
+	}
+	log_str_.pop_back(); log_str_.pop_back();
+	return *this;
+}
+
+
 /*
 Logger &Logger::operator<< (const ExpectedError &e)
 {

@@ -55,19 +55,23 @@ typedef std::chrono::duration<float> secondsf;
 
 class TemperatureState {
 public:
-	std::vector<int> temps;
-	std::vector<int>::iterator temp_it;
-	std::vector<int>::iterator b_tmax;
-	int tmax;
-	float bias;
+	TemperatureState(unsigned int num_temps);
+	void restart();
+	void add_temp(int t);
 
-	TemperatureState(unsigned int num_temps)
-	: temps(num_temps, 0),
-	  temp_it(temps.begin()),
-	  b_tmax(temps.begin()),
-	  tmax(-128),
-	  bias(0)
-	{}
+	const std::vector<int> &get() const;
+	const std::vector<float> &biases() const;
+	bool complete() const;
+	void first_run();
+private:
+	std::vector<int> temps_;
+	std::vector<float> biases_;
+	std::vector<int> biased_temps_;
+	std::vector<int>::iterator temp_;
+	std::vector<float>::iterator bias_;
+	std::vector<int>::iterator biased_temp_;
+public:
+	std::vector<int>::const_iterator tmax;
 };
 
 
@@ -90,7 +94,7 @@ extern bool dnd_disk;
 extern seconds sleeptime, tmp_sleeptime;
 extern float bias_level;
 extern volatile int interrupted;
-extern TemperatureState *temp_state, *last_temp_state;
+extern TemperatureState temp_state;
 
 
 }

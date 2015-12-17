@@ -235,42 +235,6 @@ void SensorDriver::set_num_temps(unsigned int n)
 }
 
 
-inline void update_tempstate(int correction) {
-	*temp_state->temp_it += correction;
-
-	if (*temp_state->temp_it > temp_state->tmax) {
-		temp_state->b_tmax = temp_state->temp_it;
-		temp_state->tmax = *temp_state->temp_it;
-	}
-
-	int diff = *temp_state->temp_it - *last_temp_state->temp_it;
-
-	if (unlikely(diff > 2)) {
-		// Apply bias if temperature changed quickly
-		temp_state->bias = ((float)diff * bias_level);
-		if (tmp_sleeptime > seconds(2)) tmp_sleeptime = seconds(2);
-	}
-	else {
-		if (unlikely(diff < 0)) {
-			// Return to normal operation if temperature dropped
-			tmp_sleeptime = sleeptime;
-			temp_state->bias = 0;
-		}
-		// Otherwise slowly return to normal sleeptime
-		else if (unlikely(tmp_sleeptime < sleeptime)) tmp_sleeptime++;
-	}
-
-	*temp_state->temp_it = *temp_state->temp_it + temp_state->bias;
-
-	if (*temp_state->temp_it > temp_state->tmax) {
-		temp_state->b_tmax = temp_state->temp_it;
-		temp_state->tmax = *temp_state->temp_it;
-	}
-	++temp_state->temp_it;
-	++last_temp_state->temp_it;
-}
-
-
 /*----------------------------------------------------------------------------
 | HwmonSensorDriver: A driver for sensors provided by other kernel drivers,  |
 | typically somewhere in sysfs.                                              |
@@ -288,8 +252,7 @@ void HwmonSensorDriver::read_temps() const
 		f.exceptions(f.failbit | f.badbit);
 		int tmp;
 		f >> tmp;
-		*temp_state->temp_it = tmp / 1000;
-		update_tempstate(correction_[0]);
+		temp_state.add_temp(tmp/1000 + correction_[0]);
 	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
 		throw SystemError(MSG_T_GET(path_) + msg);
@@ -327,7 +290,8 @@ TpSensorDriver::TpSensorDriver(std::string path)
 
 		while (!(f.eof() || f.fail())) {
 			f >> tmp;
-			++count;
+			if (!f.fail())
+				++count;
 		}
 		set_num_temps(count);
 	} catch (std::ios_base::failure &e) {
@@ -346,9 +310,11 @@ void TpSensorDriver::read_temps() const
 
 		f.exceptions(f.badbit);
 		unsigned int tidx = 0;
+		int tmp;
 		while (!f.eof()) {
-			f >> *temp_state->temp_it;
-			update_tempstate(correction_[tidx++]);
+			f >> tmp;
+			if (!f.fail())
+				temp_state.add_temp(tmp + correction_[tidx++]);
 		}
 	} catch (std::ios_base::failure &e) {
 		string msg = std::strerror(errno);
@@ -388,8 +354,7 @@ void AtasmartSensorDriver::read_temps() const
 	}
 
 	if (unlikely(disk_sleeping)) {
-		*temp_state->temp_it = 0;
-		update_tempstate(correction_[0]);
+		temp_state.add_temp(0);
 	}
 	else {
 		uint64_t mKelvin;
@@ -411,8 +376,7 @@ void AtasmartSensorDriver::read_temps() const
 			throw SystemError(MSG_T_GET(path_) + std::to_string(tmp) + " isn't a valid temperature.");
 		}
 
-		*temp_state->temp_it = tmp;
-		update_tempstate(correction_[0]);
+		temp_state.add_temp(tmp);
 	}
 }
 #endif /* USE_ATASMART */
@@ -425,8 +389,7 @@ void AtasmartSensorDriver::read_temps() const
 ----------------------------------------------------------------------------*/
 
 NvmlSensorDriver::NvmlSensorDriver(string bus_id)
-: SensorDriver(""),
-  dl_nvmlInit_v2(nullptr),
+: dl_nvmlInit_v2(nullptr),
   dl_nvmlDeviceGetHandleByPciBusId_v2(nullptr),
   dl_nvmlDeviceGetName(nullptr),
   dl_nvmlDeviceGetTemperature(nullptr),
@@ -481,8 +444,7 @@ void NvmlSensorDriver::read_temps() const
 	unsigned int tmp;
 	if ((ret = dl_nvmlDeviceGetTemperature(device_, NVML_TEMPERATURE_GPU, &tmp)))
 		throw SystemError(MSG_T_GET(path_) + "Error code (cf. nvml.h): " + std::to_string(ret));
-	*temp_state->temp_it = tmp;
-	update_tempstate(correction_[0]);
+	temp_state.add_temp(tmp);
 }
 #endif /* USE_NVML */
 

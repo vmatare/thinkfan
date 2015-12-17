@@ -158,15 +158,12 @@ const std::vector<const SensorDriver *> &Config::sensors() const
 
 
 Level::Level(int level, int lower_limit, int upper_limit)
-: Level(level, std::vector<int>(), std::vector<int>())
-{
-	lower_limit_.push_back(lower_limit);
-	upper_limit_.push_back(upper_limit);
-}
+: Level(level, std::vector<int>(1, lower_limit), std::vector<int>(1, upper_limit))
+{}
 
 
 Level::Level(string level, int lower_limit, int upper_limit)
-: Level(level, std::vector<int>(lower_limit), std::vector<int>(upper_limit))
+: Level(level, std::vector<int>(1, lower_limit), std::vector<int>(1, upper_limit))
 {}
 
 
@@ -221,26 +218,20 @@ int Level::num() const
 { return this->level_n_; }
 
 
-bool Level::operator <= (const TemperatureState &temps) const
-{ throw Error("severe bug or compiler error, this function should never be called."); }
-
-
-bool Level::operator > (const TemperatureState &temps) const
-{ throw Error("severe bug or compiler error, this function should never be called."); }
-
-
 SimpleLevel::SimpleLevel(int level, int lower_limit, int upper_limit)
 : Level(level, lower_limit, upper_limit) {}
 
 SimpleLevel::SimpleLevel(string level, int lower_limit, int upper_limit)
 : Level(level, lower_limit, upper_limit) {}
 
-bool SimpleLevel::operator <= (const TemperatureState &temp_state) const
-{ return *temp_state.b_tmax >= upper_limit().front(); }
+bool SimpleLevel::up() const
+{
+	return *temp_state.tmax >= upper_limit().front();
+}
 
 
-bool SimpleLevel::operator > (const TemperatureState &temp_state) const
-{ return *temp_state.b_tmax < lower_limit().front(); }
+bool SimpleLevel::down() const
+{ return *temp_state.tmax < lower_limit().front(); }
 
 
 
@@ -251,27 +242,27 @@ ComplexLevel::ComplexLevel(string level, const std::vector<int> &lower_limit, co
 : Level(level, lower_limit, upper_limit) {}
 
 
-bool ComplexLevel::operator <= (const TemperatureState &temp_state) const
+bool ComplexLevel::up() const
 {
-	const int *temp_idx = temp_state.temps.data();
+	std::vector<int>::const_iterator temp_it = temp_state.get().begin();
 	const int *upper_idx = upper_limit().data();
 
-	while (temp_idx <= &temp_state.temps.back())
-		if (*temp_idx++ >= *upper_idx++) return true;
+	while (temp_it != temp_state.get().end())
+		if (*(temp_it++) >= *upper_idx++) return true;
 
 	return false;
 }
 
 
-bool ComplexLevel::operator > (const TemperatureState &temp_state) const
+bool ComplexLevel::down() const
 {
-	const int *temp_idx = temp_state.temps.data();
+	std::vector<int>::const_iterator temp_it = temp_state.get().begin();
 	const int *lower_idx = lower_limit().data();
 
-	while (temp_idx <= &temp_state.temps.back() && *temp_idx++ < *lower_idx++)
+	while (temp_it != temp_state.get().end() && *(temp_it++) < *lower_idx++)
 		;
 
-	return temp_idx - 1 == &temp_state.temps.back();
+	return temp_it == temp_state.get().end();
 }
 
 

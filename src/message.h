@@ -58,6 +58,8 @@ public:
 	Logger &operator<< (Logger & (*pf_flush)(Logger &));
 	Logger &operator<< (const char *msg);
 
+	Logger &operator<< (const TemperatureState &);
+
 	template<class ListT>
 	Logger &operator<< (const ListT &l) {
 		log_str_ += "(";
@@ -113,12 +115,6 @@ template<class ErrT> void error(const std::string &msg) {
  "\n     behaviour!\n"
 
 #define MSG_FILE_HDR(file, line_count, line) file + ":" + std::to_string(line_count) + ":" + line
-#define MSG_T_STAT(tmp_sleeptime, tmax, last_tmax, b_tmax, lvl) \
-	"sleeptime=" << tmp_sleeptime << \
-	", tmax=" << tmax << \
-	", last_tmax=" << last_tmax << \
-	", biased_tmax=" << b_tmax << \
-	" -> fan=\"" << lvl << "\""
 #define MSG_RELOAD_CONF "Received SIGHUP: reloading config..."
 #define MSG_SANITY "Sanity checks are on. Exiting."
 #define MSG_INSANITY "Sanity checks are off. Continuing."

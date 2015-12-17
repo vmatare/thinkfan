@@ -51,8 +51,8 @@ public:
 	const std::vector<int> &lower_limit() const;
 	const std::vector<int> &upper_limit() const;
 
-	virtual bool operator <= (const TemperatureState &temp_state) const;
-	virtual bool operator > (const TemperatureState &temp_state) const;
+	virtual bool up() const = 0;
+	virtual bool down() const = 0;
 
 	const string &str() const;
 	int num() const;
@@ -63,8 +63,8 @@ class SimpleLevel : public Level {
 public:
 	SimpleLevel(int level, int lower_limit, int upper_limit);
 	SimpleLevel(string level, int lower_limit, int upper_limit);
-	bool operator <= (const TemperatureState &temp_state) const override;
-	bool operator > (const TemperatureState &temp_state) const override;
+	virtual bool up() const override;
+	virtual bool down() const override;
 };
 
 
@@ -72,8 +72,8 @@ class ComplexLevel : public Level {
 public:
 	ComplexLevel(int level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit);
 	ComplexLevel(string level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit);
-	bool operator <= (const TemperatureState &temp_state) const override;
-	bool operator > (const TemperatureState &temp_state) const override;
+	virtual bool up() const override;
+	virtual bool down() const override;
 };
 
 

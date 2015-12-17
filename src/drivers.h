@@ -98,7 +98,7 @@ private:
 class TpSensorDriver : public SensorDriver {
 public:
 	TpSensorDriver(string path);
-	void read_temps() const override;
+	virtual void read_temps() const override;
 private:
 	std::char_traits<char>::off_type skip_bytes_;
 	static const string skip_prefix_;
@@ -108,7 +108,8 @@ private:
 class HwmonSensorDriver : public SensorDriver {
 public:
 	HwmonSensorDriver(string path);
-	void read_temps() const override;
+	virtual void read_temps() const override;
+private:
 };
 
 
@@ -116,8 +117,8 @@ public:
 class AtasmartSensorDriver : public SensorDriver {
 public:
 	AtasmartSensorDriver(string device_path);
-	~AtasmartSensorDriver();
-	void read_temps() const override;
+	virtual ~AtasmartSensorDriver();
+	virtual void read_temps() const override;
 private:
 	SkDisk *disk_;
 };
@@ -128,8 +129,8 @@ private:
 class NvmlSensorDriver : public SensorDriver {
 public:
 	NvmlSensorDriver(string bus_id);
-	~NvmlSensorDriver();
-	void read_temps() const override;
+	virtual ~NvmlSensorDriver();
+	virtual void read_temps() const override;
 private:
 	nvmlDevice_t device_;
 	void *nvml_so_handle_;
