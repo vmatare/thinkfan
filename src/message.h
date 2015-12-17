@@ -50,6 +50,7 @@ public:
 	Logger &level(const LogLevel &lvl);
 	Logger &flush();
 	static Logger &instance();
+	const LogLevel min_lvl(const LogLevel &lvl);
 
 	Logger &operator<< (const std::string &msg);
 	Logger &operator<< (const unsigned int i);
@@ -73,6 +74,7 @@ public:
 
 private:
 	bool syslog_;
+	LogLevel min_lvl_;
 	LogLevel log_lvl_;
 	std::string log_str_;
 	std::exception_ptr exception_;

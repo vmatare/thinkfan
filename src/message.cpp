@@ -32,6 +32,7 @@ std::unique_ptr<Logger> Logger::instance_(nullptr);
 
 Logger::Logger()
 : syslog_(false),
+  min_lvl_(TF_DBG),
   log_lvl_(TF_ERR)
 {}
 
@@ -43,14 +44,17 @@ Logger &Logger::instance()
 }
 
 
+const LogLevel Logger::min_lvl(const LogLevel &min)
+{
+	LogLevel rv = min_lvl_;
+	min_lvl_ = min;
+	return rv;
+}
+
+
 Logger &flush(Logger &l) { return l.flush(); }
 
-/*
-Logger &fail(LogLevel lvl_insane)
-{ return log(TF_ERR, lvl_insane); }
-*/
 
-//Logger &log(LogLevel lvl_sane, LogLevel lvl_insane)
 Logger &log(LogLevel lvl)
 {
 	Logger::instance().level(lvl);
@@ -75,14 +79,16 @@ void Logger::enable_syslog()
 Logger &Logger::flush()
 {
 	if (log_str_.length() == 0) return *this;
-	if (syslog_) {
+	if (!min_lvl_ || log_lvl_ <= min_lvl_) {
+		if (syslog_) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-security"
-		syslog(log_lvl_, log_str_.c_str());
+			syslog(log_lvl_, log_str_.c_str());
 #pragma GCC diagnostic pop
-	}
-	else {
-		std::cerr << log_str_ << std::endl;
+		}
+		else {
+			std::cerr << log_str_ << std::endl;
+		}
 	}
 	log_str_ = "";
 
@@ -99,17 +105,16 @@ Logger &Logger::flush()
 Logger &Logger::level(const LogLevel &lvl)
 {
 	flush();
-	if (this->log_lvl_ != lvl) {
+	if (this->log_lvl_ != lvl)
 		if (!syslog_)
 			std::cerr << std::endl;
 
-		if (lvl == TF_WRN)
-			log_str_ = "WARNING: ";
-		else if (lvl == TF_ERR)
-			log_str_ = "ERROR: ";
+	if (lvl == TF_WRN)
+		log_str_ = "WARNING: ";
+	else if (lvl == TF_ERR)
+		log_str_ = "ERROR: ";
 
-		this->log_lvl_ = lvl;
-	}
+	this->log_lvl_ = lvl;
 	return *this;
 }
 

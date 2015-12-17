@@ -389,7 +389,9 @@ int main(int argc, char **argv) {
 		}
 
 		// Load the config temporarily once so we may fail before forking
+		Logger::instance().min_lvl(TF_ERR);
 		delete Config::read_config(config_file);
+		Logger::instance().min_lvl(TF_DBG);
 
 		if (daemonize) {
 			pid_t child_pid = ::fork();
@@ -442,7 +444,7 @@ int main(int argc, char **argv) {
 	}
 	catch (ExpectedError &e) {
 		log(TF_ERR) << e.what() << flush;
-		log(TF_DBG) << "Backtrace:" << flush << e.backtrace() << flush;
+		log(TF_INF) << "Backtrace:" << flush << e.backtrace() << flush;
 		return 1;
 	}
 	catch (Bug &e) {
