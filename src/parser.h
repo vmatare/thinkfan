@@ -99,13 +99,13 @@ public:
 
 class FanParser : public Parser<FanDriver> {
 public:
-	FanDriver *_parse(const char *&input) const override;
+	virtual FanDriver *_parse(const char *&input) const override;
 };
 
 
 class SensorParser : public Parser<SensorDriver> {
 public:
-	SensorDriver *_parse(const char *&input) const override;
+	virtual SensorDriver *_parse(const char *&input) const override;
 };
 
 
@@ -114,7 +114,7 @@ private:
 	RegexParser int_parser_, sep_parser_;
 public:
 	IntListParser();
-	std::vector<int> *_parse(const char *&input) const override;
+	virtual std::vector<int> *_parse(const char *&input) const override;
 };
 
 
@@ -127,21 +127,21 @@ public:
 class TupleParser : public Parser<vector<int>> {
 public:
 	TupleParser() {};
-	vector<int> *_parse(const char *&input) const override;
+	virtual vector<int> *_parse(const char *&input) const override;
 };
 
 
 class SimpleLevelParser : public Parser<SimpleLevel> {
 public:
 	SimpleLevelParser() {}
-	SimpleLevel *_parse(const char *&input) const override;
+	virtual SimpleLevel *_parse(const char *&input) const override;
 };
 
 
 class ComplexLevelParser : public Parser<ComplexLevel> {
 public:
 	ComplexLevelParser() {}
-	ComplexLevel *_parse(const char *&input) const override;
+	virtual ComplexLevel *_parse(const char *&input) const override;
 };
 
 
@@ -159,7 +159,7 @@ public:
 	{ return parse(input); }
 
 protected:
-	Config *_parse(const char *&input) const override;
+	virtual Config *_parse(const char *&input) const override;
 };
 
 
