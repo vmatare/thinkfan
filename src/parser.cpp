@@ -205,8 +205,10 @@ SimpleLevel *SimpleLevelParser::_parse(const char *&input) const
 	delete list_inner;
 	delete sep;
 
-	if (lvl_str && ints->size() == 2) rv = new SimpleLevel(*lvl_str, (*ints)[0], (*ints)[1]);
-	else if (ints->size() == 3) rv = new SimpleLevel((*ints)[0], (*ints)[1], (*ints)[2]);
+	if (lvl_str && ints->size() == 2)
+		rv = new SimpleLevel(*lvl_str, (*ints)[0], (*ints)[1]);
+	else if (ints->size() == 3)
+		rv = new SimpleLevel((*ints)[0], (*ints)[1], (*ints)[2]);
 
 	delete lvl_str;
 	delete ints;
