@@ -45,7 +45,6 @@
 namespace thinkfan {
 
 bool chk_sanity(true);
-bool resume_is_safe(false);
 bool quiet(false);
 bool daemonize(true);
 seconds sleeptime(5);
@@ -69,8 +68,6 @@ bool dnd_disk = false;
 void sig_handler(int signum) {
 	switch(signum) {
 	case SIGHUP:
-		interrupted = signum;
-		break;
 	case SIGINT:
 	case SIGTERM:
 		interrupted = signum;
@@ -173,7 +170,7 @@ int set_options(int argc, char **argv)
 			chk_sanity = false;
 			break;
 		case 'z':
-			resume_is_safe = true;
+			log(TF_WRN) << "Option -z is not needed anymore and therefore deprecated." << flush;
 			break;
 		case 'n':
 			daemonize = false;

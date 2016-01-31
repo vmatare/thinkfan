@@ -99,16 +99,16 @@ template<class ErrT> void error(const std::string &msg) {
 #define DND_DISK_HELP ""
 #endif
 
+#define MSG_TITLE "thinkfan " VERSION ": A minimalist fan control program"
+
 #define MSG_USAGE \
- "\nthinkfan " VERSION ": A minimalist fan control program\n" \
- "\nUsage: thinkfan [-hnqzD [-b BIAS] [-c CONFIG] [-s SECONDS] [-p [SECONDS]]]" \
+ "Usage: thinkfan [-hnqzD [-b BIAS] [-c CONFIG] [-s SECONDS] [-p [SECONDS]]]" \
  "\n -h  This help message" \
  "\n -s  Maximum cycle time in seconds (Integer. Default: 5)" \
  "\n -b  Floating point number (-10 to 30) to control rising temperature" \
  "\n     exaggeration (see README). Default: 5.0" \
  "\n -c  Load different configuration file (default: /etc/thinkfan.conf)" \
  "\n -q  Be quiet (report only important events)" \
- "\n -z  Assume we don't have to worry about resuming when using the sysfs" \
  "\n     interface (see README!)" \
  "\n -p  Use the pulsing-fan workaround (for older Thinkpads). Takes an optional" \
  "\n     floating-point argument (0 ~ 10s) as depulsing duration. Default 0.5s." \

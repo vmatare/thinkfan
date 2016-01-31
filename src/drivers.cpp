@@ -55,8 +55,7 @@ void FanDriver::set_speed(const string &level)
 		f_out.exceptions(f_out.failbit | f_out.badbit);
 		f_out << level << std::flush;
 	} catch (std::ios_base::failure &e) {
-		string msg = std::strerror(errno);
-		throw SystemError(MSG_FAN_CTRL(level, path_) + msg);
+		throw IOerror(MSG_FAN_CTRL(level, path_), errno);
 	}
 }
 
@@ -103,8 +102,7 @@ TpFanDriver::~TpFanDriver()
 		f.exceptions(f.failbit | f.badbit);
 		f << "level " << initial_state_ << std::flush;
 	} catch (std::ios_base::failure &e) {
-		string msg = std::strerror(errno);
-		throw SystemError(MSG_FAN_RESET(path_) + msg);
+		throw IOerror(MSG_FAN_RESET(path_), errno);
 	}
 }
 
@@ -197,7 +195,22 @@ void HwmonFanDriver::init() const
 
 
 void HwmonFanDriver::set_speed(const Level *level)
-{ FanDriver::set_speed(std::to_string(level->num())); }
+{
+	try {
+		FanDriver::set_speed(std::to_string(level->num()));
+	} catch (IOerror &e) {
+		if (e.code() == EINVAL) {
+			// This happens when the hwmon kernel driver is reset to automatic control
+			// e.g. after the system has woken up from suspend.
+			// In that case, we need to re-initialize and try once more.
+			init();
+			FanDriver::set_speed(std::to_string(level->num()));
+			log(TF_INF) << "It seems we woke up from suspend. PWM fan driver had to be re-initialized." << flush;
+		} else {
+			throw;
+		}
+	}
+}
 
 
 /*----------------------------------------------------------------------------

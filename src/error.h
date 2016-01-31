@@ -63,6 +63,15 @@ class ExpectedError : public Error {
 	using Error::Error;
 };
 
+class IOerror : public ExpectedError {
+private:
+	const int code_;
+public:
+	IOerror(const string &message, const int error_code);
+
+	const int code();
+};
+
 class SyntaxError : public ExpectedError {
 public:
 	SyntaxError(const string filename, const size_t offset, const string &input);

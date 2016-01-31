@@ -45,7 +45,8 @@ static string make_backtrace()
 
 
 Error::Error(const string &message)
-: msg_(message), backtrace_(make_backtrace())
+: msg_(message),
+  backtrace_(make_backtrace())
 {}
 
 
@@ -55,6 +56,16 @@ const string &Error::backtrace() const
 
 const char* Error::what() const _GLIBCXX_USE_NOEXCEPT
 { return msg_.c_str(); }
+
+
+IOerror::IOerror(const string &message, const int error_code)
+: ExpectedError(message + std::strerror(error_code)),
+  code_(error_code)
+{}
+
+
+const int IOerror::code()
+{ return code_; }
 
 
 Bug::Bug(const string &desc)
@@ -68,7 +79,8 @@ void handle_uncaught()
 	try {
 		std::rethrow_exception(std::current_exception());
 	} catch (const std::exception &e) {
-		log(TF_ERR) << "Unhandled exception: " << e.what() << ". errno = " << err << "." << flush <<
+		log(TF_ERR) << "Unhandled exception: " << typeid(e).name() << ": " << e.what() << "." << flush <<
+				"errno = " << err << "." << flush <<
 				"Backtrace:" << make_backtrace() << flush <<
 				MSG_BUG << flush;
 	}
