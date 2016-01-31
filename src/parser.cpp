@@ -19,9 +19,9 @@
  *
  * ******************************************************************/
 
+#include "error.h"
 #include "parser.h"
 #include "config.h"
-#include "error.h"
 #include <memory>
 
 namespace thinkfan {

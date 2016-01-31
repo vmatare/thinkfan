@@ -19,6 +19,8 @@
  *
  * ******************************************************************/
 
+#include "error.h"
+
 #include <getopt.h>
 #include <unistd.h>
 #include <cstdlib>
@@ -38,7 +40,6 @@
 #include "thinkfan.h"
 #include "config.h"
 #include "message.h"
-#include "error.h"
 
 
 namespace thinkfan {

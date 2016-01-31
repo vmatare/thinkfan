@@ -19,9 +19,9 @@
  *
  * ******************************************************************/
 
-#include "message.h"
-#include "thinkfan.h"
 #include "error.h"
+#include "thinkfan.h"
+#include "message.h"
 #include <syslog.h>
 #include <iostream>
 

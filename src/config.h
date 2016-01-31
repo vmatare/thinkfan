@@ -22,12 +22,13 @@
 #ifndef THINKFAN_CONFIG_H_
 #define THINKFAN_CONFIG_H_
 
+#include "error.h"
+
 #include <string>
 #include <vector>
 #include <memory>
 
 #include "drivers.h"
-#include "error.h"
 #include "thinkfan.h"
 
 namespace thinkfan {

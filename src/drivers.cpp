@@ -19,10 +19,10 @@
  *
  * ******************************************************************/
 
+#include "error.h"
 #include "drivers.h"
 #include "message.h"
 #include "config.h"
-#include "error.h"
 
 #include <fstream>
 #include <cstring>
