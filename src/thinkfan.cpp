@@ -54,7 +54,7 @@ int opt;
 float depulse = 0;
 std::string config_file = CONFIG_DEFAULT;
 TemperatureState temp_state(0);
-
+std::unique_ptr<PidFileHolder> pid_file;
 
 volatile int interrupted(0);
 
@@ -149,10 +149,11 @@ int set_options(int argc, char **argv)
 #else
 	;
 #endif
+	opterr = 0;
 	while ((opt = getopt(argc, argv, optstring)) != -1) {
 		switch(opt) {
 		case 'h':
-			std::cerr << MSG_USAGE << std::endl;
+			log(TF_INF) << MSG_TITLE << flush << MSG_USAGE << flush;
 			return 1;
 			break;
 #ifdef USE_ATASMART
@@ -231,9 +232,7 @@ int set_options(int argc, char **argv)
 			else depulse = 0.5f;
 			break;
 		default:
-			std::cerr << "Invalid commandline option." << std::endl;
-			std::cerr << MSG_USAGE << std::endl;
-			return 3;
+			throw InvocationError(string("Unknown option: -") + static_cast<char>(optopt));
 		}
 	}
 	if (depulse > 0)
@@ -355,12 +354,14 @@ int main(int argc, char **argv) {
 
 	struct sigaction handler;
 
+	if (!isatty(fileno(stdout))) {
+		Logger::instance().enable_syslog();
+	}
+
 	std::set_terminate(handle_uncaught);
 
 	memset(&handler, 0, sizeof(handler));
 	handler.sa_handler = sig_handler;
-
-	std::unique_ptr<PidFileHolder> pid_file;
 
 	// Install signal handler only after FanControl object has been created
 	// since it is used by the handler.
@@ -412,10 +413,6 @@ int main(int argc, char **argv) {
 			pid_file.reset(new PidFileHolder(::getpid()));
 		}
 
-		if (!isatty(fileno(stdout))) {
-			Logger::instance().enable_syslog();
-		}
-
 		// Load the config for real after forking & enabling syslog
 		std::unique_ptr<const Config> config(Config::read_config(config_file));
 		temp_state = TemperatureState(config->num_temps());
@@ -439,6 +436,10 @@ int main(int argc, char **argv) {
 		} while (!interrupted);
 
 		log(TF_INF) << MSG_TERM << flush;
+	}
+	catch (InvocationError &e) {
+		log(TF_ERR) << e.what() << flush;
+		log(TF_INF) << MSG_USAGE << flush;
 	}
 	catch (ExpectedError &e) {
 		log(TF_ERR) << e.what() << flush;
