@@ -77,17 +77,26 @@ template<typename ResultT>
 const char *Parser<ResultT>::max_addr_ = nullptr;
 
 
-class RegexParser : public Parser<std::string> {
+class RegexParser : public Parser<string> {
 private:
 	regex_t *expr_;
 	unsigned int data_idx_;
 	string re_str;
 	bool bol_only_;
 public:
-	RegexParser(const std::string expr, const unsigned int data_idx = 0,
+	RegexParser(const string expr, const unsigned int data_idx = 0,
 			bool bol_only = true, bool match_nl = false);
 	virtual ~RegexParser();
-	virtual std::string *_parse(const char *&input) const override;
+	virtual string *_parse(const char *&input) const override;
+};
+
+
+class CommentParser : public Parser<string> {
+private:
+	RegexParser comment_parser_;
+public:
+	CommentParser();
+	virtual string *_parse(const char *&input) const override;
 };
 
 
@@ -147,7 +156,6 @@ public:
 
 class ConfigParser : public Parser<Config> {
 private:
-	const RegexParser parser_comment;
 	const FanParser parser_fan;
 	const SensorParser parser_sensor;
 	const SimpleLevelParser parser_simple_lvl;

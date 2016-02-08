@@ -28,6 +28,12 @@ namespace thinkfan {
 
 using namespace std;
 
+
+static const RegexParser separator_parser("^([[:space:]]*,)|([[:space:]]+)", 0);
+static const CommentParser comment_parser;
+static const RegexParser space_parser("^[[:space:]]*", 0, true, true);
+
+
 RegexParser::RegexParser(const string expr, const unsigned int data_idx, bool bol_only, bool match_nl)
 : data_idx_(data_idx),
   re_str(expr),
@@ -47,20 +53,17 @@ RegexParser::~RegexParser()
 }
 
 
-RegexParser separator_parser("^([[:space:]]*,)|([[:space:]]+)", 0);
-
-
-std::string *RegexParser::_parse(const char *&input) const
+string *RegexParser::_parse(const char *&input) const
 {
 	regmatch_t matches[data_idx_ + 1];
-	std::string *rv = nullptr;
+	string *rv = nullptr;
 
 	int err;
 	if (!(err = regexec(this->expr_, input, this->data_idx_ + 1, matches, 0))) {
 		int so = matches[data_idx_].rm_so;
 		int eo = matches[data_idx_].rm_eo;
 		if (so != -1 && (!bol_only_ || matches[0].rm_so == 0)) {
-			rv = new std::string(input, so, eo - so);
+			rv = new string(input, so, eo - so);
 			input += matches->rm_eo;
 		}
 	}
@@ -68,6 +71,20 @@ std::string *RegexParser::_parse(const char *&input) const
 		delete rv;
 		throw ParserOOM();
 	}
+	return rv;
+}
+
+
+CommentParser::CommentParser()
+: comment_parser_("^[[:space:]]*#(.*)$", 1)
+{}
+
+
+string *CommentParser::_parse(const char *&input) const
+{
+	space_parser.match(input);
+	string *rv = comment_parser_.parse(input);
+	space_parser.match(input);
 	return rv;
 }
 
@@ -159,9 +176,15 @@ vector<int> *IntListParser::_parse(const char *&input) const
 
 
 BracketParser::BracketParser(const string opening, const string closing, bool nl)
-: RegexParser((nl ? "^[[:space:]]*\\" : "^[[:blank:]]*\\")
-		+ opening + "([^" + opening + closing + "]+)\\" + closing, 1, true, nl)
-{}
+: RegexParser(
+		(nl ? "^[[:space:]]*" : "^[[:blank:]]*")
+			+ (opening == "(" || opening == "{" ? "\\(" : opening)
+			+ "([^"
+			+ (opening != closing ? opening + closing : opening)
+			+ "]*)"
+			+ (closing == ")" ? "\\)" : closing),
+		1, true, nl
+) {}
 
 
 vector<int> *TupleParser::_parse(const char *&input) const
@@ -192,6 +215,9 @@ SimpleLevel *SimpleLevelParser::_parse(const char *&input) const
 	string *lvl_str = nullptr;
 	string *sep = nullptr;
 	const char *list_inner_c = list_inner->c_str();
+
+	comment_parser.match(list_inner_c);
+
 	if (!((ints = IntListParser().parse(list_inner_c))
 			|| ((lvl_str = BracketParser("\"", "\"").parse(list_inner_c))
 					&& (sep = separator_parser.parse(list_inner_c))
@@ -220,25 +246,44 @@ SimpleLevel *SimpleLevelParser::_parse(const char *&input) const
 ComplexLevel *ComplexLevelParser::_parse(const char *&input) const
 {
 	ComplexLevel *rv = nullptr;
-	unique_ptr<string> list_inner, lvl_str;
+	unique_ptr<string> lvl_str;
 	unique_ptr<vector<int>> lower_lim, upper_lim, lvl_int;
 
-	if (!((list_inner = unique_ptr<string>(BracketParser("(", ")", true).parse(input)))
-			|| (list_inner = unique_ptr<string>(BracketParser("{", "}", true).parse(input)))))
+	unique_ptr<string> opening_bracket(RegexParser("^(\\(|\\{)").parse(input));
+	if (!opening_bracket)
 		return nullptr;
+	string closing_bracket;
+	if (*opening_bracket == "(")
+		closing_bracket = "^\\)";
+	else
+		closing_bracket = "^\\}";
+	comment_parser.match(input);
 
-	const char *list_inner_c = list_inner->c_str();
-	if (!((lvl_str = unique_ptr<string>(BracketParser("\"", "\"").parse(list_inner_c)))
-			|| ((lvl_int = unique_ptr<vector<int>>(IntListParser().parse(list_inner_c))) && lvl_int->size() == 1)))
+	if (!((lvl_str = unique_ptr<string>(BracketParser("\"", "\"").parse(input)))
+			|| ((lvl_int = unique_ptr<vector<int>>(IntListParser().parse(input))) && lvl_int->size() == 1)))
 		return nullptr;
+	comment_parser.match(input);
 
 	TupleParser tp;
 	RegexParser sep_parser("^[[:space:]]+|^[[:space:]]*,?[[:space:]]*", 0, true, true);
-	sep_parser.match(list_inner_c);
-	lower_lim = unique_ptr<vector<int>>(tp.parse(list_inner_c));
-	sep_parser.match(list_inner_c);
-	upper_lim = unique_ptr<vector<int>>(tp.parse(list_inner_c));
+	comment_parser.match(input);
+	sep_parser.match(input);
+	comment_parser.match(input);
+
+	lower_lim = unique_ptr<vector<int>>(tp.parse(input));
+	comment_parser.match(input);
+	sep_parser.match(input);
+	comment_parser.match(input);
+
+	upper_lim = unique_ptr<vector<int>>(tp.parse(input));
+	space_parser.match(input);
+	comment_parser.match(input);
+
 	if (!(lower_lim && upper_lim)) return nullptr;
+
+	unique_ptr<string> bracket_closed(RegexParser(closing_bracket).parse(input));
+	if (!bracket_closed)
+		return nullptr;
 
 	if (lvl_str) rv = new ComplexLevel(*lvl_str, *lower_lim, *upper_lim);
 	else if (lvl_int) rv = new ComplexLevel(lvl_int->at(0), *lower_lim, *upper_lim);
@@ -248,8 +293,7 @@ ComplexLevel *ComplexLevelParser::_parse(const char *&input) const
 
 
 ConfigParser::ConfigParser()
-: parser_comment("^[[:space:]]*#.*$", 0),
-  parser_fan(),
+: parser_fan(),
   parser_sensor()
 {}
 
@@ -262,7 +306,7 @@ Config *ConfigParser::_parse(const char *&input) const
 
 	bool some_match;
 	do {
-		some_match = parser_comment.match(input)
+		some_match = comment_parser.match(input)
 				|| space_parser_.match(input)
 				|| rv->add_fan(unique_ptr<FanDriver>(parser_fan.parse(input)))
 				|| rv->add_sensor(unique_ptr<SensorDriver>(parser_sensor.parse(input)))
