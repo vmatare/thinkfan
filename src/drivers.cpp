@@ -205,7 +205,7 @@ void HwmonFanDriver::set_speed(const Level *level)
 			// In that case, we need to re-initialize and try once more.
 			init();
 			FanDriver::set_speed(std::to_string(level->num()));
-			log(TF_INF) << "It seems we woke up from suspend. PWM fan driver had to be re-initialized." << flush;
+			log(TF_DBG) << "It seems we woke up from suspend. PWM fan driver had to be re-initialized." << flush;
 		} else {
 			throw;
 		}

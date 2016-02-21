@@ -113,19 +113,15 @@ void run(const Config &config)
 		if (unlikely((*cur_lvl)->up())) {
 			while (cur_lvl != config.levels().end() && (*cur_lvl)->up())
 				cur_lvl++;
-#ifndef DEBUG
 			log(TF_DBG) << temp_state << " -> " <<
 					(*cur_lvl)->str() << flush;
-#endif
 			config.fan()->set_speed(*cur_lvl);
 		}
 		else if (unlikely((*cur_lvl)->down())) {
 			while (cur_lvl != config.levels().begin() && (*cur_lvl)->down())
 				cur_lvl--;
-#ifndef DEBUG
 			log(TF_DBG) << temp_state << " -> " <<
 					(*cur_lvl)->str() << flush;
-#endif
 			config.fan()->set_speed(*cur_lvl);
 			tmp_sleeptime = sleeptime;
 		}
@@ -143,7 +139,7 @@ void run(const Config &config)
 
 int set_options(int argc, char **argv)
 {
-	const char *optstring = "c:s:b:p::hqDzn"
+	const char *optstring = "c:s:b:p::hqDznv"
 #ifdef USE_ATASMART
 			"d";
 #else
@@ -165,7 +161,10 @@ int set_options(int argc, char **argv)
 			config_file = optarg;
 			break;
 		case 'q':
-			quiet = true;
+			++Logger::instance().min_lvl();
+			break;
+		case 'v':
+			--Logger::instance().min_lvl();
 			break;
 		case 'D':
 			chk_sanity = false;
@@ -388,9 +387,9 @@ int main(int argc, char **argv) {
 		}
 
 		// Load the config temporarily once so we may fail before forking
-		Logger::instance().min_lvl(TF_ERR);
+		LogLevel old_lvl = Logger::instance().min_lvl(TF_ERR);
 		delete Config::read_config(config_file);
-		Logger::instance().min_lvl(TF_DBG);
+		Logger::instance().min_lvl(old_lvl);
 
 		if (daemonize) {
 			pid_t child_pid = ::fork();
@@ -443,7 +442,6 @@ int main(int argc, char **argv) {
 	}
 	catch (ExpectedError &e) {
 		log(TF_ERR) << e.what() << flush;
-		log(TF_INF) << "Backtrace:" << flush << e.backtrace() << flush;
 		return 1;
 	}
 	catch (Bug &e) {

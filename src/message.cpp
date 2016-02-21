@@ -30,10 +30,35 @@ namespace thinkfan {
 
 std::unique_ptr<Logger> Logger::instance_(nullptr);
 
+
+LogLevel &operator--(LogLevel &l)
+{
+	if (l == TF_DBG)
+		l = TF_INF;
+	else if (l == TF_INF)
+		l = TF_WRN;
+	else
+		l = TF_ERR;
+	return l;
+}
+
+
+LogLevel &operator++(LogLevel &l)
+{
+	if (l == TF_ERR)
+		l = TF_WRN;
+	else if (l == TF_WRN)
+		l = TF_INF;
+	else if (l == TF_INF)
+		l = TF_DBG;
+	return l;
+}
+
+
 Logger::Logger()
 : syslog_(false),
-  min_lvl_(TF_DBG),
-  log_lvl_(TF_ERR)
+  min_lvl_(TF_INF),
+  log_lvl_(TF_INF)
 {}
 
 
@@ -50,6 +75,10 @@ const LogLevel Logger::min_lvl(const LogLevel &min)
 	min_lvl_ = min;
 	return rv;
 }
+
+
+LogLevel &Logger::min_lvl()
+{ return min_lvl_; }
 
 
 Logger &flush(Logger &l) { return l.flush(); }
@@ -153,15 +182,6 @@ Logger &Logger::operator<< (const TemperatureState &ts)
 	log_str_.pop_back(); log_str_.pop_back();
 	return *this;
 }
-
-
-/*
-Logger &Logger::operator<< (const ExpectedError &e)
-{
-	log_str_ += e.what();
-	exception_ = std::make_exception_ptr(e);
-	return *this;
-}*/
 
 
 }
