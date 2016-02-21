@@ -24,31 +24,28 @@ add_executable(thinkfan src/thinkfan.cpp src/config.cpp src/drivers.cpp
 	src/message.cpp src/parser.cpp src/error.cpp)
 
 #
-# Default to DEBUG build
+# Set default build type
 #
 if(NOT CMAKE_BUILD_TYPE)
-	set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Choose the type of build,
-		options are: Debug Release RelWithDebInfo MinSizeRel."
+	set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build,\
+ options are: Debug Release RelWithDebInfo MinSizeRel."
 		FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
 
-set(CMAKE_CXX_FLAGS "-O3 ${CMAKE_CXX_FLAGS} -Wall -std=c++11")
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g3 ${CMAKE_CXX_FLAGS_DEBUG} -Wall -DDEBUG -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g3 -DDEBUG")
 
 if(MAXERR)
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DMAXERR=${MAXERR}")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMAXERR=${MAXERR}")
 endif(MAXERR)
 
 if(USE_ATASMART)
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DUSE_ATASMART")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_ATASMART")
 	target_link_libraries(thinkfan atasmart)
 endif(USE_ATASMART)
 
 if(USE_NVML)
 	include_directories(AFTER "include")
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DUSE_NVML")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_NVML")
 	target_link_libraries(thinkfan dl)
 endif(USE_NVML)
