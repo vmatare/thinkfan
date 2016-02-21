@@ -79,6 +79,10 @@ void sig_handler(int signum) {
 		// Let's hope memory isn't too fucked up to get through with this ;)
 		throw Bug("Segmentation fault.");
 		break;
+	case SIGUSR2:
+		interrupted = signum;
+		log(TF_INF) << "Received SIGUSR2: Re-initializing fan control." << flush;
+		break;
 	}
 }
 
@@ -368,6 +372,7 @@ int main(int argc, char **argv) {
 	 || sigaction(SIGINT, &handler, NULL)
 	 || sigaction(SIGTERM, &handler, NULL)
 	 || sigaction(SIGUSR1, &handler, NULL)
+	 || sigaction(SIGUSR2, &handler, NULL)
 	 || sigaction(SIGSEGV, &handler, NULL)) {
 		string msg = strerror(errno);
 		log(TF_ERR) << "sigaction: " << msg;
@@ -430,6 +435,10 @@ int main(int argc, char **argv) {
 					log(TF_ERR) << "read_config: " << e.what() << flush;
 					log(TF_ERR) << MSG_CONF_RELOAD_ERR << flush;
 				}
+				interrupted = 0;
+			}
+			else if (interrupted == SIGUSR2) {
+				config->fan()->init();
 				interrupted = 0;
 			}
 		} while (!interrupted);
