@@ -1,14 +1,13 @@
 [Unit]
-Description=simple and lightweight fan control program
+Description=Thinkfan, the minimalist fan control program
 After=syslog.target
 
 [Service]
 Type=forking
-ExecStart=/usr/sbin/thinkfan
+ExecStart=/usr/local/sbin/thinkfan
 PIDFile=/var/run/thinkfan.pid
 ExecReload=/bin/kill -HUP $MAINPID
 
 [Install]
 WantedBy=multi-user.target
-
-
+Also=thinkfan-wakeup.service

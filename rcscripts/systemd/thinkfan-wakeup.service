@@ -1,0 +1,10 @@
+[Unit]
+Description=Reload thinkfan after waking up from suspend
+After=suspend.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/pkill -usr2 thinkfan
+
+[Install]
+WantedBy=suspend.target
