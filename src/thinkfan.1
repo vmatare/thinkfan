@@ -1,4 +1,4 @@
-.TH THINKFAN "1" "June 2013" "thinkfan 0.9.1" "thinkfan"
+.TH THINKFAN "1" "February 2016" "thinkfan 1.0_beta1" "thinkfan"
 .SH NAME
 thinkfan \- A simple fan control program
 .SH SYNOPSIS
@@ -11,29 +11,24 @@ thinkfan \- A simple fan control program
 .YS
 .SH DESCRIPTION
 Thinkfan sets the fan speed according to temperature limits preconfigured in
-\fI/etc/thinkfan.conf\fR. It can read temperatures from three possible
-sources:
-.IP "\fI/proc/acpi/ibm/thermal\fR"
-Which is provided by the thinkpad_acpi kernel module,
-.IP "\fI/sys/class/hwmon/*/temp*_input\fR"
-Which may be provided by any hwmon drivers, and
-.IP "\fIS.M.A.R.T.\fR (since 0.9)"
-Which reads the temperature directly from the hard disk using libatasmart.
+\fI/etc/thinkfan.conf\fR. It can read temperatures from a number of sources:
+.IP "/proc/acpi/ibm/thermal"
+Which is provided by the thinkpad_acpi kernel module on older Thinkpads,
+.IP "temp*_input files in sysfs"
+Which may be provided by any hwmon drivers, including thinkpad_acpi on modern
+Thinkpads,
+.IP "S.M.A.R.T., e.g. /dev/sda,"
+Which reads the temperature directly from the hard disk using libatasmart, and
+.IP "directly from nVidia GPUs,"
+In case the proprietary nVidia driver is used, no hwmon for the card will be
+available. In this situation, thinkfan can use the proprietary NVML API to get
+temperatures.
 .P
-Note that since 0.9 you can use any sensors of these three types at the same
-time. To allow that, the configuration \fBkeywords\fR have been \fBchanged\fR. The
-\fIsensor\fR keyword has been deprecated in favor of the new keywords
-\fItp_thermal\fR, \fIhwmon\fR and \fIatasmart\fR which mark the following path
-as a legacy thinkpad_acpi thermal file, sysfs hwmon file, or a hard disk
-device file, respectively.
-.P
-The fan can be \fI/proc/acpi/ibm/fan\fR or some PWM file in \fI
-/sys/class/hwmon\fR. Note that the \fIfan\fR config keyword is \fBdeprecated\fR as
-well. Instead, you should use \fItp_fan\fR for a legacy thinkpad_acpi fan file
-or \fIpwm_fan\fR for a sysfs PWM file.
-.P
-See the README file and the example configurations for details on these
-changes.
+The fan can be /proc/acpi/ibm/fan or some PWM file in 
+/sys/class/hwmon. See
+.BR thinkfan.conf (5)
+for a detailed explanation of the config syntax.
+
 .HP
 \fBWARNING\fR: This program does only very basic sanity checking on the
 configuration. That means that you can set your temperature limits as insane
@@ -91,11 +86,12 @@ Load a different configuration file (default: /etc/thinkfan.conf)
 Do not become a daemon and log to terminal instead of syslog
 .TP
 \fB\-q\fR
-Be quiet (no status info on terminal)
+Be quiet, i.e. reduce logging level from the default. Can be specified
+multiple times until only errors are displayed/logged.
 .TP
-\fB\-z\fR
-Assume we don't have to worry about resuming from standby when using the sysfs
-interface (see README!)
+\fB\-v\fR
+Be more verbose. Can be specified multiple times until every message is
+displayed/logged.
 .TP
 \fB\-p\fR [SECONDS]
 Use the pulsing\-fan workaround (for older Thinkpads). Takes an optional
@@ -132,16 +128,11 @@ Unexpected runtime error
 \fB3\fR
 Invalid commandline option
 .SH SEE ALSO
-git://git.code.sf.net/p/thinkfan/code
+.BR thinkfan.conf (5),
+The thinkfan Github page (https://github.com/vmatare/thinkfan)
 
 .SH BUGS
-If you have any problems with thinkfan, please go to the help forum at sf.net:
-.RS
-.RE
-http://sourceforge.net/projects/thinkfan/forums/forum/905019.
-.P
-There's a bugtracker at
-.RS
-.RE
-http://sourceforge.net/tracker/?group_id=249873&atid=2416828.
+If thinkfan tells you to, or if you feel like it, report issues at the Github
+issue tracker:
+https://github.com/vmatare/thinkfan/issues.
 
