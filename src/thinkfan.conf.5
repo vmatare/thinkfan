@@ -24,16 +24,31 @@ ordering is significant with respect to the upper and lower fan level bounds if
 you use \fIcomplex mode\fR.
 I.e. if
 .B /proc/acpi/ibm/thermal
-contains 16 temperatures and you specify a
+contains 16 temperatures and you specify an
 .B hwmon
 sensor after the
 .B tp_thermal
 statement, the
 .B hwmon
 sensor will be the 17th temperature.
+.
+After each sensor path, an optional
+.I correction-value
+can be specified.
+This value (can be negative) is always added to the temperature reading from
+that sensor.
+Correction values should be specified if you use
+.B Simple Mode
+with components that have a different temperature rating, like hard disks and
+CPUs.
+Note though that
+.B Complex Mode
+is generally the better solution since it gives you full control over fan
+levels and temperature ranges for each sensor, instead of just adding a fixed
+value to equalize temperature ranges.
 
 .TP
-.BI "tp_thermal /proc/acpi/ibm/thermal" " \fR[\fPcorrection-value ...\fR]\fP"
+.BI "tp_thermal /proc/acpi/ibm/thermal" " \fR[\fB (\fIcorrection-value \fR...\fB) \fR]\fP"
 Use the thermal sensors provided by the
 .B thinkpad_acpi
 kernel module on older thinkpads. These normally reside in
@@ -48,7 +63,7 @@ module knows about, there cannot be more than one
 statement in a config file.
 
 .TP
-.BI hwmon " sysfs-path \fR[\fPcorrection-value\fR]\fP"
+.BI hwmon " sysfs-path \fR[ \fB(\fIcorrection-value\fB) \fR]\fP"
 Use a standard hwmon temperature input that may be provided by all kinds of
 kernel drivers.
 .I sysfs-path
@@ -59,7 +74,7 @@ Each of these files contains one temperature, so you need to add a
 statement for each device whose temperature you wish to control.
 
 .TP
-.BI atasmart " device-path \fR[\fPcorrection-value\fR]\fP"
+.BI atasmart " device-path \fR[ \fB(\fIcorrection-value\fB) \fR]\fP"
 NOTE: only available if thinkfan was compiled with USE_ATASMART enabled.
 .
 .IP
@@ -71,7 +86,7 @@ that prevents thinkfan from waking up sleeping (mechanical) disks to read
 their temperature.
 
 .TP
-.BI nv_thermal " pci-bus-id \fR[\fPcorrection-value\fR]\fP"
+.BI nv_thermal " pci-bus-id \fR[ \fB(\fIcorrection-value\fB) \fR]\fP"
 NOTE: only available if thinkfan was compiled with USE_NVML enabled.
 .
 .IP
@@ -82,6 +97,9 @@ driver. Most open-source graphics drivers (radeon, nouveau, possibly others
 too) can instead be used with the
 .B hwmon
 keyword described above.
+The correct
+.I pci-bus-id
+can be retrieved using e.g. lspci with: `lspci | grep -i vga'.
 
 .SH FANS
 Currently, thinkfan can control only one fan at a time.
@@ -92,7 +110,7 @@ It is an error to have more than one fan statement per config file.
 
 .TP
 .B tp_fan /proc/acpi/ibm/fan
-Control the fan control provided by the
+Use the fan control provided by the
 .B thinkpad_acpi
 kernel module. As above, the path is defined by the
 .B thinkpad_acpi
@@ -187,11 +205,40 @@ The fan speed will affect all of these temperatures in the same way because
 they share a single thermal connection to the heatsink, so it makes sense to
 ignore all but the highest of these temperatures.
 As a rule of thumb, if your thermal sensors cover multiple devices you should
-use Complex Mode.
+use Complex Mode, or at least specify correction values to account for
+different temperature ratings.
 
 .SS Complex Mode
-TODO
+In complex mode, both the
+.I lower-bound
+and
+.I upper-bound
+are lists of temperatures, the length of which must match the number of
+temperature readings thinkfan knows about.
+Each bound must be enclosed in braces, with individual values separated by
+commas or spaces, so the specific syntax of a complex mode fan level is:
+.RS
+.PP
+.nf
+.B "{ \fIfan-level"
+.B "    ( \fIlower-1 \fR[\fIlower-2\fR ...] \fB)"
+.B "    ( \fIupper-1 \fR[\fIupper-2\fR ...] \fB)"
+.B "}"
+.fi
+.RE
+.PP
+The optional commas have been omitted here for readability, and the curly
+braces are interchangeable with round braces.
+Note that it is not possible to mix simple fan levels with complex fan levels.
+.P
+Complex mode is generally the preferred mode of operation since it allows you
+to specify precisely what the fan should to to keep each component within its
+specified temperature range.
+
 
 .SH SEE ALSO
 .BR thinkfan (1)
+.P
+Example configs shipped with the source distribution, also available at
+.IR https://github.com/vmatare/thinkfan/tree/master/examples .
 
