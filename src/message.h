@@ -91,7 +91,7 @@ void report_tstat();
 #define MSG_ERR_T_INVALID "%s: Invalid temperature: %d"
 #define MSG_ERR_MODOPTS \
  "Module thinkpad_acpi doesn't seem to support fan_control\n"
-#define MSG_ERR_FANCTRL "%s: Error writing to %s: %s\n", __func__, config->fan, strerror(errno)
+#define MSG_ERR_FANCTRL "%s: Error writing \"%s\" to %s: %s\n", __func__, cur_lvl, config->fan, strerror(errno)
 #define MSG_ERR_FAN_INIT "%s: Error initializing fan control.\n", __func__
 #define MSG_ERR_OPT_S "ERROR: option -s requires an int argument!\n"
 #define MSG_ERR_OPT_B "ERROR: bias must be between -10 and 30!\n"
