@@ -91,8 +91,7 @@ TpFanDriver::TpFanDriver(const std::string &path)
 			}
 		}
 	} catch (std::ios_base::failure &e) {
-		string msg = std::strerror(errno);
-		throw SystemError(MSG_FAN_INIT(path_) + msg);
+		throw IOerror(MSG_FAN_INIT(path_), errno);
 	}
 
 	if (!ctrl_supported) throw SystemError(MSG_FAN_MODOPTS);
@@ -145,8 +144,7 @@ void TpFanDriver::init() const
 		f.exceptions(f.failbit | f.badbit);
 		f << "watchdog " << watchdog_.count() << std::flush;
 	} catch (std::ios_base::failure &e) {
-		string msg = std::strerror(errno);
-		throw SystemError(MSG_FAN_INIT(path_) + msg);
+		throw IOerror(MSG_FAN_INIT(path_), errno);
 	}
 }
 
@@ -166,8 +164,7 @@ HwmonFanDriver::HwmonFanDriver(const std::string &path)
 		f.getline(&*line.begin(), 63);
 		initial_state_ = line;
 	} catch (std::ios_base::failure &e) {
-		string msg = std::strerror(errno);
-		throw SystemError(MSG_FAN_INIT(path_) + msg);
+		throw IOerror(MSG_FAN_INIT(path_), errno);
 	}
 }
 
@@ -179,8 +176,7 @@ HwmonFanDriver::~HwmonFanDriver()
 		f.exceptions(f.failbit | f.badbit);
 		f << initial_state_ << std::flush;
 	} catch (std::ios_base::failure &e) {
-		string msg = std::strerror(errno);
-		throw SystemError(MSG_FAN_RESET(path_) + msg);
+		throw IOerror(MSG_FAN_RESET(path_), errno);
 	}
 }
 
@@ -192,8 +188,7 @@ void HwmonFanDriver::init() const
 		f.exceptions(f.failbit | f.badbit);
 		f << "1" << std::flush;
 	} catch (std::ios_base::failure &e) {
-		string msg = std::strerror(errno);
-		throw SystemError(MSG_FAN_INIT(path_) + msg);
+		throw IOerror(MSG_FAN_INIT(path_), errno);
 	}
 }
 
@@ -229,8 +224,7 @@ SensorDriver::SensorDriver(std::string path)
 	try {
 		f.exceptions(f.failbit | f.badbit);
 	} catch (std::ios_base::failure &e) {
-		string msg = std::strerror(errno);
-		throw SystemError(MSG_FAN_INIT(path_) + msg);
+		throw IOerror(MSG_FAN_INIT(path_), errno);
 	}
 }
 
@@ -271,8 +265,7 @@ void HwmonSensorDriver::read_temps() const
 		f >> tmp;
 		temp_state.add_temp(tmp/1000 + correction_[0]);
 	} catch (std::ios_base::failure &e) {
-		string msg = std::strerror(errno);
-		throw SystemError(MSG_T_GET(path_) + msg);
+		throw IOerror(MSG_T_GET(path_), errno);
 	}
 }
 
@@ -312,8 +305,7 @@ TpSensorDriver::TpSensorDriver(std::string path)
 		}
 		set_num_temps(count);
 	} catch (std::ios_base::failure &e) {
-		string msg = std::strerror(errno);
-		throw SystemError(MSG_SENSOR_INIT(path_) + msg);
+		throw IOerror(MSG_SENSOR_INIT(path_), errno);
 	}
 }
 
@@ -334,8 +326,7 @@ void TpSensorDriver::read_temps() const
 				temp_state.add_temp(tmp + correction_[tidx++]);
 		}
 	} catch (std::ios_base::failure &e) {
-		string msg = std::strerror(errno);
-		throw SystemError(MSG_T_GET(path_) + msg);
+		throw IOerror(MSG_T_GET(path_), errno);
 	}
 }
 
