@@ -53,7 +53,7 @@ public:
 	Logger &level(const LogLevel &lvl);
 	Logger &flush();
 	static Logger &instance();
-	const LogLevel min_lvl(const LogLevel &lvl);
+	const LogLevel set_min_lvl(const LogLevel &lvl);
 	LogLevel &min_lvl();
 
 	Logger &operator<< (const std::string &msg);

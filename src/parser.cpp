@@ -133,7 +133,7 @@ SensorDriver *SensorParser::_parse(const char *&input) const
 		sensor = new NvmlSensorDriver(*path);
 #else
 		error<SystemError>(MSG_CONF_NVML_UNSUPP);
-#endif /* USE_ATASMART */
+#endif /* USE_NVML */
 	}
 
 	if (sensor) {

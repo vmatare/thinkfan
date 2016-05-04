@@ -69,7 +69,7 @@ Logger &Logger::instance()
 }
 
 
-const LogLevel Logger::min_lvl(const LogLevel &min)
+const LogLevel Logger::set_min_lvl(const LogLevel &min)
 {
 	LogLevel rv = min_lvl_;
 	min_lvl_ = min;
@@ -121,12 +121,6 @@ Logger &Logger::flush()
 	}
 	log_str_ = "";
 
-	if (log_lvl_ == TF_ERR && exception_) {
-		std::exception_ptr e = std::move(exception_);
-		exception_ = nullptr;
-		std::rethrow_exception(std::move(e));
-	}
-	exception_ = nullptr;
 	return *this;
 }
 

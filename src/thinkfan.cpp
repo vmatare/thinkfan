@@ -392,9 +392,9 @@ int main(int argc, char **argv) {
 		}
 
 		// Load the config temporarily once so we may fail before forking
-		LogLevel old_lvl = Logger::instance().min_lvl(TF_ERR);
+		LogLevel old_lvl = Logger::instance().set_min_lvl(TF_ERR);
 		delete Config::read_config(config_file);
-		Logger::instance().min_lvl(old_lvl);
+		Logger::instance().set_min_lvl(old_lvl);
 
 		if (daemonize) {
 			pid_t child_pid = ::fork();
