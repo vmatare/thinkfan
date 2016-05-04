@@ -14,9 +14,14 @@ Temperature bounds can either be a single tempature (\fIsimple mode\fR) or
 consist of multiple temperatures (\fIcomplex mode\fR).
 In simple mode, only the highest of all known temperature is compared to the
 upper & lower bound.
-In complex mode, we switch to the next fan level if one of the upper bounds is
+If you have devices with very different temperature ratings (e.g. CPU vs.
+mechanical hard drives), you should specify correction values to equalize
+their temperature ranges, or better: use complex mode.
+In complex mode, the upper and lower bounds of each fan level are specified
+for each sensor individually.
+Thinkfan then switches to the next fan level if one of the upper bounds is
 reached, and to the previous fan level if all temperatures have dropped below
-the respective lower bounds.
+their respective lower bounds.
 
 .SH THERMAL SENSORS
 Multiple sensor keywords can be combined in one config file, but note that the
@@ -93,13 +98,14 @@ NOTE: only available if thinkfan was compiled with USE_NVML enabled.
 Read the temperature of an nVidia graphics card from the proprietary nVidia
 driver. This does not work with the open-source Nouveau driver, it depends
 specifially on libnvidia-ml.so that is usually installed with the binary nVidia
-driver. Most open-source graphics drivers (radeon, nouveau, possibly others
-too) can instead be used with the
-.B hwmon
-keyword described above.
+driver.
 The correct
 .I pci-bus-id
 can be retrieved using e.g. lspci with: `lspci | grep -i vga'.
+Most open-source graphics drivers (radeon, nouveau, possibly others too) can
+instead be used with the
+.B hwmon
+keyword described above.
 
 .SH FANS
 Currently, thinkfan can control only one fan at a time.
@@ -112,7 +118,9 @@ It is an error to have more than one fan statement per config file.
 .B tp_fan /proc/acpi/ibm/fan
 Use the fan control provided by the
 .B thinkpad_acpi
-kernel module. As above, the path is defined by the
+kernel module, which needs to be loaded with the option
+.BR fan_control=1 .
+The path is defined by the
 .B thinkpad_acpi
 kernel module and will hardly change. Besides the fan levels ranging from 0 to
 7, it also supports the
