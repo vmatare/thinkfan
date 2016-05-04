@@ -153,6 +153,8 @@ template<class ErrT> void error(const std::string &msg) {
 #define MSG_FAN_CTRL(str, fan) string(__func__) + ": Writing \"" + str + "\" to " + fan + ": "
 #define MSG_FAN_INIT(fan) string(__func__) + ": Initializing fan control in " + fan + ": "
 #define MSG_FAN_RESET(fan) string(__func__) + ": Resetting fan control in " + fan + ": "
+#define MSG_FAN_EPERM(fan) string(__func__) + ": No permission to write to " + fan \
+	+ ". Thinkfan needs to be run as root!"
 
 
 #define MSG_OPT_S_15(t) std::to_string(t) + " seconds of not realizing "\

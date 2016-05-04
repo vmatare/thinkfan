@@ -55,7 +55,11 @@ void FanDriver::set_speed(const string &level)
 		f_out.exceptions(f_out.failbit | f_out.badbit);
 		f_out << level << std::flush;
 	} catch (std::ios_base::failure &e) {
-		throw IOerror(MSG_FAN_CTRL(level, path_), errno);
+		int err = errno;
+		if (err == EPERM)
+			throw SystemError(MSG_FAN_EPERM(path_));
+		else
+			throw IOerror(MSG_FAN_CTRL(level, path_), err);
 	}
 }
 
