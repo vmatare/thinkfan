@@ -102,7 +102,7 @@ void run(const Config &config)
 	config.fan()->init();
 	while (cur_lvl != config.levels().end() && (*cur_lvl)->up())
 		cur_lvl++;
-	log(TF_DBG) << temp_state << " -> " <<
+	log(TF_NOT) << temp_state << " -> " <<
 			(*cur_lvl)->str() << flush;
 	config.fan()->set_speed(*cur_lvl);
 
@@ -117,14 +117,14 @@ void run(const Config &config)
 		if (unlikely((*cur_lvl)->up())) {
 			while (cur_lvl != config.levels().end() && (*cur_lvl)->up())
 				cur_lvl++;
-			log(TF_DBG) << temp_state << " -> " <<
+			log(TF_INF) << temp_state << " -> " <<
 					(*cur_lvl)->str() << flush;
 			config.fan()->set_speed(*cur_lvl);
 		}
 		else if (unlikely((*cur_lvl)->down())) {
 			while (cur_lvl != config.levels().begin() && (*cur_lvl)->down())
 				cur_lvl--;
-			log(TF_DBG) << temp_state << " -> " <<
+			log(TF_INF) << temp_state << " -> " <<
 					(*cur_lvl)->str() << flush;
 			config.fan()->set_speed(*cur_lvl);
 			tmp_sleeptime = sleeptime;
@@ -165,10 +165,10 @@ int set_options(int argc, char **argv)
 			config_file = optarg;
 			break;
 		case 'q':
-			++Logger::instance().min_lvl();
+			--Logger::instance().log_lvl();
 			break;
 		case 'v':
-			--Logger::instance().min_lvl();
+			++Logger::instance().log_lvl();
 			break;
 		case 'D':
 			chk_sanity = false;
@@ -392,9 +392,9 @@ int main(int argc, char **argv) {
 		}
 
 		// Load the config temporarily once so we may fail before forking
-		LogLevel old_lvl = Logger::instance().set_min_lvl(TF_ERR);
+		LogLevel old_lvl = Logger::instance().set_log_lvl(TF_ERR);
 		delete Config::read_config(config_file);
-		Logger::instance().set_min_lvl(old_lvl);
+		Logger::instance().set_log_lvl(old_lvl);
 
 		if (daemonize) {
 			pid_t child_pid = ::fork();

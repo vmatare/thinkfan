@@ -36,6 +36,8 @@ LogLevel &operator--(LogLevel &l)
 	if (l == TF_DBG)
 		l = TF_INF;
 	else if (l == TF_INF)
+		l = TF_NOT;
+	else if (l == TF_NOT)
 		l = TF_WRN;
 	else
 		l = TF_ERR;
@@ -48,6 +50,8 @@ LogLevel &operator++(LogLevel &l)
 	if (l == TF_ERR)
 		l = TF_WRN;
 	else if (l == TF_WRN)
+		l = TF_NOT;
+	else if (l == TF_NOT)
 		l = TF_INF;
 	else if (l == TF_INF)
 		l = TF_DBG;
@@ -57,8 +61,8 @@ LogLevel &operator++(LogLevel &l)
 
 Logger::Logger()
 : syslog_(false),
-  min_lvl_(TF_INF),
-  log_lvl_(TF_INF)
+  log_lvl_(DEFAULT_LOG_LVL),
+  msg_lvl_(DEFAULT_LOG_LVL)
 {}
 
 
@@ -69,16 +73,16 @@ Logger &Logger::instance()
 }
 
 
-const LogLevel Logger::set_min_lvl(const LogLevel &min)
+const LogLevel Logger::set_log_lvl(const LogLevel &min)
 {
-	LogLevel rv = min_lvl_;
-	min_lvl_ = min;
+	LogLevel rv = log_lvl_;
+	log_lvl_ = min;
 	return rv;
 }
 
 
-LogLevel &Logger::min_lvl()
-{ return min_lvl_; }
+LogLevel &Logger::log_lvl()
+{ return log_lvl_; }
 
 
 Logger &flush(Logger &l) { return l.flush(); }
@@ -107,19 +111,21 @@ void Logger::enable_syslog()
 
 Logger &Logger::flush()
 {
-	if (log_str_.length() == 0) return *this;
-	if (!min_lvl_ || log_lvl_ <= min_lvl_) {
+	if (msg_pfx_.length() == 0) return *this;
+	if (msg_lvl_ <= log_lvl_) {
 		if (syslog_) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-security"
-			syslog(log_lvl_, log_str_.c_str());
+			// I think we can safely do this because thinkfan doesn't receive
+			// any data from unprivileged processes.
+			syslog(msg_lvl_, msg_pfx_.c_str());
 #pragma GCC diagnostic pop
 		}
 		else {
-			std::cerr << log_str_ << std::endl;
+			std::cerr << msg_pfx_ << std::endl;
 		}
 	}
-	log_str_ = "";
+	msg_pfx_ = "";
 
 	return *this;
 }
@@ -128,34 +134,35 @@ Logger &Logger::flush()
 Logger &Logger::level(const LogLevel &lvl)
 {
 	flush();
-	if (this->log_lvl_ != lvl)
-		if (!syslog_)
-			std::cerr << std::endl;
+	if (!syslog_ && msg_lvl_ != lvl && lvl >= log_lvl_ && msg_lvl_ >= log_lvl_)
+		msg_pfx_ = "\n";
+	else
+		msg_pfx_ = "";
 
 	if (lvl == TF_WRN)
-		log_str_ = "WARNING: ";
+		msg_pfx_ += "WARNING: ";
 	else if (lvl == TF_ERR)
-		log_str_ = "ERROR: ";
+		msg_pfx_ += "ERROR: ";
 
-	this->log_lvl_ = lvl;
+	this->msg_lvl_ = lvl;
 	return *this;
 }
 
 
 Logger &Logger::operator<<( const std::string &msg)
-{ log_str_ += msg; return *this; }
+{ msg_pfx_ += msg; return *this; }
 
 Logger &Logger::operator<< (const int i)
-{ log_str_ += std::to_string(i); return *this; }
+{ msg_pfx_ += std::to_string(i); return *this; }
 
 Logger &Logger::operator<< (const unsigned int i)
-{ log_str_ += std::to_string(i); return *this; }
+{ msg_pfx_ += std::to_string(i); return *this; }
 
 Logger &Logger::operator<< (const float &i)
-{ log_str_ += std::to_string(i); return *this; }
+{ msg_pfx_ += std::to_string(i); return *this; }
 
 Logger &Logger::operator<< (const char *msg)
-{ log_str_ += msg; return *this; }
+{ msg_pfx_ += msg; return *this; }
 
 Logger &Logger::operator<< (Logger & (*pf_flush)(Logger &))
 { return pf_flush(*this); }
@@ -163,7 +170,7 @@ Logger &Logger::operator<< (Logger & (*pf_flush)(Logger &))
 
 Logger &Logger::operator<< (const TemperatureState &ts)
 {
-	log_str_ += "Temperatures(bias): ";
+	msg_pfx_ += "Temperatures(bias): ";
 
 	std::vector<float>::const_iterator bias_it;
 	std::vector<int>::const_iterator temp_it;
@@ -171,9 +178,9 @@ Logger &Logger::operator<< (const TemperatureState &ts)
 	for (temp_it = ts.get().cbegin(), bias_it = ts.biases().cbegin();
 			temp_it != ts.get().cend() && bias_it != ts.biases().cend();
 			++temp_it, ++bias_it)
-		log_str_ += std::to_string(*temp_it) + "(" + std::to_string(int(*bias_it)) + "), ";
+		msg_pfx_ += std::to_string(*temp_it) + "(" + std::to_string(int(*bias_it)) + "), ";
 
-	log_str_.pop_back(); log_str_.pop_back();
+	msg_pfx_.pop_back(); msg_pfx_.pop_back();
 	return *this;
 }
 

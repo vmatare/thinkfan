@@ -34,9 +34,16 @@ namespace thinkfan {
 enum LogLevel {
 	TF_ERR = LOG_ERR,
 	TF_WRN = LOG_WARNING,
-	TF_INF = LOG_NOTICE,
+	TF_NOT = LOG_NOTICE,
+	TF_INF = LOG_INFO,
 	TF_DBG = LOG_DEBUG
 };
+
+#ifdef DEBUG
+#define DEFAULT_LOG_LVL TF_DBG
+#else
+#define DEFAULT_LOG_LVL TF_INF
+#endif
 
 LogLevel &operator--(LogLevel &l);
 LogLevel &operator++(LogLevel &l);
@@ -53,8 +60,8 @@ public:
 	Logger &level(const LogLevel &lvl);
 	Logger &flush();
 	static Logger &instance();
-	const LogLevel set_min_lvl(const LogLevel &lvl);
-	LogLevel &min_lvl();
+	const LogLevel set_log_lvl(const LogLevel &lvl);
+	LogLevel &log_lvl();
 
 	Logger &operator<< (const std::string &msg);
 	Logger &operator<< (const unsigned int i);
@@ -67,25 +74,25 @@ public:
 
 	template<class ListT>
 	Logger &operator<< (const ListT &l) {
-		log_str_ += "(";
+		msg_pfx_ += "(";
 		for (auto elem : l) {
-			log_str_ += std::to_string(elem) + ", ";
+			msg_pfx_ += std::to_string(elem) + ", ";
 		}
-		log_str_.pop_back(); log_str_.pop_back();
-		log_str_ += ")";
+		msg_pfx_.pop_back(); msg_pfx_.pop_back();
+		msg_pfx_ += ")";
 		return *this;
 	}
 
 private:
 	bool syslog_;
-	LogLevel min_lvl_;
 	LogLevel log_lvl_;
-	std::string log_str_;
+	LogLevel msg_lvl_;
+	std::string msg_pfx_;
 	std::exception_ptr exception_;
 };
 
 Logger &flush(Logger &l);
-Logger &log(LogLevel lvl_insane);
+Logger &log(LogLevel lvl);
 
 template<class ErrT> void error(const std::string &msg) {
 	if (chk_sanity)
