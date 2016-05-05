@@ -19,32 +19,8 @@ CPU power as possible.
 
 
 
-Contents of this file
-=====================
-
-  1. WARNING
-
-  2. How it works
-
-  3. Install and configure
-  3.1  Build
-  3.2a Configure hardware interface (IBM/Lenovo Thinkpads)
-  3.2b Configure hardware interface (any system)
-  3.3  Configure fan behaviour
-  3.4  Test and install
-
-  4 Usage
-  4.1  Invocation
-  4.2  Temperature biasing (the -b option)
-  4.3  Pulsing-fan workaround
-  4.4  Signals
-
-  5 Contact/Bugs
-
-
-
-(0) WARNING!!!!
-===============
+WARNING!!!!
+===========
 
 There's only very basic sanity checking on the configuration (semantic
 plausibility). You can set the temperature limits as insane as you like.
@@ -61,274 +37,40 @@ on your carpet...
 
 
 
-(1) How it works
-================
 
-Thinkfan can read temperatures from /proc/acpi/ibm/thermal, from temp*_input
-files in /sys/class/hwmon, or directly from hard disks via S.M.A.R.T.  Your
-fan speed is set according to predefined temperature limits that are specified
-in the config file. There are two modes of operation:
+Building and installing
+=======================
 
+In the main directory, do
+ 
+ mkdir build && cd build
 
-(1.1) Simple Mode
------------------
-In simple mode, thinkfan uses only the highest temperature it can find. This
-was the only choice in versions before 0.8. However, it's potentially
-dangerous for devices with a low temperature rating like hard drives. For
-these devices, you should specify a correction value that's added to the
-actual temperature.
-
-
-(1.2) Complex Mode
-------------------
-In complex mode, temperature limits are defined for each sensor individually.
-If *at least one* upper limit is reached we switch to the next fan level, and
-if *all* lower limits are reached, we switch to the previous level.
-This is a new feature in 0.8. It allows very fine-grained control and is the
-preferred way of using thinkfan. However it may require a bit of tweaking and
-experimentation to get a suitable config for your system.
-
-
-
-(2) How to install
-==================
-
-(2.1) Build
------------
 You can use ccmake to choose build options interactively:
 
- ccmake .
+ ccmake ..
 
 Or set your build options from the command line. E.g. to configure a debug
 build with support for libatasmart:
 
  cmake -D USE_ATASMART:BOOL=ON -D CMAKE_BUILD_TYPE:STRING=Debug .
 
-Use CMAKE_BUILD_TYPE:STRING="" to get an optimized build without debug
-symbols. This is the default.
+Use CMAKE_BUILD_TYPE:STRING="Release" to get an optimized build without debug
+symbols. If you use the proprietary nVidia driver and want to control your GPU
+temperature, set USE_NVML:BOOL=ON.
 To compile simply run:
 
- cmake --build .
+ make
 
 CMake should also provide you with a "make install" target, which defaults to
 a /usr/local prefix.
 
 
-(2.2) Configure
----------------
-The default config file location is /etc/thinkfan.conf. You should start with
-one of the supplied example configs and tweak from there. There are three
-possible temperature sources, which can also be combined (since 0.9). Take
-note of the order in which you listed your sensors, since that is the way they
-are matched against your temperature limits.
 
+Documentation
+=============
 
-a) /proc/acpi/ibm/ (default)
-   Most IBM/Lenovo Thinkpads and some other Lenovo models support this. You
-   need the thinkpad_acpi kernel driver (see 2.2a).
-
-b) /sys/class/hwmon/
-   This is a generic interface which is not hardware-specific. You need an
-   hwmon-driver for your system that allows reading temperatures and
-   controlling the fan from userspace. (see 2.2b)
-
-c) S.M.A.R.T
-   Thinkfan uses libatasmart to read the temperature directly from hard disks.
-   Just include a line saying
-   atasmart /dev/sda
-   And thinkfan will read the temperature directly from /dev/sda.
-
-(2.2a) Configure hardware interface (/proc/acpi/ibm)
---------------------------------------------------------------
-First, you need to load the thinkpad_acpi module with fan_control=1:
-# modprobe thinkpad_acpi fan_control=1
-See your distribution documentation for how to load modules at bootup with
-custom options.
-
-Then you might want to check out which fan levels your fan controller
-supports by doing something like this:
-
- for i in 0 1 2 3 4 5 6 7; do
-    echo "level $i" > /proc/acpi/ibm/fan
-    echo "level $i..."
-    sleep 6
-    cat /proc/acpi/ibm/fan | egrep "^speed"
-    echo
- done
- echo "level auto" > /proc/acpi/ibm/fan
-
-Now you have to choose whether you want to use complex or simple temperature
-limits. I recommend using complex limits, since that gives you more control.
-Whatever you choose, you should have two lines saying
-
- tp_thermal /proc/acpi/ibm/thermal
- tp_fan /proc/acpi/ibm/fan
-
-in your config. /proc/acpi/ibm/thermal provides 8 or 16 temperatures, so if
-you use complex temperature limits, your limits need have that same length.
-
-
-(2.2b) Configure hardware interface (any system)
--------------------------------------------------------
-On all systems other than IBM/Lenovo Thinkpads, you need to provide thinkfan
-with the path(s) of all sysfs temperature sensor files you want to use. You
-may find them by doing something like this:
-
- find -L /sys/class/hwmon -maxdepth 5 -name "temp*_input" \
-       -print -exec cat \{\} \; 2>/dev/null
-
-Now put all file names into the config file that give you a sensible
-temperature reading, each one on a separate "sensor" line. Example:
-sensor /sys/class/hwmon/hwmon3/device/temp10_input
-...
-
-Next you need to find the PWM control file of your fan:
-
- find -L /sys/class/hwmon -maxdepth 3 -name "pwm?" \
-       -print -exec cat \{\} \; 2>/dev/null
-
-At the moment, thinkfan can control only one fan. Support for multiple fans
-may be added in a later release. Put your PWM control file on a "fan" line
-like so:
-pwm_fan /sys/class/hwmon/hwmon3/device/pwm1
-
-You'll want to try out the behaviour of your PWM controller by echo'ing some
-numbers from 0 to 255 to your PWM file and then checking the fan RPM in
-fan?_input.
-
-ATTENTION: Most hwmon drivers seem to disable userspace fan control after
-suspend/resume. That means you'll have to send a SIGHUP to thinkfan after
-resuming to make it restore userspace fan control. Check your distribution
-documentation to find out how you can do a "pkill -HUP thinkfan" after
-resuming.
-By default, thinkfan re-initializes the PWM control *every time* a fan speed
-is set. This is safe, but stupid. So if you want to do it properly, go the
-SIGHUP way and use the -z option (see below).
-
-
-(2.3) Configure fan behaviour
------------------------------
-Carefully edit the fan-config tuples to your needs. Note that for the sysfs
-hwmon-interface, the fan level is a number from 0 to 255, while in the
-IBM-Interface, it's a number from 0 to 7. You also have the option of using
-strings like "level 0", "level auto" or "level disengaged" (WITH the
-quotation marks). In DANGEROUS mode, you can even use arbitrary (unknown)
-garbage as fan level.
-
-The temperature limits for different fan levels should overlap, so that once
-the fan is on, it keeps running for a while.
-
-If using simple temperature limits, you should specify a correction value for
-the temperature of your harddisk, because it's much more sensitive to high
-temperatures than your CPU. If using /proc/acpi/ibm/thermal, take a look at
-http://www.thinkwiki.org/wiki/Thermal_Sensors .
-If you're using sysfs to read temperatures, you'll have to find out about the
-meaning of your sensors on your own. A good starting point could be the
-documentation of your hwmon driver.  Once you know which sensor belongs to
-your harddrive, you should specify a correction value for it. For a sysfs
-sensor, this would look like
-
- sensor /path/to/harddisk's/temp_input (15)
-
-This will add 15°C to the temperature read from your harddisk and thus keep
-it from heating up to the upper limit of your first fan level. In
-/proc/acpi/ibm/thermal, the harddisk might be at the 3rd position:
-
- sensor /proc/acpi/ibm/thermal (0, 0, 15)
-
-As this is just a quick-shot solution for the problem with overheating hard
-disks, I really recommend using complex temperature limits. Go take a look at
-thinkfan.conf.complex to learn about the syntax.
-
-
-(2.4) Test and install
-----------------------
-Run ./thinkfan -n -c PATH_TO_CONFIG and watch it do its job. Try putting some
-load on your system with glxgears or running some infinite loop in bash.  If
-everything works nicely, forget about it for a while to make sure it's
-stable.
-Once you're confident that it works well for you, you may want to copy it to
-/usr/local/sbin or whatever you like and run it without -n.
-
-
-
-(3) USAGE
-=========
-
-(3.1) Invocation
-----------------
-Usage: thinkfan [-hnqzD] [-b BIAS ] [-c FILE] [-s SEC] [-p[SEC]]
--h       This help message
--s SEC   Maximum seconds between temperature updates (default: 5)
--b BIAS  Floating point number (0 ~ 20) to control rising edge
-         temperature biasing strength (see below). Default 5.0
--c FILE  Load different configuration file (default: /etc/thinkfan.conf)
--n       Do not become a daemon and log to terminal instead of syslog
--q       Be quiet (no status info on terminal)
--z       Assume we don't have to worry about resuming when using the sysfs
-         interface. Saves CPU load.
--p[SEC]  Use the pulsing-fan workaround (for older Thinkpads). Takes an
-         optional floating-point argument (0 ~ 10s) as depulsing duration.
-         Defaults to 0.5s. See (3.3).
--D       DANGEROUS mode: No sanity checks on config! May damage your
-         hardware!!
-
-
-(3.2) Rising Temperature Exaggeration (the -b option)
------------------------------------------------------
-Thinkfan takes special measures to deal with temperatures rising very
-suddenly (like when you turn on the computer and instantly run some
-CPU/GPU-intensive app).
-
-You can provide a floating point number between 0 and 20 to adjust the amount
-of exaggeration. If the highest known temperature jumps up 2 °C or more, the
-exaggeration is calculated to:
-exaggeration = (sleeptime * (delta_t - 1)) * (0.1 * BIAS)
-(BIAS is the value provided on the commandline)
-This value is then added to the current highest temperature and the fan speed
-decision is based on that.
-
-Ex: If we slept for 5 seconds during the last cycle, provided a BIAS of 10
-on the commandline, and the temperature increased by 3 °C, we get a bias of:
-5*2*0.1*10 = 10 °C
-That's pretty nervous. If you want to turn off biasing entirely, run
-thinkfan with -b 0.
-
-In addition to exaggerating the temperature reading, the sleep time is
-reduced to 2 seconds, and then slowly increased back up to the specified
-value.
-
-
-(3.3) Pulsing-fan workaround (the -p option)
---------------------------------------------
-Specifying this option activates the pulsing-fan workaround. It works by
-setting the fan controller to "disengaged" mode for a short amount of time on
-every cycle (check the -s option). The optional argument of the -p option is
-the duration for which the fan is kept in "disengaged" mode (defaults to 0.5
-seconds). Note that the time spent in "disengaged" mode adds to the cycle
-time, so with the -p option, the default sleep time is actually 5.5 seconds.
-
-(3.4) Signals
--------------
-Send a SIGHUP to make thinkfan reload its config file and reinitialize fan
-control:
-
- kill -HUP $(</var/run/thinkfan.pid)
-
-SIGINT and SIGTERM are caught to make for a clean exit.
-
-SIGUSR1 will cause thinkfan to dump all currently known temperatures, either
-to syslog, or to the console.
-
-
-
-(4) CONTACT / BUG REPORTS
-=========================
-
-If you have questions or a bug report, please try the help forum at sf.net:
-http://sourceforge.net/projects/thinkfan/forums/forum/905019
-
-You can also send a mail to my last name (without the accent!) AT lih DOT rwth
-DASH aachen DOT de. Oh, by the way, all files are UTF-8, so upgrade your
-system if it can't deal with that. And make me a coffee, please.
-
+Run thinkfan -h
+Manpages: thinkfan(1), thinkfan.conf(5)
+Example configs in examples/ subfolder
+Search the web, lots of hints there
+If all fails: https://github.com/vmatare/thinkfan/issues
