@@ -52,7 +52,7 @@ endif(USE_NVML)
 
 
 install(TARGETS thinkfan DESTINATION "${CMAKE_INSTALL_SBINDIR}")
-install(FILES NEWS COPYING README examples/thinkfan.conf.complex
+install(FILES COPYING README examples/thinkfan.conf.complex
 	examples/thinkfan.conf.simple DESTINATION share/doc/thinkfan)
 install(FILES src/thinkfan.1 DESTINATION share/man/man1)
 install(FILES src/thinkfan.conf.5 DESTINATION share/man/man5)
