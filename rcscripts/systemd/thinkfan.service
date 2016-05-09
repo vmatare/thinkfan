@@ -1,6 +1,5 @@
 [Unit]
 Description=Thinkfan, the minimalist fan control program
-After=syslog.target
 
 [Service]
 Type=forking
