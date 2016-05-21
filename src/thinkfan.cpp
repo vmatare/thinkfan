@@ -102,7 +102,7 @@ void run(const Config &config)
 	config.fan()->init();
 	while (cur_lvl != config.levels().end() && (*cur_lvl)->up())
 		cur_lvl++;
-	log(TF_NOT) << temp_state << " -> " <<
+	log(TF_NFY) << temp_state << " -> " <<
 			(*cur_lvl)->str() << flush;
 	config.fan()->set_speed(*cur_lvl);
 
@@ -335,7 +335,7 @@ bool TemperatureState::complete() const
 
 
 const std::vector<int> &TemperatureState::get() const
-{ return temps_; }
+{ return biased_temps_; }
 
 
 const std::vector<float> &TemperatureState::biases() const
