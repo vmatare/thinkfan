@@ -36,8 +36,8 @@ LogLevel &operator--(LogLevel &l)
 	if (l == TF_DBG)
 		l = TF_INF;
 	else if (l == TF_INF)
-		l = TF_NOT;
-	else if (l == TF_NOT)
+		l = TF_NFY;
+	else if (l == TF_NFY)
 		l = TF_WRN;
 	else
 		l = TF_ERR;
@@ -50,8 +50,8 @@ LogLevel &operator++(LogLevel &l)
 	if (l == TF_ERR)
 		l = TF_WRN;
 	else if (l == TF_WRN)
-		l = TF_NOT;
-	else if (l == TF_NOT)
+		l = TF_NFY;
+	else if (l == TF_NFY)
 		l = TF_INF;
 	else if (l == TF_INF)
 		l = TF_DBG;

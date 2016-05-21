@@ -34,7 +34,7 @@ namespace thinkfan {
 enum LogLevel {
 	TF_ERR = LOG_ERR,
 	TF_WRN = LOG_WARNING,
-	TF_NOT = LOG_NOTICE,
+	TF_NFY = LOG_NOTICE,
 	TF_INF = LOG_INFO,
 	TF_DBG = LOG_DEBUG
 };
