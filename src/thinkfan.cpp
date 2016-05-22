@@ -334,8 +334,12 @@ bool TemperatureState::complete() const
 { return temp_ == temps_.end(); }
 
 
-const std::vector<int> &TemperatureState::get() const
+const std::vector<int> &TemperatureState::biased_temps() const
 { return biased_temps_; }
+
+
+const std::vector<int> &TemperatureState::temps() const
+{ return temps_; }
 
 
 const std::vector<float> &TemperatureState::biases() const

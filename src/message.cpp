@@ -175,8 +175,8 @@ Logger &Logger::operator<< (const TemperatureState &ts)
 	std::vector<float>::const_iterator bias_it;
 	std::vector<int>::const_iterator temp_it;
 
-	for (temp_it = ts.get().cbegin(), bias_it = ts.biases().cbegin();
-			temp_it != ts.get().cend() && bias_it != ts.biases().cend();
+	for (temp_it = ts.temps().cbegin(), bias_it = ts.biases().cbegin();
+			temp_it != ts.temps().cend() && bias_it != ts.biases().cend();
 			++temp_it, ++bias_it)
 		msg_pfx_ += std::to_string(*temp_it) + "(" + std::to_string(int(*bias_it)) + "), ";
 

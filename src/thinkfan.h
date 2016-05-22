@@ -59,7 +59,8 @@ public:
 	void restart();
 	void add_temp(int t);
 
-	const std::vector<int> &get() const;
+	const std::vector<int> &biased_temps() const;
+	const std::vector<int> &temps() const;
 	const std::vector<float> &biases() const;
 	bool complete() const;
 	void first_run();
