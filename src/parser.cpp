@@ -83,8 +83,17 @@ CommentParser::CommentParser()
 string *CommentParser::_parse(const char *&input) const
 {
 	space_parser.match(input);
-	string *rv = comment_parser_.parse(input);
-	space_parser.match(input);
+	string *rv = nullptr;
+	string *tmp;
+	while ((tmp = comment_parser_.parse(input))) {
+		if (!rv)
+			rv = tmp;
+		else {
+			*rv += *tmp;
+			delete tmp;
+		}
+		space_parser.match(input);
+	}
 	return rv;
 }
 
