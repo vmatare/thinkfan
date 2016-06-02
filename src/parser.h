@@ -37,8 +37,13 @@ class ComplexLevel;
 class Config;
 static const string tpacpi_path = "/proc/acpi/ibm";
 
+class ErrorTracker {
+private:
+	static const char *max_addr_;
+};
+
 template<typename ResultT>
-class Parser {
+class Parser : ErrorTracker {
 public:
 	typedef ResultT* ResultT_;
 
@@ -69,12 +74,7 @@ public:
 protected:
 	virtual ResultT *_parse(const char *&input) const = 0;
 
-private:
-	static const char *max_addr_;
 };
-
-template<typename ResultT>
-const char *Parser<ResultT>::max_addr_ = nullptr;
 
 
 class RegexParser : public Parser<string> {

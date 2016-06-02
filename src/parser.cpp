@@ -29,6 +29,8 @@ namespace thinkfan {
 using namespace std;
 
 
+const char *ErrorTracker::max_addr_ = nullptr;
+
 static const RegexParser separator_parser("^([[:space:]]*,)|([[:space:]]+)", 0);
 static const CommentParser comment_parser;
 static const RegexParser space_parser("^[[:space:]]*", 0, true, true);
