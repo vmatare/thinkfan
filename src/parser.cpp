@@ -31,18 +31,17 @@ using namespace std;
 
 const char *ErrorTracker::max_addr_ = nullptr;
 
-static const RegexParser separator_parser("^([[:space:]]*,)|([[:space:]]+)", 0);
-static const CommentParser comment_parser;
-static const RegexParser space_parser("^[[:space:]]*", 0, true, true);
+static RegexParser separator_parser("^([[:space:]]*,)|^([[:space:]]+)", 0);
+static CommentParser comment_parser;
+static RegexParser space_parser("^[[:space:]]*", 0, true);
 
 
-RegexParser::RegexParser(const string expr, const unsigned int data_idx, bool bol_only, bool match_nl)
+RegexParser::RegexParser(const string expr, const unsigned int data_idx, bool match_nl)
 : data_idx_(data_idx),
-  re_str(expr),
-  bol_only_(bol_only && expr[0] == '^')
+  re_str(expr)
 {
-	this->expr_ = (regex_t *) malloc(sizeof(regex_t));
-	if (regcomp(this->expr_, expr.c_str(), REG_EXTENDED | (match_nl ? 0 : REG_NEWLINE))) {
+	this->expr_ = new regex_t;
+	if (regcomp(this->expr_, re_str.c_str(), REG_EXTENDED | (match_nl ? 0 : REG_NEWLINE))) {
 		throw Bug("RegexParser: Invalid regular expression");
 	}
 }
@@ -51,11 +50,11 @@ RegexParser::RegexParser(const string expr, const unsigned int data_idx, bool bo
 RegexParser::~RegexParser()
 {
 	regfree(expr_);
-	free(expr_);
+	delete expr_;
 }
 
 
-string *RegexParser::_parse(const char *&input) const
+string *RegexParser::_parse(const char *&input)
 {
 	regmatch_t matches[data_idx_ + 1];
 	string *rv = nullptr;
@@ -64,7 +63,7 @@ string *RegexParser::_parse(const char *&input) const
 	if (!(err = regexec(this->expr_, input, this->data_idx_ + 1, matches, 0))) {
 		int so = matches[data_idx_].rm_so;
 		int eo = matches[data_idx_].rm_eo;
-		if (so != -1 && (!bol_only_ || matches[0].rm_so == 0)) {
+		if (so != -1 && matches[0].rm_so == 0) {
 			rv = new string(input, so, eo - so);
 			input += matches->rm_eo;
 		}
@@ -77,12 +76,24 @@ string *RegexParser::_parse(const char *&input) const
 }
 
 
+int *IntParser::_parse(const char *&input)
+{
+	char *end;
+	long l = strtol(input, &end, 0);
+	if (end == input || l < numeric_limits<int>::min() || l > numeric_limits<int>::max())
+		return nullptr;
+
+	input = end;
+	return new int(static_cast<int>(l));
+}
+
+
 CommentParser::CommentParser()
 : comment_parser_("^[[:space:]]*#(.*)$", 1)
 {}
 
 
-string *CommentParser::_parse(const char *&input) const
+string *CommentParser::_parse(const char *&input)
 {
 	space_parser.match(input);
 	string *rv = nullptr;
@@ -105,7 +116,7 @@ KeywordParser::KeywordParser(const string keyword)
 {}
 
 
-FanDriver *FanParser::_parse(const char *&input) const
+FanDriver *FanParser::_parse(const char *&input)
 {
 	FanDriver *fan = nullptr;
 	unique_ptr<string> path;
@@ -121,7 +132,7 @@ FanDriver *FanParser::_parse(const char *&input) const
 }
 
 
-SensorDriver *SensorParser::_parse(const char *&input) const
+SensorDriver *SensorParser::_parse(const char *&input)
 {
 	SensorDriver *sensor = nullptr;
 	unique_ptr<string> path;
@@ -148,12 +159,11 @@ SensorDriver *SensorParser::_parse(const char *&input) const
 	}
 
 	if (sensor) {
-		unique_ptr<string> list_inner;
-		if ((list_inner = unique_ptr<string>(BracketParser("(", ")", false).parse(input)))
-				|| (list_inner = unique_ptr<string>(BracketParser("{", "}", false).parse(input)))) {
-			const char *list_inner_c = list_inner->c_str();
-			unique_ptr<vector<int>> correction(TupleParser().parse(list_inner_c));
-			if (correction) sensor->set_correction(*correction);
+		if (bracket_parser_.open(input)) {
+			unique_ptr<vector<int>> correction(TupleParser().parse(input));
+			if (!bracket_parser_.close(input) || !correction)
+				return nullptr;
+			sensor->set_correction(*correction);
 		}
 	}
 
@@ -161,122 +171,150 @@ SensorDriver *SensorParser::_parse(const char *&input) const
 }
 
 
-IntListParser::IntListParser()
-: int_parser_("^[[:space:]]*([[:digit:]]+)", 1)
+IntListParser::IntListParser(bool allow_dot)
+: dot_parser_("^\\."),
+  allow_dot_(allow_dot)
 {}
 
-vector<int> *IntListParser::_parse(const char *&input) const
+
+vector<int> *IntListParser::_parse(const char *&input)
 {
-	vector<int> *rv = new vector<int>();
-	string *s_int;
+	unique_ptr<vector<int>> rv(new vector<int>());
+	unique_ptr<string> dot;
+	unique_ptr<int> i;
 
-	while ((s_int = int_parser_.parse(input))) {
-		const char *cs_int = s_int->c_str();
-		rv->push_back(strtol(cs_int, nullptr, 0));
-		delete s_int;
+	do {
+		dot.reset(nullptr);
 
-		string *s_sep;
-		if (!(s_sep = separator_parser.parse(input))) break;
-		delete s_sep;
-	}
+		if (i.reset(int_parser_.parse(input)), i)
+			rv->push_back(*i);
+		else if (allow_dot_ && (dot.reset(dot_parser_.parse(input)), dot))
+			rv->push_back(numeric_limits<int>::max());
+		else
+			return nullptr;
+		if (!(separator_parser.match(input) || comment_parser.match(input)))
+			break;
 
-	if (rv->size() > 0) return rv;
-	delete rv;
+		comment_parser.match(input);
+	} while(i || dot);
+
+	if (rv->size() > 0)
+		return rv.release();
 	return nullptr;
 }
 
 
-BracketParser::BracketParser(const string opening, const string closing, bool nl)
-: RegexParser(
-		(nl ? "^[[:space:]]*" : "^[[:blank:]]*")
-			+ (opening == "(" || opening == "{" ? "\\(" : opening)
-			+ "([^"
-			+ (opening != closing ? opening + closing : opening)
-			+ "]*)"
-			+ (closing == ")" ? "\\)" : closing),
-		1, true, nl
-) {}
-
-
-vector<int> *TupleParser::_parse(const char *&input) const
+EnclosureParser::EnclosureParser(initializer_list<string> bracket_pairs, bool nl)
+: brackets_(bracket_pairs),
+  nl_(nl)
 {
-	string *list_inner = nullptr;
-	if (!((list_inner = (BracketParser("(", ")").parse(input)))
-			|| (list_inner = (BracketParser("{", "}").parse(input))))) {
-		return nullptr;
-	}
-	const char *list_inner_c = list_inner->c_str();
-
-	vector<int> *rv = IntListParser().parse(list_inner_c);
-	delete list_inner;
-	return rv;
+	if (bracket_pairs.size() < 2 || bracket_pairs.size() % 2 != 0)
+		throw Bug("EnclosureParser: Unbalanced bracket definition");
 }
 
 
-SimpleLevel *SimpleLevelParser::_parse(const char *&input) const
+string *EnclosureParser::_parse(const char *&input)
 {
-	SimpleLevel *rv = nullptr;
-	string *list_inner = nullptr;
-	if (!((list_inner = (BracketParser("(", ")").parse(input)))
-			|| (list_inner = (BracketParser("{", "}").parse(input))))) {
-		return nullptr;
-	}
+	space_parser.match(input);
+	vector<string>::const_iterator it = brackets_.begin();
+	unique_ptr<string> rv;
+	do {
+		string re_pfx("^");
+		if (*it == "(" || *it == "{")
+			re_pfx += "\\";
+		RegexParser re_o(re_pfx + *it++);
+		rv.reset(re_o.parse(input));
+		if (rv) {
+			closing_ = re_pfx + *it;
+			content_ = "^[^" + *it + "]*";
+		}
+		++it;
+	} while (!rv && it != brackets_.end());
 
-	vector<int> *ints = nullptr;
-	string *lvl_str = nullptr;
-	string *sep = nullptr;
-	const char *list_inner_c = list_inner->c_str();
-
-	comment_parser.match(list_inner_c);
-
-	if (!((ints = IntListParser().parse(list_inner_c))
-			|| ((lvl_str = BracketParser("\"", "\"").parse(list_inner_c))
-					&& (sep = separator_parser.parse(list_inner_c))
-					&& (ints = IntListParser().parse(list_inner_c))))) {
-		delete lvl_str;
-		delete list_inner;
-		delete sep;
-		return nullptr;
-	}
-
-	delete list_inner;
-	delete sep;
-
-	if (lvl_str && ints->size() == 2)
-		rv = new SimpleLevel(*lvl_str, (*ints)[0], (*ints)[1]);
-	else if (ints->size() == 3)
-		rv = new SimpleLevel((*ints)[0], (*ints)[1], (*ints)[2]);
-
-	delete lvl_str;
-	delete ints;
-
-	return rv;
+	return rv.release();
 }
 
 
-ComplexLevel *ComplexLevelParser::_parse(const char *&input) const
-{
-	ComplexLevel *rv = nullptr;
-	unique_ptr<string> lvl_str;
-	unique_ptr<vector<int>> lower_lim, upper_lim, lvl_int;
+bool EnclosureParser::open(const char *&input)
+{ return match(input); }
 
-	unique_ptr<string> opening_bracket(RegexParser("^(\\(|\\{)").parse(input));
-	if (!opening_bracket)
+
+bool EnclosureParser::close(const char *&input)
+{ return RegexParser(closing_).match(input); }
+
+
+string *EnclosureParser::content(const char *&input)
+{ return RegexParser(content_, 0, nl_).parse(input); }
+
+
+vector<int> *TupleParser::_parse(const char *&input)
+{
+	if (!bracket_parser_.open(input))
 		return nullptr;
-	string closing_bracket;
-	if (*opening_bracket == "(")
-		closing_bracket = "^\\)";
+
+	unique_ptr<vector<int>> rv(int_list_parser_.parse(input));
+	if (bracket_parser_.close(input))
+		return rv.release();
 	else
-		closing_bracket = "^\\}";
-	comment_parser.match(input);
-
-	if (!((lvl_str = unique_ptr<string>(BracketParser("\"", "\"").parse(input)))
-			|| ((lvl_int = unique_ptr<vector<int>>(IntListParser().parse(input))) && lvl_int->size() == 1)))
 		return nullptr;
+}
+
+
+SimpleLevel *SimpleLevelParser::_parse(const char *&input)
+{
+	if (!bracket_parser_.open(input))
+		return nullptr;
+
+	unique_ptr<vector<int>> ints;
+
 	comment_parser.match(input);
 
-	TupleParser tp;
-	RegexParser sep_parser("^[[:space:]]+|^[[:space:]]*,?[[:space:]]*", 0, true, true);
+	EnclosureParser quot({"\"", "\""});
+	if (quot.open(input)) {
+		unique_ptr<string> lvl_str(quot.content(input));
+		if (quot.close(input) && lvl_str &&
+				(comment_parser.match(input)
+						|| separator_parser.match(input))
+		) {
+			comment_parser.match(input);
+			ints.reset(IntListParser().parse(input));
+			if (ints && ints->size() == 2 && quot.close(input))
+				return new SimpleLevel(*lvl_str, (*ints)[0], (*ints)[1]);
+		}
+	}
+	else {
+		ints.reset(IntListParser().parse(input));
+		if (ints && ints->size() == 3 && bracket_parser_.close(input))
+			return new SimpleLevel((*ints)[0], (*ints)[1], (*ints)[2]);
+	}
+
+	return nullptr;
+}
+
+
+ComplexLevel *ComplexLevelParser::_parse(const char *&input)
+{
+	unique_ptr<string> lvl_str;
+	unique_ptr<vector<int>> lower_lim, upper_lim;
+	unique_ptr<int> lvl_int;
+
+	if (!bracket_parser_.open(input))
+		return nullptr;
+
+	comment_parser.match(input);
+
+	EnclosureParser quot({"\"", "\""});
+	if (quot.open(input)) {
+		lvl_str.reset(quot.content(input));
+		if (!quot.close(input))
+			return nullptr;
+	}
+	else if (!(lvl_int = unique_ptr<int>(IntParser().parse(input))))
+		return nullptr;
+
+	TupleParser tp(true);
+	RegexParser sep_parser("^[[:space:]]+|^[[:space:]]*,?[[:space:]]*", 0, true);
+
 	comment_parser.match(input);
 	sep_parser.match(input);
 	comment_parser.match(input);
@@ -290,16 +328,18 @@ ComplexLevel *ComplexLevelParser::_parse(const char *&input) const
 	space_parser.match(input);
 	comment_parser.match(input);
 
-	if (!(lower_lim && upper_lim)) return nullptr;
-
-	unique_ptr<string> bracket_closed(RegexParser(closing_bracket).parse(input));
-	if (!bracket_closed)
+	if (!(lower_lim && upper_lim))
 		return nullptr;
 
-	if (lvl_str) rv = new ComplexLevel(*lvl_str, *lower_lim, *upper_lim);
-	else if (lvl_int) rv = new ComplexLevel(lvl_int->at(0), *lower_lim, *upper_lim);
+	if (!bracket_parser_.close(input))
+		return nullptr;
 
-	return rv;
+	if (lvl_str)
+		return new ComplexLevel(*lvl_str, *lower_lim, *upper_lim);
+	else if (lvl_int)
+		return new ComplexLevel(*lvl_int, *lower_lim, *upper_lim);
+	else
+		return nullptr;
 }
 
 
@@ -309,11 +349,11 @@ ConfigParser::ConfigParser()
 {}
 
 
-Config *ConfigParser::_parse(const char *&input) const
+Config *ConfigParser::_parse(const char *&input)
 {
 	// Use smart pointers here since we may cause an exception (rv->add_*()...)
 	unique_ptr<Config> rv(new Config());
-	RegexParser space_parser_("^[[:space:]]+", 0, true, true);
+	RegexParser space_parser_("^[[:space:]]+", 0, true);
 
 	bool some_match;
 	do {

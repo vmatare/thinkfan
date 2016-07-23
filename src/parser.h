@@ -25,7 +25,8 @@
 #include <regex.h>
 #include <vector>
 #include <string>
-#include <string.h>
+#include <initializer_list>
+
 #include "drivers.h"
 
 namespace thinkfan {
@@ -45,8 +46,6 @@ private:
 template<typename ResultT>
 class Parser : ErrorTracker {
 public:
-	typedef ResultT* ResultT_;
-
 	Parser() {}
 
 	virtual ~Parser() = default;
@@ -54,7 +53,7 @@ public:
 	const char *get_max_addr() const
 	{ return max_addr_; }
 
-	ResultT *parse(const char *&input) const {
+	ResultT *parse(const char *&input) {
 		const char *start = input;
 		ResultT *rv = _parse(input);
 		if (input > max_addr_) max_addr_ = input;
@@ -62,7 +61,7 @@ public:
 		return rv;
 	}
 
-	bool match(const char *&input) const {
+	bool match(const char *&input) {
 		ResultT *result = parse(input);
 		if (result) {
 			delete result;
@@ -72,8 +71,7 @@ public:
 	}
 
 protected:
-	virtual ResultT *_parse(const char *&input) const = 0;
-
+	virtual ResultT *_parse(const char *&input) = 0;
 };
 
 
@@ -82,12 +80,16 @@ private:
 	regex_t *expr_;
 	unsigned int data_idx_;
 	string re_str;
-	bool bol_only_;
 public:
-	RegexParser(const string expr, const unsigned int data_idx = 0,
-			bool bol_only = true, bool match_nl = false);
+	RegexParser(const string expr, const unsigned int data_idx = 0, bool match_nl = false);
 	virtual ~RegexParser();
-	virtual string *_parse(const char *&input) const override;
+	virtual string *_parse(const char *&input) override;
+};
+
+
+class IntParser : public Parser<int> {
+public:
+	virtual int *_parse(const char *&input) override;
 };
 
 
@@ -96,7 +98,7 @@ private:
 	RegexParser comment_parser_;
 public:
 	CommentParser();
-	virtual string *_parse(const char *&input) const override;
+	virtual string *_parse(const char *&input) override;
 };
 
 
@@ -108,58 +110,85 @@ public:
 
 class FanParser : public Parser<FanDriver> {
 public:
-	virtual FanDriver *_parse(const char *&input) const override;
-};
-
-
-class SensorParser : public Parser<SensorDriver> {
-public:
-	virtual SensorDriver *_parse(const char *&input) const override;
+	virtual FanDriver *_parse(const char *&input) override;
 };
 
 
 class IntListParser : public Parser<std::vector<int>> {
 private:
-	RegexParser int_parser_;
+	IntParser int_parser_;
+	RegexParser dot_parser_;
+	bool allow_dot_;
 public:
-	IntListParser();
-	virtual std::vector<int> *_parse(const char *&input) const override;
+	IntListParser(bool allow_dot = false);
+	virtual std::vector<int> *_parse(const char *&input) override;
 };
 
 
-class BracketParser : public RegexParser {
+class EnclosureParser : public Parser<string> {
 public:
-	BracketParser(const std::string opening, const std::string closing, bool nl = true);
+	EnclosureParser(initializer_list<string> bracket_pairs, bool nl = true);
+	virtual string *_parse(const char *&input) override;
+
+	bool open(const char *&input);
+	bool close(const char *&input);
+	string *content(const char *&input);
+private:
+	string closing_;
+	string content_;
+	vector<string> brackets_;
+	bool nl_;
+};
+
+
+class BracketParser : public EnclosureParser {
+public:
+	BracketParser() : EnclosureParser({"(", ")", "{", "}"}) {}
+};
+
+
+class SensorParser : public Parser<SensorDriver> {
+public:
+	virtual SensorDriver *_parse(const char *&input) override;
+private:
+	BracketParser bracket_parser_;
 };
 
 
 class TupleParser : public Parser<vector<int>> {
 public:
-	TupleParser() {};
-	virtual vector<int> *_parse(const char *&input) const override;
+	TupleParser(bool allow_dot = false) : int_list_parser_(allow_dot) {};
+	virtual vector<int> *_parse(const char *&input) override;
+private:
+	BracketParser bracket_parser_;
+	IntListParser int_list_parser_;
 };
 
 
 class SimpleLevelParser : public Parser<SimpleLevel> {
 public:
 	SimpleLevelParser() {}
-	virtual SimpleLevel *_parse(const char *&input) const override;
+	virtual SimpleLevel *_parse(const char *&input) override;
+private:
+	BracketParser bracket_parser_;
 };
 
 
 class ComplexLevelParser : public Parser<ComplexLevel> {
 public:
 	ComplexLevelParser() {}
-	virtual ComplexLevel *_parse(const char *&input) const override;
+	virtual ComplexLevel *_parse(const char *&input) override;
+private:
+	BracketParser bracket_parser_;
 };
 
 
 class ConfigParser : public Parser<Config> {
 private:
-	const FanParser parser_fan;
-	const SensorParser parser_sensor;
-	const SimpleLevelParser parser_simple_lvl;
-	const ComplexLevelParser parser_complex_lvl;
+	FanParser parser_fan;
+	SensorParser parser_sensor;
+	SimpleLevelParser parser_simple_lvl;
+	ComplexLevelParser parser_complex_lvl;
 public:
 	ConfigParser();
 
@@ -167,7 +196,7 @@ public:
 	{ return parse(input); }
 
 protected:
-	virtual Config *_parse(const char *&input) const override;
+	virtual Config *_parse(const char *&input) override;
 };
 
 
