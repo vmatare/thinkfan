@@ -52,6 +52,7 @@ const Config *Config::read_config(const string &filename)
 		const char *start = input;
 
 		rv = parser.parse_config(input);
+
 		if (!rv) {
 			throw SyntaxError(filename, parser.get_max_addr() - start, f_data);
 		}
@@ -187,7 +188,8 @@ Level::Level(string level, const std::vector<int> &lower_limit, const std::vecto
 	for (std::vector<int>::const_iterator l_it = lower_limit.begin(), u_it = upper_limit.begin();
 			l_it != lower_limit.end() && u_it != upper_limit.end();
 			++u_it, ++l_it) {
-		if (*l_it >= *u_it) error<ConfigError>(MSG_CONF_LOWHIGH);
+		if (*l_it != numeric_limits<int>::max() && *l_it >= *u_it)
+			error<ConfigError>(MSG_CONF_LOWHIGH);
 	}
 
 	if (level == "level auto" || level == "level disengaged" || level == "level full-speed")

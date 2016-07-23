@@ -72,6 +72,7 @@ public:
 	const int code();
 };
 
+
 class SyntaxError : public ExpectedError {
 public:
 	SyntaxError(const string filename, const size_t offset, const string &input);
@@ -84,7 +85,6 @@ public:
 };
 
 
-class ParserMisdefinition : public ExpectedError {};
 class ParserOOM : public ExpectedError {};
 class MixedLevelSpecs : public ExpectedError {};
 class LimitLengthMismatch : public ExpectedError {};

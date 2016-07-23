@@ -43,7 +43,7 @@ RegexParser::RegexParser(const string expr, const unsigned int data_idx, bool bo
 {
 	this->expr_ = (regex_t *) malloc(sizeof(regex_t));
 	if (regcomp(this->expr_, expr.c_str(), REG_EXTENDED | (match_nl ? 0 : REG_NEWLINE))) {
-		throw ParserMisdefinition();
+		throw Bug("RegexParser: Invalid regular expression");
 	}
 }
 

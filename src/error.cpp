@@ -84,6 +84,7 @@ void handle_uncaught()
 				"Backtrace:" << make_backtrace() << flush <<
 				MSG_BUG << flush;
 	}
+	// We can expect to be killed by SIGABRT after this function returns.
 }
 
 
@@ -99,7 +100,7 @@ SyntaxError::SyntaxError(const string filename, const size_t offset, const strin
 			line_start = i + 1;
 		}
 	}
-	msg_ += std::to_string(line) + ": Syntax error:\n";
+	msg_ += std::to_string(line) + ": Invalid syntax:\n";
 	std::string::size_type line_end = input.find('\n', line_start) - line_start;
 	msg_ += input.substr(line_start, line_end) + '\n';
 	msg_ += std::string(offset - line_start, ' ') + "^\n";

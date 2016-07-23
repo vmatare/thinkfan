@@ -370,8 +370,6 @@ int main(int argc, char **argv) {
 	memset(&handler, 0, sizeof(handler));
 	handler.sa_handler = sig_handler;
 
-	// Install signal handler only after FanControl object has been created
-	// since it is used by the handler.
 	if (sigaction(SIGHUP, &handler, NULL)
 	 || sigaction(SIGINT, &handler, NULL)
 	 || sigaction(SIGTERM, &handler, NULL)
