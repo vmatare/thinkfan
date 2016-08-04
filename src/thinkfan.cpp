@@ -100,7 +100,7 @@ void run(const Config &config)
 	// Set initial fan level
 	std::vector<const Level *>::const_iterator cur_lvl = config.levels().begin();
 	config.fan()->init();
-	while (cur_lvl != config.levels().end() && (*cur_lvl)->up())
+	while (cur_lvl != --config.levels().end() && (*cur_lvl)->up())
 		cur_lvl++;
 	log(TF_NFY) << temp_state << " -> " <<
 			(*cur_lvl)->str() << flush;
@@ -114,15 +114,15 @@ void run(const Config &config)
 		if (unlikely(!temp_state.complete()))
 			throw SystemError(MSG_SENSOR_LOST);
 
-		if (unlikely((*cur_lvl)->up())) {
-			while (cur_lvl != config.levels().end() && (*cur_lvl)->up())
+		if (unlikely(cur_lvl != --config.levels().end() && (*cur_lvl)->up())) {
+			while (cur_lvl != --config.levels().end() && (*cur_lvl)->up())
 				cur_lvl++;
 			log(TF_INF) << temp_state << " -> " <<
 					(*cur_lvl)->str() << flush;
 			config.fan()->set_speed(*cur_lvl);
 		}
-		else if (unlikely((*cur_lvl)->down())) {
-			while (cur_lvl != config.levels().begin() && (*cur_lvl)->down())
+		else if (unlikely(cur_lvl != --config.levels().end() && (*cur_lvl)->down())) {
+			while (cur_lvl != --config.levels().begin() && (*cur_lvl)->down())
 				cur_lvl--;
 			log(TF_INF) << temp_state << " -> " <<
 					(*cur_lvl)->str() << flush;
