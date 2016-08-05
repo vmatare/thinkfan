@@ -121,8 +121,8 @@ void run(const Config &config)
 					(*cur_lvl)->str() << flush;
 			config.fan()->set_speed(*cur_lvl);
 		}
-		else if (unlikely(cur_lvl != --config.levels().end() && (*cur_lvl)->down())) {
-			while (cur_lvl != --config.levels().begin() && (*cur_lvl)->down())
+		else if (unlikely(cur_lvl != config.levels().begin() && (*cur_lvl)->down())) {
+			while (cur_lvl != config.levels().begin() && (*cur_lvl)->down())
 				cur_lvl--;
 			log(TF_INF) << temp_state << " -> " <<
 					(*cur_lvl)->str() << flush;
