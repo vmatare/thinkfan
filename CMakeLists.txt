@@ -50,9 +50,27 @@ if(USE_NVML)
 	target_link_libraries(thinkfan dl)
 endif(USE_NVML)
 
+find_package(PkgConfig)
+pkg_check_modules(SYSTEMD "systemd")
+pkg_check_modules(OPENRC "openrc")
 
 install(TARGETS thinkfan DESTINATION "${CMAKE_INSTALL_SBINDIR}")
 install(FILES COPYING README examples/thinkfan.conf.complex
 	examples/thinkfan.conf.simple DESTINATION share/doc/thinkfan)
 install(FILES src/thinkfan.1 DESTINATION share/man/man1)
 install(FILES src/thinkfan.conf.5 DESTINATION share/man/man5)
+
+if(SYSTEMD_FOUND)
+	configure_file(rcscripts/systemd/thinkfan.service.cmake
+		rcscripts/systemd/thinkfan.service)
+	install(FILES
+		    rcscripts/systemd/thinkfan-wakeup.service
+		    "${CMAKE_BINARY_DIR}/rcscripts/systemd/thinkfan.service"
+		DESTINATION lib/systemd/system)
+	install(FILES rcscripts/systemd/00-thinkfan.conf
+		DESTINATION /etc/systemd/system/thinkfan.service.d)
+endif(SYSTEMD_FOUND)
+
+if(OPENRC_FOUND)
+	install(FILES rcscripts/openrc/thinkfan DESTINATION /etc/init.d)
+endif(OPENRC_FOUND)
