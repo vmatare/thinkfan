@@ -73,14 +73,6 @@ Logger &Logger::instance()
 }
 
 
-const LogLevel Logger::set_log_lvl(const LogLevel &min)
-{
-	LogLevel rv = log_lvl_;
-	log_lvl_ = min;
-	return rv;
-}
-
-
 LogLevel &Logger::log_lvl()
 { return log_lvl_; }
 

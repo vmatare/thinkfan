@@ -60,7 +60,6 @@ public:
 	Logger &level(const LogLevel &lvl);
 	Logger &flush();
 	static Logger &instance();
-	const LogLevel set_log_lvl(const LogLevel &lvl);
 	LogLevel &log_lvl();
 
 	Logger &operator<< (const std::string &msg);

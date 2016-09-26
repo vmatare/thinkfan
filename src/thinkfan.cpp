@@ -2,7 +2,7 @@
  * thinkfan.cpp: Main program.
  * (C) 2015, Victor Mataré
  *
- * this file is part of thinkfan. See thinkfan.c for further information.
+ * this file is part of thinkfan.
  *
  * thinkfan is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -334,15 +334,15 @@ bool TemperatureState::complete() const
 { return temp_ == temps_.end(); }
 
 
-const std::vector<int> &TemperatureState::biased_temps() const
+const std::vector<int> & TemperatureState::biased_temps() const
 { return biased_temps_; }
 
 
-const std::vector<int> &TemperatureState::temps() const
+const std::vector<int> & TemperatureState::temps() const
 { return temps_; }
 
 
-const std::vector<float> &TemperatureState::biases() const
+const std::vector<float> & TemperatureState::biases() const
 { return biases_; }
 
 
@@ -353,7 +353,7 @@ void TemperatureState::first_run()
 	biased_temps_ = temps_;
 }
 
-}
+} // namespace thinkfan
 
 
 int main(int argc, char **argv) {
@@ -394,9 +394,10 @@ int main(int argc, char **argv) {
 		}
 
 		// Load the config temporarily once so we may fail before forking
-		LogLevel old_lvl = Logger::instance().set_log_lvl(TF_ERR);
+		LogLevel old_lvl = Logger::instance().log_lvl();
+		Logger::instance().log_lvl() = TF_ERR;
 		delete Config::read_config(config_file);
-		Logger::instance().set_log_lvl(old_lvl);
+		Logger::instance().log_lvl() = old_lvl;
 
 		if (daemonize) {
 			pid_t child_pid = ::fork();

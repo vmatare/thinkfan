@@ -158,15 +158,14 @@ const std::vector<const SensorDriver *> &Config::sensors() const
 { return sensors_; }
 
 
+
 Level::Level(int level, int lower_limit, int upper_limit)
 : Level(level, std::vector<int>(1, lower_limit), std::vector<int>(1, upper_limit))
 {}
 
-
 Level::Level(string level, int lower_limit, int upper_limit)
 : Level(level, std::vector<int>(1, lower_limit), std::vector<int>(1, upper_limit))
 {}
-
 
 Level::Level(int level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit)
 : level_s_("level " + std::to_string(level)),
@@ -174,7 +173,6 @@ Level::Level(int level, const std::vector<int> &lower_limit, const std::vector<i
   lower_limit_(lower_limit),
   upper_limit_(upper_limit)
 {}
-
 
 Level::Level(string level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit)
 : level_s_(level),
@@ -220,17 +218,17 @@ int Level::num() const
 { return this->level_n_; }
 
 
+
 SimpleLevel::SimpleLevel(int level, int lower_limit, int upper_limit)
-: Level(level, lower_limit, upper_limit) {}
+: Level(level, lower_limit, upper_limit)
+{}
 
 SimpleLevel::SimpleLevel(string level, int lower_limit, int upper_limit)
-: Level(level, lower_limit, upper_limit) {}
+: Level(level, lower_limit, upper_limit)
+{}
 
 bool SimpleLevel::up() const
-{
-	return *temp_state.tmax >= upper_limit().front();
-}
-
+{ return *temp_state.tmax >= upper_limit().front(); }
 
 bool SimpleLevel::down() const
 { return *temp_state.tmax < lower_limit().front(); }
@@ -238,10 +236,13 @@ bool SimpleLevel::down() const
 
 
 ComplexLevel::ComplexLevel(int level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit)
-: Level(level, lower_limit, upper_limit) {}
+: Level(level, lower_limit, upper_limit)
+{}
+
 
 ComplexLevel::ComplexLevel(string level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit)
-: Level(level, lower_limit, upper_limit) {}
+: Level(level, lower_limit, upper_limit)
+{}
 
 
 bool ComplexLevel::up() const
