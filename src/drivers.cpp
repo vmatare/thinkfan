@@ -27,6 +27,7 @@
 #include <fstream>
 #include <cstring>
 #include <thread>
+#include <typeinfo>
 
 #ifdef USE_NVML
 #include <dlfcn.h>
@@ -51,16 +52,22 @@ FanDriver::FanDriver(const std::string &path, const unsigned int watchdog_timeou
 void FanDriver::set_speed(const string &level)
 {
 	std::ofstream f_out(path_);
-	try {
-		f_out.exceptions(f_out.failbit | f_out.badbit);
-		f_out << level << std::flush;
-	} catch (std::ios_base::failure &e) {
+	if(!(f_out << level << std::flush)) {
 		int err = errno;
 		if (err == EPERM)
 			throw SystemError(MSG_FAN_EPERM(path_));
 		else
 			throw IOerror(MSG_FAN_CTRL(level, path_), err);
 	}
+}
+
+
+bool FanDriver::operator == (const FanDriver &other) const
+{
+	return typeid(*this) == typeid(other)
+			&& this->path_ == other.path_
+			&& this->depulse_ == other.depulse_
+			&& this->watchdog_ == other.watchdog_;
 }
 
 
@@ -75,38 +82,37 @@ TpFanDriver::TpFanDriver(const std::string &path)
 {
 	bool ctrl_supported = false;
 	std::fstream f(path_);
-	try {
-		f.exceptions(f.failbit | f.badbit);
-		std::string line;
-		line.resize(256);
-
-		f.exceptions(f.badbit);
-		while (	f.getline(&*line.begin(), 255)) {
-			if (line.rfind("level:") != string::npos) {
-				// remember initial level, restore it in d'tor
-				initial_state_ = line.substr(line.find_last_of(" \t") + 1);
-			}
-			else if (line.rfind("commands:") != std::string::npos && line.rfind("level <level>") != std::string::npos) {
-				ctrl_supported = true;
-			}
-		}
-	} catch (std::ios_base::failure &e) {
+	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_FAN_INIT(path_), errno);
+
+	std::string line;
+	line.resize(256);
+
+	while (f.getline(&*line.begin(), 255)) {
+		if (f.badbit)
+			throw IOerror(MSG_FAN_INIT(path_), errno);
+		if (line.rfind("level:") != string::npos) {
+			// remember initial level, restore it in d'tor
+			initial_state_ = line.substr(line.find_last_of(" \t") + 1);
+		}
+		else if (line.rfind("commands:") != std::string::npos && line.rfind("level <level>") != std::string::npos) {
+			ctrl_supported = true;
+		}
 	}
 
-	if (!ctrl_supported) throw SystemError(MSG_FAN_MODOPTS);
+	if (!ctrl_supported)
+		throw SystemError(MSG_FAN_MODOPTS);
 }
 
 
 TpFanDriver::~TpFanDriver()
 {
 	std::ofstream f(path_);
-	try {
-		f.exceptions(f.failbit | f.badbit);
-		f << "level " << initial_state_ << std::flush;
-	} catch (std::ios_base::failure &e) {
+	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_FAN_RESET(path_), errno);
-	}
+
+	if (!(f << "level " << initial_state_ << std::flush))
+		throw IOerror(MSG_FAN_RESET(path_), errno);
 }
 
 
@@ -140,12 +146,11 @@ void TpFanDriver::ping_watchdog_and_depulse(const Level *level)
 void TpFanDriver::init() const
 {
 	std::fstream f(path_);
-	try {
-		f.exceptions(f.failbit | f.badbit);
-		f << "watchdog " << watchdog_.count() << std::flush;
-	} catch (std::ios_base::failure &e) {
+	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_FAN_INIT(path_), errno);
-	}
+
+	if (!(f << "watchdog " << watchdog_.count() << std::flush))
+		throw IOerror(MSG_FAN_INIT(path_), errno);
 }
 
 
@@ -157,39 +162,34 @@ HwmonFanDriver::HwmonFanDriver(const std::string &path)
 : FanDriver(path, 0)
 {
 	std::ifstream f(path_ + "_enable");
-	try {
-		f.exceptions(f.failbit | f.badbit);
-		std::string line;
-		line.resize(64);
-		f.getline(&*line.begin(), 63);
-		initial_state_ = line;
-	} catch (std::ios_base::failure &e) {
+	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_FAN_INIT(path_), errno);
-	}
+
+	std::string line;
+	line.resize(64);
+	if (!f.getline(&*line.begin(), 63))
+		throw IOerror(MSG_FAN_INIT(path_), errno);
+	initial_state_ = line;
 }
 
 
 HwmonFanDriver::~HwmonFanDriver()
 {
 	std::ofstream f(path_ + "_enable");
-	try {
-		f.exceptions(f.failbit | f.badbit);
-		f << initial_state_ << std::flush;
-	} catch (std::ios_base::failure &e) {
+	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_FAN_RESET(path_), errno);
-	}
+	if (!(f << initial_state_ << std::flush))
+		throw IOerror(MSG_FAN_RESET(path_), errno);
 }
 
 
 void HwmonFanDriver::init() const
 {
 	std::ofstream f(path_ + "_enable");
-	try {
-		f.exceptions(f.failbit | f.badbit);
-		f << "1" << std::flush;
-	} catch (std::ios_base::failure &e) {
+	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_FAN_INIT(path_), errno);
-	}
+	if (!(f << "1" << std::flush))
+		throw IOerror(MSG_FAN_INIT(path_), errno);
 }
 
 
@@ -221,11 +221,8 @@ SensorDriver::SensorDriver(std::string path)
   num_temps_(0)
 {
 	std::ifstream f(path_);
-	try {
-		f.exceptions(f.failbit | f.badbit);
-	} catch (std::ios_base::failure &e) {
+	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_FAN_INIT(path_), errno);
-	}
 }
 
 
@@ -246,6 +243,14 @@ void SensorDriver::set_num_temps(unsigned int n)
 }
 
 
+bool SensorDriver::operator == (const SensorDriver &other) const
+{
+	return typeid(*this) == typeid(other)
+			&& this->correction_ == other.correction_
+			&& this->path_ == other.path_;
+}
+
+
 /*----------------------------------------------------------------------------
 | HwmonSensorDriver: A driver for sensors provided by other kernel drivers,  |
 | typically somewhere in sysfs.                                              |
@@ -259,14 +264,12 @@ HwmonSensorDriver::HwmonSensorDriver(std::string path)
 void HwmonSensorDriver::read_temps() const
 {
 	std::ifstream f(path_);
-	try {
-		f.exceptions(f.failbit | f.badbit);
-		int tmp;
-		f >> tmp;
-		temp_state.add_temp(tmp/1000 + correction_[0]);
-	} catch (std::ios_base::failure &e) {
+	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_T_GET(path_), errno);
-	}
+	int tmp;
+	if (!(f >> tmp))
+		throw IOerror(MSG_T_GET(path_), errno);
+	temp_state.add_temp(tmp/1000 + correction_[0]);
 }
 
 
@@ -277,37 +280,56 @@ void HwmonSensorDriver::read_temps() const
 
 const string TpSensorDriver::skip_prefix_("temperatures:");
 
-TpSensorDriver::TpSensorDriver(std::string path)
+TpSensorDriver::TpSensorDriver(std::string path, const std::vector<int> &temp_indices)
 : SensorDriver(path)
 {
 	std::ifstream f(path_);
-	try {
-		f.exceptions(f.failbit | f.badbit);
-		int tmp;
-		unsigned int count = 0;
-
-		string skip;
-		skip.resize(skip_prefix_.size());
-
-		f.exceptions(f.badbit);
-		f.getline(&*skip.begin(), skip_prefix_.size()+1);
-		f.clear(f.rdstate() & ~f.failbit);
-
-		if (skip == skip_prefix_)
-			skip_bytes_ = f.tellg();
-		else
-			throw SystemError(path_ + ": Unknown file format.");
-
-		while (!(f.eof() || f.fail())) {
-			f >> tmp;
-			if (!f.fail())
-				++count;
-		}
-		set_num_temps(count);
-	} catch (std::ios_base::failure &e) {
+	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_SENSOR_INIT(path_), errno);
+
+	int tmp;
+	unsigned int count = 0;
+
+	string skip;
+	skip.resize(skip_prefix_.size());
+
+	if (!f.getline(&*skip.begin(), skip_prefix_.size() + 1))
+		throw IOerror(MSG_SENSOR_INIT(path_), errno);
+
+	if (skip == skip_prefix_)
+		skip_bytes_ = f.tellg();
+	else
+		throw SystemError(path_ + ": Unknown file format.");
+
+	while (!(f.eof() || f.fail())) {
+		f >> tmp;
+		if (f.bad())
+			throw IOerror(MSG_SENSOR_INIT(path_), errno);
+		if (!f.fail())
+			++count;
+	}
+
+	if (temp_indices.size() > 0) {
+		if (temp_indices.size() > count)
+			throw ConfigError("Config specifies " + std::to_string(temp_indices.size())
+		                      + " temperature inputs in " + path
+		                      + ", but there are only " + std::to_string(count) + ".");
+
+		set_num_temps(temp_indices.size());
+
+		in_use_ = std::vector<bool>(count, false);
+		for (int i : temp_indices)
+			in_use_[i] = true;
+	}
+	else {
+		in_use_ = std::vector<bool>(count, true);
 	}
 }
+
+
+TpSensorDriver::TpSensorDriver(std::string path)
+    : TpSensorDriver(path, {})
+{}
 
 
 void TpSensorDriver::read_temps() const
@@ -322,10 +344,10 @@ void TpSensorDriver::read_temps() const
 		int tmp;
 		while (!f.eof()) {
 			f >> tmp;
-			if (!f.fail())
+			if (!f.fail() && in_use_[tidx])
 				temp_state.add_temp(tmp + correction_[tidx++]);
 		}
-	} catch (std::ios_base::failure &e) {
+	} catch (std::ios_base::failure &) {
 		throw IOerror(MSG_T_GET(path_), errno);
 	}
 }

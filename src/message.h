@@ -93,11 +93,11 @@ private:
 Logger &flush(Logger &l);
 Logger &log(LogLevel lvl);
 
-template<class ErrT> void error(const std::string &msg) {
+template<class ErrT, class... ArgTs> void error(ArgTs... args) {
 	if (chk_sanity)
-		throw ErrT(msg);
+		throw ErrT(args...);
 	else
-		log(TF_ERR) << msg << flush;
+		log(TF_ERR) << ErrT(args...).what() << flush;
 }
 
 }

@@ -36,17 +36,23 @@ Config::Config() : num_temps_(0), fan_(nullptr) {}
 const Config *Config::read_config(const string &filename)
 {
 	Config *rv = nullptr;
+
 	ifstream f_in(filename);
-	try {
+	if (!(f_in.is_open() && f_in.good()))
+		throw IOerror(filename + ": ", errno);
+	if (!f_in.seekg(0, f_in.end))
+		throw IOerror(filename + ": ", errno);
+	ifstream::pos_type f_size = f_in.tellg();
+	if (!f_in.seekg(0, f_in.beg))
+		throw IOerror(filename + ": ", errno);
+	string f_data;
+	f_data.resize(f_size, 0);
+	if (!f_in.read(&*f_data.begin(), f_size))
+		throw IOerror(filename + ": ", errno);
+
+	{
 		ConfigParser parser;
 
-		f_in.exceptions(f_in.badbit | f_in.failbit);
-		f_in.seekg(0, f_in.end);
-		ifstream::pos_type f_size = f_in.tellg();
-		f_in.seekg(0, f_in.beg);
-		string f_data;
-		f_data.resize(f_size, 0);
-		f_in.read(&*f_data.begin(), f_size);
 
 		const char *input = f_data.c_str();
 		const char *start = input;
@@ -56,36 +62,31 @@ const Config *Config::read_config(const string &filename)
 		if (!rv) {
 			throw SyntaxError(filename, parser.get_max_addr() - start, f_data);
 		}
-		else {
-			// Consistency checks which require the complete config
-
-			if (rv->levels().size() == 0)
-				throw ConfigError("No fan levels specified.");
-
-			if (!rv->fan()) {
-				log(TF_WRN) << MSG_CONF_DEFAULT_FAN << flush;
-				rv->add_fan(unique_ptr<TpFanDriver>(new TpFanDriver(DEFAULT_FAN)));
-			}
-
-			if (rv->sensors().size() < 1) {
-				log(TF_WRN) << MSG_SENSOR_DEFAULT << flush;
-				rv->add_sensor(unique_ptr<TpSensorDriver>(new TpSensorDriver(DEFAULT_SENSOR)));
-			}
-
-			int maxlvl = (*rv->levels_.rbegin())->num();
-			if (dynamic_cast<HwmonFanDriver *>(rv->fan()) && maxlvl < 128)
-				error<ConfigError>(MSG_CONF_MAXLVL((*rv->levels_.rbegin())->num()));
-			else if (dynamic_cast<TpFanDriver *>(rv->fan())
-					&& maxlvl != std::numeric_limits<int>::max()
-					&& maxlvl > 7)
-				error<ConfigError>(MSG_CONF_TP_LVL7(maxlvl, 7));
-
-			return rv;
-		}
-	} catch (std::ios_base::failure &e) {
-		string msg = std::strerror(errno);
-		throw ConfigError(filename + ": " + msg);
 	}
+	// Consistency checks which require the complete config
+
+	if (rv->levels().size() == 0)
+		throw ConfigError(filename + ": No fan levels specified.");
+
+	if (!rv->fan()) {
+		log(TF_WRN) << MSG_CONF_DEFAULT_FAN << flush;
+		rv->add_fan(unique_ptr<TpFanDriver>(new TpFanDriver(DEFAULT_FAN)));
+	}
+
+	if (rv->sensors().size() < 1) {
+		log(TF_WRN) << MSG_SENSOR_DEFAULT << flush;
+		rv->add_sensor(unique_ptr<TpSensorDriver>(new TpSensorDriver(DEFAULT_SENSOR)));
+	}
+
+	int maxlvl = (*rv->levels_.rbegin())->num();
+	if (dynamic_cast<HwmonFanDriver *>(rv->fan()) && maxlvl < 128)
+		error<ConfigError>(MSG_CONF_MAXLVL((*rv->levels_.rbegin())->num()));
+	else if (dynamic_cast<TpFanDriver *>(rv->fan())
+			 && maxlvl != std::numeric_limits<int>::max()
+			 && maxlvl > 7)
+		error<ConfigError>(MSG_CONF_TP_LVL7(maxlvl, 7));
+
+	return rv;
 }
 
 
@@ -197,9 +198,9 @@ Level::Level(string level, const std::vector<int> &lower_limit, const std::vecto
 	else try {
 		level_n_ = std::stoi(level);
 		level_s_ = "level " + level;
-	} catch (std::out_of_range &e) {
+	} catch (std::out_of_range &) {
 		error<ConfigError>(MSG_CONF_LVLFORMAT(level));
-	} catch (std::invalid_argument &e) {
+	} catch (std::invalid_argument &) {
 		error<ConfigError>(MSG_CONF_LVLFORMAT(level));
 	}
 }

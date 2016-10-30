@@ -53,7 +53,8 @@ public:
 	virtual void init() const {}
 	virtual void set_speed(const string &level);
 	virtual void set_speed(const Level *level) = 0;
-	virtual void ping_watchdog_and_depulse(const Level *level) {};
+	virtual void ping_watchdog_and_depulse(const Level *level) {}
+	bool operator == (const FanDriver &other) const;
 };
 
 
@@ -90,6 +91,7 @@ public:
 	unsigned int num_temps() const { return num_temps_; }
 	void set_correction(const std::vector<int> &correction);
 	void set_num_temps(unsigned int n);
+	bool operator == (const SensorDriver &other) const;
 private:
 	unsigned int num_temps_;
 };
@@ -98,10 +100,12 @@ private:
 class TpSensorDriver : public SensorDriver {
 public:
 	TpSensorDriver(string path);
+	TpSensorDriver(string path, const std::vector<int> &temp_indices);
 	virtual void read_temps() const override;
 private:
 	std::char_traits<char>::off_type skip_bytes_;
 	static const string skip_prefix_;
+	std::vector<bool> in_use_;
 };
 
 
@@ -109,7 +113,6 @@ class HwmonSensorDriver : public SensorDriver {
 public:
 	HwmonSensorDriver(string path);
 	virtual void read_temps() const override;
-private:
 };
 
 

@@ -81,6 +81,7 @@ public:
 class Config {
 public:
 	Config();
+	// Not trivially copyable since it holds raw pointers to levels, drivers and fans.
 	Config(const Config &) = delete;
 	~Config();
 	static const Config *read_config(const string &filename);
@@ -93,6 +94,7 @@ public:
 	const std::vector<const Level *> &levels() const;
 	const std::vector<const SensorDriver *> &sensors() const;
 
+	// No copy assignment operator either (not required).
 	Config &operator = (const Config &) = delete;
 
 private:

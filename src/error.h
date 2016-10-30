@@ -22,14 +22,6 @@
 #ifndef THINKFAN_ERROR_H_
 #define THINKFAN_ERROR_H_
 
-// Work around GCC bug #66145
-// This needs to be defined before library headers are included.
-// cf. https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_dual_abi.html
-// and https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66145
-#if __GNUC__ >= 5
-#define _GLIBCXX_USE_CXX11_ABI 0
-#endif
-
 #include <exception>
 #include <string>
 
