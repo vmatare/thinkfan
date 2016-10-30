@@ -96,8 +96,10 @@ Logger::~Logger()
 
 void Logger::enable_syslog()
 {
+#ifndef DISABLE_SYSLOG
 	openlog("thinkfan", LOG_CONS, LOG_USER);
 	syslog_ = true;
+#endif //DISABLE_SYSLOG
 }
 
 

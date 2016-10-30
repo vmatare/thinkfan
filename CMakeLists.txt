@@ -20,6 +20,13 @@ option(USE_NVML "Get temperatures directly from nVidia GPUs via their \
 proprietary NVML API" ON)
 
 
+option(DISABLE_BUGGER "Disable bug detection, i.e. dont't catch segfaults \
+    and unhandled exceptions" OFF)
+option(DISABLE_SYSLOG "Disable logging to syslog, always log to stdout" OFF)
+option(DISABLE_EXCEPTION_CATCHING "Terminate with SIGABRT on all exceptions, \
+    causing a core dump on every error" OFF)
+
+
 add_executable(thinkfan src/thinkfan.cpp src/config.cpp src/drivers.cpp
 	src/message.cpp src/parser.cpp src/error.cpp)
 
@@ -32,7 +39,7 @@ if(NOT CMAKE_BUILD_TYPE)
 		FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++1y")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g3 -DDEBUG")
 
 if(MAXERR)
@@ -49,6 +56,16 @@ if(USE_NVML)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_NVML")
 	target_link_libraries(thinkfan dl)
 endif(USE_NVML)
+
+if(DISABLE_BUGGER)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDISABLE_BUGGER")
+endif(DISABLE_BUGGER)
+if(DISABLE_SYSLOG)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDISABLE_SYSLOG")
+endif(DISABLE_SYSLOG)
+if(DISABLE_EXCEPTION_CATCHING)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDISABLE_EXCEPTION_CATCHING")
+endif(DISABLE_EXCEPTION_CATCHING)
 
 find_package(PkgConfig)
 pkg_check_modules(SYSTEMD "systemd")

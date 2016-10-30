@@ -73,10 +73,12 @@ void sig_handler(int signum) {
 	case SIGUSR1:
 		log(TF_INF) << temp_state << flush;
 		break;
+#ifndef DISABLE_BUGGER
 	case SIGSEGV:
 		// Let's hope memory isn't too fucked up to get through with this ;)
 		throw Bug("Segmentation fault.");
 		break;
+#endif
 	case SIGUSR2:
 		interrupted = signum;
 		log(TF_INF) << "Received SIGUSR2: Re-initializing fan control." << flush;
@@ -365,7 +367,9 @@ int main(int argc, char **argv) {
 		Logger::instance().enable_syslog();
 	}
 
+#if not defined(DISABLE_BUGGER)
 	std::set_terminate(handle_uncaught);
+#endif
 
 	memset(&handler, 0, sizeof(handler));
 	handler.sa_handler = sig_handler;
@@ -381,8 +385,9 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-
+#if not defined(DISABLE_EXCEPTION_CATCHING)
 	try {
+#endif // DISABLE_EXCEPTION_CATCHING
 		switch (set_options(argc, argv)) {
 		case 1:
 			return 0;
@@ -447,6 +452,7 @@ int main(int argc, char **argv) {
 		} while (!interrupted);
 
 		log(TF_INF) << MSG_TERM << flush;
+#if not defined(DISABLE_EXCEPTION_CATCHING)
 	}
 	catch (InvocationError &e) {
 		log(TF_ERR) << e.what() << flush;
@@ -463,6 +469,7 @@ int main(int argc, char **argv) {
 				MSG_BUG << flush;
 		return 2;
 	}
+#endif // DISABLE_EXCEPTION_CATCHING
 
 	return 0;
 }

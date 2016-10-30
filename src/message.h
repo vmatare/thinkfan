@@ -218,6 +218,8 @@ template<class ErrT, class... ArgTs> void error(ArgTs... args) {
 #define MSG_CONF_TP_LVL7(n, max) "Your highest fan level is " + std::to_string(n) + \
 	", but fan levels greater than " + std::to_string(max) + " are not supported by thinkpad_acpi."
 
+#define MSG_CONF_MISSING_LOWER_LIMIT "You must specify a lower limit on all but the first fan level."
+#define MSG_CONF_MISSING_UPPER_LIMIT "You must specify an upper limit on all but the last fan level."
 
 
 #endif
