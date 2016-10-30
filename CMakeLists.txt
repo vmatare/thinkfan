@@ -68,7 +68,7 @@ if(SYSTEMD_FOUND)
 		    "${CMAKE_BINARY_DIR}/rcscripts/systemd/thinkfan.service"
 		DESTINATION lib/systemd/system)
 	install(FILES rcscripts/systemd/00-thinkfan.conf
-		DESTINATION /etc/systemd/system/thinkfan.service.d)
+		DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}/systemd/system/thinkfan.service.d")
 endif(SYSTEMD_FOUND)
 
 if(OPENRC_FOUND)

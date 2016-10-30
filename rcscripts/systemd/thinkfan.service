@@ -3,8 +3,8 @@ Description=Thinkfan, the minimalist fan control program
 
 [Service]
 Type=forking
-ExecStart=/usr/local/sbin/thinkfan
-PIDFile=/var/run/thinkfan.pid
+ExecStart=/usr/local/sbin/thinkfan $THINKFAN_ARGS
+PIDFile=/run/thinkfan.pid
 ExecReload=/bin/kill -HUP $MAINPID
 
 [Install]
