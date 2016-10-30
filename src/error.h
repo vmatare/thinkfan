@@ -34,6 +34,14 @@
 
 namespace thinkfan {
 
+
+std::string demangle(const char* name);
+// Cf. http://stackoverflow.com/questions/281818/unmangling-the-result-of-stdtype-infoname
+template <class T>
+std::string type(const T &t)
+{ return demangle(typeid(t).name()); }
+
+
 class Error : public std::exception {
 protected:
 	string msg_;

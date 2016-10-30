@@ -22,6 +22,13 @@
 #include "error.h"
 #include <execinfo.h>
 #include <cstring>
+#include <sstream>
+
+#ifdef __GNUG__
+#include <cstdlib>
+#include <memory>
+#include <cxxabi.h>
+#endif
 
 namespace thinkfan {
 
@@ -36,12 +43,42 @@ static string make_backtrace()
 
 	char **bt_pretty = backtrace_symbols(bt_buffer, stack_depth);
 	for (int i=0; i < stack_depth; ++i) {
-		backtrace_ += bt_pretty[i];
+		string line(bt_pretty[i]);
+		string::size_type i1 = line.rfind('(');
+		string::size_type i2 = line.rfind('+');
+		if (i1 != string::npos && i2 != string::npos && i2 - i1 > 1
+		        && line[i1+1] != '+') // line contains a function name to demangle
+			line = line.substr(0, i1+1) + demangle(line.substr(i1+1, i2-i1-1).c_str()) + line.substr(i2);
+		backtrace_ += line;
 		backtrace_ += '\n';
 	}
 	free(bt_pretty);
 	return backtrace_;
 }
+
+
+#ifdef __GNUG__
+// Cf. http://stackoverflow.com/questions/281818/unmangling-the-result-of-stdtype-infoname
+std::string demangle(const char* name) {
+
+	int status = -4; // some arbitrary value to eliminate the compiler warning
+
+	std::unique_ptr<char, void(*)(void*)> res {
+		abi::__cxa_demangle(name, NULL, NULL, &status),
+		std::free
+	};
+
+	return (status==0) ? res.get() : name ;
+}
+
+#else
+
+// does nothing if not g++
+std::string demangle(const char* name) {
+	return name;
+}
+
+#endif
 
 
 Error::Error(const string &message)
@@ -79,9 +116,12 @@ void handle_uncaught()
 	try {
 		std::rethrow_exception(std::current_exception());
 	} catch (const std::exception &e) {
-		log(TF_ERR) << "Unhandled exception: " << typeid(e).name() << ": " << e.what() << "." << flush <<
+		log(TF_ERR) << "Unhandled " << demangle(typeid(e).name()) << ": " <<
+		        e.what() << "." << flush <<
 				"errno = " << err << "." << flush <<
-				"Backtrace:" << make_backtrace() << flush <<
+				"_GLIBCXX_USE_CXX11_ABI = " << _GLIBCXX_USE_CXX11_ABI << "." << flush <<
+		        flush << "Backtrace:" << flush <<
+		        make_backtrace() << flush <<
 				MSG_BUG << flush;
 	}
 	// We can expect to be killed by SIGABRT after this function returns.
@@ -107,8 +147,9 @@ SyntaxError::SyntaxError(const string filename, const std::ptrdiff_t offset, con
 }
 
 
-ConfigError::ConfigError(const std::string &reason)
-: ExpectedError("Invalid config: " + reason) {}
+ConfigError::ConfigError(const string &reason)
+: ExpectedError(reason)
+{}
 
 
 InvocationError::InvocationError(const string &message)
