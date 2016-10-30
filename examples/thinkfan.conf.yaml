@@ -1,0 +1,20 @@
+sensors:
+  - hwmon: /sys/devices/platform/nct6775.656
+    temps: [1, 3]
+
+  #- tp_thermal: /proc/acpi/ibm/thermal
+
+#fans:
+ # - pwm_fan: /sys/class/hwmon....
+  #- tp_fan: /proc/acpi/ibm/fan
+
+levels:
+  - speed: 0
+    upper_limit: [50, 50, 50]
+  
+  - speed: 2
+    lower_limit: [45, 45, 45]
+    #upper_limit: [60, 60, 60]
+    
+  # ...
+

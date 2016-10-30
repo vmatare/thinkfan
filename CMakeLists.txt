@@ -31,12 +31,25 @@ option(USE_ATASMART "Enable reading temperatures from HDDs via S.M.A.R.T" OFF)
 option(USE_NVML "Get temperatures directly from nVidia GPUs via their\
  proprietary NVML API" ON)
 
+#
+# The shiny new YAML config parser. Depends on yaml-cpp.
+#
+option(USE_YAML "Enable the new YAML-based config format" ON)
+
 
 option(DISABLE_BUGGER "Disable bug detection, i.e. dont't catch segfaults\
  and unhandled exceptions" OFF)
 option(DISABLE_SYSLOG "Disable logging to syslog, always log to stdout" OFF)
 option(DISABLE_EXCEPTION_CATCHING "Terminate with SIGABRT on all exceptions,\
  causing a core dump on every error" OFF)
+
+
+set(SRC_FILES src/thinkfan.cpp src/config.cpp src/drivers.cpp
+    src/message.cpp src/parser.cpp src/error.cpp)
+
+if(USE_YAML)
+    set(SRC_FILES ${SRC_FILES} src/yamlconfig.cpp)
+endif(USE_YAML)
 
 
 #
@@ -50,8 +63,8 @@ endif(NOT CMAKE_BUILD_TYPE)
 add_compile_options(-Wall -std=c++1y)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g3 -DDEBUG")
 
-add_executable(thinkfan src/thinkfan.cpp src/config.cpp src/drivers.cpp
-    src/message.cpp src/parser.cpp src/error.cpp)
+
+add_executable(thinkfan ${SRC_FILES})
 
 
 if(MAXERR)
@@ -68,6 +81,12 @@ if(USE_NVML)
     add_definitions(-DUSE_NVML)
     target_link_libraries(thinkfan dl)
 endif(USE_NVML)
+
+if(USE_YAML)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_YAML")
+	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/home/vmatare/devel/yaml-cpp/include -L/home/vmatare/devel/build-yaml-cpp-Desktop-Default")
+	target_link_libraries(thinkfan yaml-cpp)
+endif(USE_YAML)
 
 if(DISABLE_BUGGER)
     add_definitions(-DDISABLE_BUGGER)

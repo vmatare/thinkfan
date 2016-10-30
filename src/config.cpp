@@ -26,6 +26,7 @@
 #include "parser.h"
 #include "message.h"
 #include "thinkfan.h"
+#include "yamlconfig.h"
 
 
 namespace thinkfan {
@@ -50,9 +51,26 @@ const Config *Config::read_config(const string &filename)
 	if (!f_in.read(&*f_data.begin(), f_size))
 		throw IOerror(filename + ": ", errno);
 
+	try
 	{
-		ConfigParser parser;
+		YAML::Node root = YAML::Load(f_data);
+		rv = root.as<YAML::wtf_ptr<Config>>().release();
+#if not defined(DISABLE_EXCEPTION_CATCHING)
+	} catch(YamlError &e) {
+		throw ConfigError(filename, e.mark, f_data, e.what());
+	} catch(YAML::BadConversion &e) {
+		throw ConfigError(filename, e.mark, f_data, "Invalid entry");
+#endif
+	} catch(YAML::ParserException &e) {
 
+		string ext = filename.substr(filename.rfind('.'));
+		std::for_each(ext.begin(), ext.end(), [] (char &c) {
+			return std::toupper(c, std::locale());
+		} );
+		if (ext == "YAML")
+			throw ConfigError(filename + ": YAML syntax error: " + e.what());
+
+		ConfigParser parser;
 
 		const char *input = f_data.c_str();
 		const char *start = input;
@@ -63,6 +81,7 @@ const Config *Config::read_config(const string &filename)
 			throw SyntaxError(filename, parser.get_max_addr() - start, f_data);
 		}
 	}
+
 	// Consistency checks which require the complete config
 
 	if (rv->levels().size() == 0)
