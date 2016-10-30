@@ -64,7 +64,7 @@ IOerror::IOerror(const string &message, const int error_code)
 {}
 
 
-const int IOerror::code()
+int IOerror::code()
 { return code_; }
 
 
@@ -88,7 +88,7 @@ void handle_uncaught()
 }
 
 
-SyntaxError::SyntaxError(const string filename, const size_t offset, const string &input)
+SyntaxError::SyntaxError(const string filename, const std::ptrdiff_t offset, const string &input)
 {
 	unsigned int line = 1;
 	msg_ += filename + ":";
@@ -111,7 +111,7 @@ ConfigError::ConfigError(const std::string &reason)
 : ExpectedError("Invalid config: " + reason) {}
 
 
-InvocationError::InvocationError(const std::string &message)
+InvocationError::InvocationError(const string &message)
 : ExpectedError("Invalid command line: " + message) {}
 
 

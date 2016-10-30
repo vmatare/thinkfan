@@ -247,6 +247,11 @@ string *EnclosureParser::content(const char *&input)
 { return RegexParser(content_, 0, nl_).parse(input); }
 
 
+BracketParser::BracketParser()
+: EnclosureParser({"(", ")", "{", "}"})
+{}
+
+
 vector<int> *TupleParser::_parse(const char *&input)
 {
 	if (!bracket_parser_.open(input))

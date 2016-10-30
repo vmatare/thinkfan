@@ -61,13 +61,13 @@ private:
 public:
 	IOerror(const string &message, const int error_code);
 
-	const int code();
+	int code();
 };
 
 
 class SyntaxError : public ExpectedError {
 public:
-	SyntaxError(const string filename, const size_t offset, const string &input);
+	SyntaxError(const string filename, const std::ptrdiff_t offset, const string &input);
 };
 
 

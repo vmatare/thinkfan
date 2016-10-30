@@ -50,11 +50,9 @@ bool daemonize(true);
 seconds sleeptime(5);
 seconds tmp_sleeptime = sleeptime;
 float bias_level(1.5);
-int opt;
 float depulse = 0;
 std::string config_file = CONFIG_DEFAULT;
 TemperatureState temp_state(0);
-std::unique_ptr<PidFileHolder> pid_file;
 
 volatile int interrupted(0);
 
@@ -150,6 +148,7 @@ int set_options(int argc, char **argv)
 	;
 #endif
 	opterr = 0;
+	int opt;
 	while ((opt = getopt(argc, argv, optstring)) != -1) {
 		switch(opt) {
 		case 'h':
@@ -195,9 +194,9 @@ int set_options(int argc, char **argv)
 					else if (s < 1)
 						throw InvocationError(MSG_OPT_S_1(s));
 					sleeptime = seconds(static_cast<unsigned int>(s));
-				} catch (std::invalid_argument &e) {
+				} catch (std::invalid_argument &) {
 					throw InvocationError(MSG_OPT_S_INVAL(optarg));
-				} catch (std::out_of_range &e) {
+				} catch (std::out_of_range &) {
 					throw InvocationError(MSG_OPT_S_INVAL(optarg));
 				}
 			}
@@ -245,7 +244,7 @@ int set_options(int argc, char **argv)
 }
 
 
-PidFileHolder::PidFileHolder(unsigned int pid)
+PidFileHolder::PidFileHolder(::__pid_t pid)
 : pid_file_(PID_FILE, std::ios_base::in)
 {
 	if (!pid_file_.fail())
@@ -360,6 +359,7 @@ int main(int argc, char **argv) {
 	using namespace thinkfan;
 
 	struct sigaction handler;
+	std::unique_ptr<PidFileHolder> pid_file;
 
 	if (!isatty(fileno(stdout))) {
 		Logger::instance().enable_syslog();
@@ -432,7 +432,7 @@ int main(int argc, char **argv) {
 				try {
 					std::unique_ptr<const Config> config_new(Config::read_config(config_file));
 					config.swap(config_new);
-				} catch(ExpectedError &e) {
+				} catch(ExpectedError &) {
 					log(TF_ERR) << MSG_CONF_RELOAD_ERR << flush;
 				} catch(std::exception &e) {
 					log(TF_ERR) << "read_config: " << e.what() << flush;

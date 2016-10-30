@@ -78,7 +78,7 @@ public:
 
 class PidFileHolder {
 public:
-	PidFileHolder(unsigned int pid);
+	PidFileHolder(::__pid_t pid);
 	~PidFileHolder();
 private:
 	std::fstream pid_file_;
@@ -96,6 +96,8 @@ extern seconds sleeptime, tmp_sleeptime;
 extern float bias_level;
 extern volatile int interrupted;
 extern TemperatureState temp_state;
+extern string config_file;
+extern float depulse;
 
 
 }

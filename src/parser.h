@@ -39,7 +39,7 @@ class Config;
 static const string tpacpi_path = "/proc/acpi/ibm";
 
 class ErrorTracker {
-private:
+protected:
 	static const char *max_addr_;
 };
 
@@ -143,7 +143,7 @@ private:
 
 class BracketParser : public EnclosureParser {
 public:
-	BracketParser() : EnclosureParser({"(", ")", "{", "}"}) {}
+	BracketParser();
 };
 
 
@@ -157,7 +157,7 @@ private:
 
 class TupleParser : public Parser<vector<int>> {
 public:
-	TupleParser(bool allow_dot = false) : int_list_parser_(allow_dot) {};
+	TupleParser(bool allow_dot = false) : int_list_parser_(allow_dot) {}
 	virtual vector<int> *_parse(const char *&input) override;
 private:
 	BracketParser bracket_parser_;
