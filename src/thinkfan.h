@@ -27,7 +27,9 @@
 #include <fstream>
 
 #define VERSION "0.99.0"
+#if not defined(PID_FILE)
 #define PID_FILE "/var/run/thinkfan.pid"
+#endif
 #define CONFIG_DEFAULT "/etc/thinkfan.conf"
 
 #ifndef DEFAULT_FAN
