@@ -89,7 +89,7 @@ TpFanDriver::TpFanDriver(const std::string &path)
 	line.resize(256);
 
 	while (f.getline(&*line.begin(), 255)) {
-		if (f.badbit)
+		if (f.fail())
 			throw IOerror(MSG_FAN_INIT(path_), errno);
 		if (line.rfind("level:") != string::npos) {
 			// remember initial level, restore it in d'tor
@@ -335,20 +335,21 @@ TpSensorDriver::TpSensorDriver(std::string path)
 void TpSensorDriver::read_temps() const
 {
 	std::ifstream f(path_);
-	try {
-		f.exceptions(f.failbit | f.badbit);
-		f.seekg(skip_bytes_);
-
-		f.exceptions(f.badbit);
-		unsigned int tidx = 0;
-		int tmp;
-		while (!f.eof()) {
-			f >> tmp;
-			if (!f.fail() && in_use_[tidx])
-				temp_state.add_temp(tmp + correction_[tidx++]);
-		}
-	} catch (std::ios_base::failure &) {
+	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_T_GET(path_), errno);
+
+	f.seekg(skip_bytes_);
+	if (f.fail())
+		throw IOerror(MSG_T_GET(path_), errno);
+
+	unsigned int tidx = 0;
+	int tmp;
+	while (!f.eof()) {
+		f >> tmp;
+		if (f.bad())
+			throw IOerror(MSG_T_GET(path_), errno);
+		if (!f.fail() && in_use_[tidx])
+			temp_state.add_temp(tmp + correction_[tidx++]);
 	}
 }
 
