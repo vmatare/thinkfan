@@ -16,7 +16,7 @@ else(SYSTEMD_FOUND)
     set(PID_FILE "/var/run/thinkfan.pid")
 endif(SYSTEMD_FOUND)
 
-add_definitions(-DPID_FILE="\\"${PID_FILE}\\"")
+add_definitions(-DPID_FILE=\"${PID_FILE}\")
 
 #
 # Defaults to OFF because libatasmart seems to be horribly inefficient
