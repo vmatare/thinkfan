@@ -107,6 +107,8 @@ void run(const Config &config)
 	config.fan()->set_speed(*cur_lvl);
 
 	while (likely(!interrupted)) {
+		std::this_thread::sleep_for(sleeptime);
+
 		temp_state.restart();
 
 		for (const SensorDriver *sensor : config.sensors())
@@ -136,7 +138,6 @@ void run(const Config &config)
 #endif
 		}
 
-		std::this_thread::sleep_for(sleeptime);
 	}
 }
 
@@ -216,9 +217,9 @@ int set_options(int argc, char **argv)
 					if (b < -10 || b > 30)
 						error<InvocationError>(MSG_OPT_B);
 					bias_level = b / 10;
-				} catch (std::invalid_argument &e) {
+				} catch (std::invalid_argument &) {
 					throw InvocationError(MSG_OPT_B_INVAL(optarg));
-				} catch (std::out_of_range &e) {
+				} catch (std::out_of_range &) {
 					throw InvocationError(MSG_OPT_B_INVAL(optarg));
 				}
 			}
@@ -253,18 +254,16 @@ PidFileHolder::PidFileHolder(::__pid_t pid)
 		error<SystemError>(MSG_RUNNING);
 	pid_file_.close();
 	pid_file_.open(PID_FILE, std::ios_base::out | std::ios_base::trunc);
-	pid_file_.exceptions(pid_file_.badbit | pid_file_.failbit);
-	pid_file_ << pid << std::flush;
+	if (!(pid_file_ << pid << std::flush))
+		error<IOerror>("Writing to " PID_FILE ": ", errno);
 }
 
 
 PidFileHolder::~PidFileHolder()
 {
 	pid_file_.close();
-	if (::unlink(PID_FILE) == -1) {
-		string msg = std::strerror(errno);
-		throw SystemError("Deleting " PID_FILE ": " + msg);
-	}
+	if (::unlink(PID_FILE) == -1)
+		throw IOerror("Deleting " PID_FILE ": ", errno);
 }
 
 
