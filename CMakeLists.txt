@@ -43,8 +43,7 @@ option(DISABLE_EXCEPTION_CATCHING "Terminate with SIGABRT on all exceptions,\
 # Set default build type
 #
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build,
-	options are: Debug Release RelWithDebInfo MinSizeRel."
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Options are: Debug Release RelWithDebInfo MinSizeRel."
 	FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
 
