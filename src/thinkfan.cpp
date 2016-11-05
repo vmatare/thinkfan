@@ -263,7 +263,7 @@ PidFileHolder::~PidFileHolder()
 {
 	pid_file_.close();
 	if (::unlink(PID_FILE) == -1)
-		throw IOerror("Deleting " PID_FILE ": ", errno);
+		log(TF_ERR) << "Deleting " PID_FILE ": " << errno << "." << flush;
 }
 
 
