@@ -283,7 +283,7 @@ SimpleLevel *SimpleLevelParser::_parse(const char *&input)
 		) {
 			comment_parser.match(input);
 			ints.reset(IntListParser().parse(input));
-			if (ints && ints->size() == 2 && quot.close(input))
+			if (ints && ints->size() == 2 && bracket_parser_.close(input))
 				return new SimpleLevel(*lvl_str, (*ints)[0], (*ints)[1]);
 		}
 	}
