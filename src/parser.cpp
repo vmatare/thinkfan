@@ -34,6 +34,7 @@ const char *ErrorTracker::max_addr_ = nullptr;
 static RegexParser separator_parser("^([[:space:]]*,)|^([[:space:]]+)", 0);
 static CommentParser comment_parser;
 static RegexParser space_parser("^[[:space:]]*", 0, true);
+static RegexParser blank_parser("^[[:blank:]]*", 0, false);
 
 
 RegexParser::RegexParser(const string expr, const unsigned int data_idx, bool match_nl)
@@ -159,12 +160,10 @@ SensorDriver *SensorParser::_parse(const char *&input)
 	}
 
 	if (sensor) {
-		if (bracket_parser_.open(input)) {
-			unique_ptr<vector<int>> correction(TupleParser().parse(input));
-			if (!bracket_parser_.close(input) || !correction)
-				return nullptr;
+		blank_parser.match(input);
+		unique_ptr<vector<int>> correction(TupleParser().parse(input));
+		if (correction)
 			sensor->set_correction(*correction);
-		}
 	}
 
 	return sensor;
@@ -215,7 +214,7 @@ EnclosureParser::EnclosureParser(initializer_list<string> bracket_pairs, bool nl
 
 string *EnclosureParser::_parse(const char *&input)
 {
-	space_parser.match(input);
+	blank_parser.match(input);
 	vector<string>::const_iterator it = brackets_.begin();
 	unique_ptr<string> rv;
 	do {
@@ -307,6 +306,7 @@ ComplexLevel *ComplexLevelParser::_parse(const char *&input)
 		return nullptr;
 
 	comment_parser.match(input);
+	space_parser.match(input);
 
 	EnclosureParser quot({"\"", "\""});
 	if (quot.open(input)) {
@@ -358,12 +358,11 @@ Config *ConfigParser::_parse(const char *&input)
 {
 	// Use smart pointers here since we may cause an exception (rv->add_*()...)
 	unique_ptr<Config> rv(new Config());
-	RegexParser space_parser_("^[[:space:]]+", 0, true);
 
 	bool some_match;
 	do {
 		some_match = comment_parser.match(input)
-				|| space_parser_.match(input)
+				|| space_parser.match(input)
 				|| rv->add_fan(unique_ptr<FanDriver>(parser_fan.parse(input)))
 				|| rv->add_sensor(unique_ptr<SensorDriver>(parser_sensor.parse(input)))
 				|| rv->add_level(unique_ptr<SimpleLevel>(parser_simple_lvl.parse(input)))
