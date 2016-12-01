@@ -33,8 +33,8 @@ const char *ErrorTracker::max_addr_ = nullptr;
 
 static RegexParser separator_parser("^([[:space:]]*,)|^([[:space:]]+)", 0);
 static CommentParser comment_parser;
-static RegexParser space_parser("^[[:space:]]*", 0, true);
-static RegexParser blank_parser("^[[:blank:]]*", 0, false);
+static RegexParser space_parser("^[[:space:]]+", 0, true);
+static RegexParser blank_parser("^[[:blank:]]+", 0, false);
 
 
 RegexParser::RegexParser(const string expr, const unsigned int data_idx, bool match_nl)
