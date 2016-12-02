@@ -185,9 +185,9 @@ vector<int> *IntListParser::_parse(const char *&input)
 	do {
 		dot.reset(nullptr);
 
-		if (i.reset(int_parser_.parse(input)), i)
+		if ( (void)i.reset(int_parser_.parse(input)), i)
 			rv->push_back(*i);
-		else if (allow_dot_ && (dot.reset(dot_parser_.parse(input)), dot))
+		else if (allow_dot_ && ( (void)dot.reset(dot_parser_.parse(input)), dot))
 			rv->push_back(numeric_limits<int>::max());
 		else
 			return nullptr;

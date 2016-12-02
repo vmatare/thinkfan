@@ -51,6 +51,7 @@ const Config *Config::read_config(const string &filename)
 	if (!f_in.read(&*f_data.begin(), f_size))
 		throw IOerror(filename + ": ", errno);
 
+#ifdef USE_YAML
 	try
 	{
 		YAML::Node root = YAML::Load(f_data);
@@ -62,13 +63,13 @@ const Config *Config::read_config(const string &filename)
 		throw ConfigError(filename, e.mark, f_data, "Invalid entry");
 #endif
 	} catch(YAML::ParserException &e) {
-
 		string ext = filename.substr(filename.rfind('.'));
 		std::for_each(ext.begin(), ext.end(), [] (char &c) {
 			return std::toupper(c, std::locale());
 		} );
 		if (ext == "YAML")
 			throw ConfigError(filename + ": YAML syntax error: " + e.what());
+#endif //USE_YAML
 
 		ConfigParser parser;
 
@@ -80,7 +81,9 @@ const Config *Config::read_config(const string &filename)
 		if (!rv) {
 			throw SyntaxError(filename, parser.get_max_addr() - start, f_data);
 		}
+#ifdef USE_YAML
 	}
+#endif //USE_YAML
 
 	// Consistency checks which require the complete config
 
