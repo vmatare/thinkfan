@@ -131,7 +131,7 @@ bool Config::add_fan(std::unique_ptr<FanDriver> &&fan)
 }
 
 
-bool Config::add_sensor(std::unique_ptr<const SensorDriver> &&sensor)
+bool Config::add_sensor(std::unique_ptr<SensorDriver> &&sensor)
 {
 	if (!sensor) return false;
 
@@ -141,7 +141,7 @@ bool Config::add_sensor(std::unique_ptr<const SensorDriver> &&sensor)
 }
 
 
-bool Config::add_level(std::unique_ptr<const Level> &&level)
+bool Config::add_level(std::unique_ptr<Level> &&level)
 {
 	if (!level) return false;
 
@@ -174,10 +174,10 @@ FanDriver *Config::fan() const
 unsigned int Config::num_temps() const
 { return num_temps_; }
 
-const std::vector<const Level *> &Config::levels() const
+const std::vector<Level *> &Config::levels() const
 { return levels_; }
 
-const std::vector<const SensorDriver *> &Config::sensors() const
+const std::vector<SensorDriver *> &Config::sensors() const
 { return sensors_; }
 
 

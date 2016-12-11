@@ -98,7 +98,7 @@ void run(const Config &config)
 	temp_state.first_run();
 
 	// Set initial fan level
-	std::vector<const Level *>::const_iterator cur_lvl = config.levels().begin();
+	std::vector<Level *>::const_iterator cur_lvl = config.levels().begin();
 	config.fan()->init();
 	while (cur_lvl != --config.levels().end() && (*cur_lvl)->up())
 		cur_lvl++;
