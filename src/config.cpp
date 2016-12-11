@@ -146,11 +146,7 @@ bool Config::add_level(std::unique_ptr<Level> &&level)
 	if (!level) return false;
 
 	if (levels_.size() > 0) {
-		const Level *last_lvl = levels_.back();
-		if (level->num() != std::numeric_limits<int>::max()
-				&& level->num() != std::numeric_limits<int>::min()
-				&& last_lvl->num() >= level->num())
-			error<ConfigError>(MSG_CONF_LVLORDER);
+		Level *last_lvl = levels_.back();
 
 		if (last_lvl->upper_limit().size() != level->upper_limit().size())
 			error<ConfigError>(MSG_CONF_LVLORDER);
@@ -161,6 +157,17 @@ bool Config::add_level(std::unique_ptr<Level> &&level)
 		{
 			if (*mit < *oit) error<ConfigError>(MSG_CONF_OVERLAP);
 		}
+
+		for (size_t i = 0; i < level->upper_limit().size(); i++) {
+			// Compute incline for linear level interpolation
+			last_lvl->incline_lower(i) = static_cast<float>(level->num() - last_lvl->num()) /
+					(level->lower_limit(i) - last_lvl->lower_limit(i));
+			last_lvl->incline_upper(i) = static_cast<float>(level->num() - last_lvl->num()) /
+					(level->upper_limit(i) - last_lvl->upper_limit(i));
+			if (last_lvl->incline_lower(i) < 0 || last_lvl->incline_upper(i) < 0)
+				error<ConfigError>(MSG_CONF_LVLORDER);
+		}
+
 	}
 
 	levels_.push_back(level.release());
@@ -227,6 +234,12 @@ Level::Level(string level, const std::vector<int> &lower_limit, const std::vecto
 	}
 }
 
+
+float &Level::incline_lower(size_t idx)
+{ return incline_lower_.at(idx); }
+
+float &Level::incline_upper(size_t idx)
+{ return incline_upper_.at(idx); }
 
 const std::vector<int> &Level::lower_limit() const
 { return lower_limit_; }
