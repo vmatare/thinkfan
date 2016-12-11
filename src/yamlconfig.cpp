@@ -446,8 +446,8 @@ struct convert<vector<wtf_ptr<Level>>> {
 
 bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 {
+	config = make_wtf<Config>();
 	for (YAML::const_iterator it = node.begin(); it != node.end(); ++it) {
-		config = make_wtf<Config>();
 		const Node &entry = it->second;
 		const string key = it->first.as<string>();
 		if (key == kw_sensors) {
