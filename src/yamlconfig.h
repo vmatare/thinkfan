@@ -14,7 +14,7 @@ namespace YAML {
 using namespace std;
 
 /**
- * This the glorious wtf_ptr which unifies shared_ptr semantics with
+ * This is the glorious wtf_ptr which unifies shared_ptr semantics with
  * the unique_ptr's ability to release(), i.e. relinquish ownership.
  * This weird hack is required since yaml-cpp cannot deal with non-copyable types like
  * std::unique_ptr. I'm sorry.
@@ -28,6 +28,11 @@ public:
 	wtf_ptr<T>(wtf_ptr<T1> &&ptr)
 		: shared_ptr<unique_ptr<T>>(new unique_ptr<T>(ptr.release()))
 	{}
+
+	/*template<typename T1>
+	wtf_ptr<T>(const wtf_ptr<T1> &ptr)
+		: shared_ptr<unique_ptr<T>>(ptr.get())
+	{}*/
 
 	wtf_ptr()
 		: shared_ptr<unique_ptr<T>>()
@@ -45,6 +50,10 @@ public:
 
 	auto operator * () const
 	{ return this->get()->operator * (); }
+
+	template<typename T1>
+	wtf_ptr<T> &operator = (wtf_ptr<T1>&& ptr) noexcept
+	{ return this->shared_ptr<T>::operator = (std::move(ptr)); }
 };
 
 
