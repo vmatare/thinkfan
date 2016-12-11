@@ -53,7 +53,7 @@ public:
 	virtual void init() const {}
 	virtual void set_speed(const string &level);
 	virtual void set_speed(const Level *level) = 0;
-	virtual void ping_watchdog_and_depulse(const Level *level) {}
+	virtual void ping_watchdog_and_depulse(const Level *) {}
 	bool operator == (const FanDriver &other) const;
 };
 
@@ -81,10 +81,8 @@ public:
 
 class SensorDriver {
 protected:
-	string path_;
-	SensorDriver(string path);
+	SensorDriver(string path, std::vector<int> correction = {});
 	SensorDriver() : num_temps_(0) {}
-	std::vector<int> correction_;
 public:
 	virtual ~SensorDriver() = default;
 	virtual void read_temps() const = 0;
@@ -92,15 +90,19 @@ public:
 	void set_correction(const std::vector<int> &correction);
 	void set_num_temps(unsigned int n);
 	bool operator == (const SensorDriver &other) const;
+protected:
+	string path_;
+	std::vector<int> correction_;
 private:
 	unsigned int num_temps_;
+	void check_correction_length();
 };
 
 
 class TpSensorDriver : public SensorDriver {
 public:
-	TpSensorDriver(string path);
-	TpSensorDriver(string path, const std::vector<int> &temp_indices);
+	TpSensorDriver(string path, std::vector<int> correction = {});
+	TpSensorDriver(string path, const std::vector<unsigned int> &temp_indices, std::vector<int> correction = {});
 	virtual void read_temps() const override;
 private:
 	std::char_traits<char>::off_type skip_bytes_;
@@ -111,7 +113,7 @@ private:
 
 class HwmonSensorDriver : public SensorDriver {
 public:
-	HwmonSensorDriver(string path);
+	HwmonSensorDriver(string path, std::vector<int> correction = {});
 	virtual void read_temps() const override;
 };
 
@@ -119,7 +121,7 @@ public:
 #ifdef USE_ATASMART
 class AtasmartSensorDriver : public SensorDriver {
 public:
-	AtasmartSensorDriver(string device_path);
+	AtasmartSensorDriver(string device_path, std::vector<int> correction = {});
 	virtual ~AtasmartSensorDriver();
 	virtual void read_temps() const override;
 private:
@@ -131,7 +133,7 @@ private:
 #ifdef USE_NVML
 class NvmlSensorDriver : public SensorDriver {
 public:
-	NvmlSensorDriver(string bus_id);
+	NvmlSensorDriver(string bus_id, std::vector<int> correction = {});
 	virtual ~NvmlSensorDriver();
 	virtual void read_temps() const override;
 private:
