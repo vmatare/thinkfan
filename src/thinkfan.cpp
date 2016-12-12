@@ -377,8 +377,10 @@ int main(int argc, char **argv) {
 	 || sigaction(SIGINT, &handler, NULL)
 	 || sigaction(SIGTERM, &handler, NULL)
 	 || sigaction(SIGUSR1, &handler, NULL)
-	 || sigaction(SIGUSR2, &handler, NULL)
-	 || sigaction(SIGSEGV, &handler, NULL)) {
+#if not defined(DISABLE_BUGGER)
+	 || sigaction(SIGSEGV, &handler, NULL)
+#endif
+	 || sigaction(SIGUSR2, &handler, NULL)) {
 		string msg = strerror(errno);
 		log(TF_ERR) << "sigaction: " << msg;
 		return 1;
@@ -390,7 +392,6 @@ int main(int argc, char **argv) {
 		switch (set_options(argc, argv)) {
 		case 1:
 			return 0;
-			break;
 		case 0:
 			break;
 		default:
