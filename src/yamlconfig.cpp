@@ -41,8 +41,16 @@ static int get_index(const string &fname, const string &pfx, const string &sfx)
 {
 	int rv = -1;
 	string::size_type i = fname.rfind(sfx);
-	if (fname.substr(0, pfx.length()) != pfx || i == string::npos || fname.substr(i) != sfx)
-		std::stringstream(fname.substr(pfx.length() + 1, i + 1)) >> rv;
+	if (fname.substr(0, pfx.length()) == pfx && i != string::npos) {
+		try {
+			size_t idx_len;
+			rv = stoi(fname.substr(pfx.length()), &idx_len, 10);
+			if (fname.substr(pfx.length() + idx_len) != sfx)
+				return -1;
+		} catch (...)
+		{}
+	}
+
 	return rv;
 }
 
@@ -118,7 +126,7 @@ static vector<wtf_ptr<T>> find_hwmons(string path, vector<int> &&indices)
 
 		if (nentries > 0) {
 			for (int i = 0; i < nentries; i++) {
-				int temp_idx = get_index<T>(entries[i]->d_name);
+				temp_idx = get_index<T>(entries[i]->d_name);
 				if (temp_idx < 0)
 					break; // no index found in file name
 
