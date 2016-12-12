@@ -43,7 +43,7 @@ public:
 	{}
 
 	auto release()
-	{ return this->get()->release(); }
+	{ return *this ? this->get()->release() : nullptr; }
 
 	auto operator -> () const
 	{ return this->get()->operator -> (); }
