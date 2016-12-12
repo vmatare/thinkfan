@@ -94,6 +94,7 @@ TpFanDriver::TpFanDriver(const std::string &path)
 		if (line.rfind("level:") != string::npos) {
 			// remember initial level, restore it in d'tor
 			initial_state_ = line.substr(line.find_last_of(" \t") + 1);
+			log(TF_DBG) << path_ << ": Saved initial state: " << initial_state_ << "." << flush;
 		}
 		else if (line.rfind("commands:") != std::string::npos && line.rfind("level <level>") != std::string::npos) {
 			ctrl_supported = true;
@@ -111,6 +112,7 @@ TpFanDriver::~TpFanDriver()
 	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_FAN_RESET(path_), errno);
 
+	log(TF_DBG) << path_ << ": Restoring initial state: " << initial_state_ << "." << flush;
 	if (!(f << "level " << initial_state_ << std::flush))
 		throw IOerror(MSG_FAN_RESET(path_), errno);
 }
@@ -170,6 +172,7 @@ HwmonFanDriver::HwmonFanDriver(const std::string &path)
 	if (!f.getline(&*line.begin(), 63))
 		throw IOerror(MSG_FAN_INIT(path_), errno);
 	initial_state_ = line;
+	log(TF_DBG) << path_ << ": Saved initial state: " << initial_state_ << "." << flush;
 }
 
 
@@ -178,6 +181,7 @@ HwmonFanDriver::~HwmonFanDriver()
 	std::ofstream f(path_ + "_enable");
 	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_FAN_RESET(path_), errno);
+	log(TF_DBG) << path_ << ": Restoring initial state: " << initial_state_ << "." << flush;
 	if (!(f << initial_state_ << std::flush))
 		throw IOerror(MSG_FAN_RESET(path_), errno);
 }
