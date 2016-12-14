@@ -157,7 +157,6 @@ int set_options(int argc, char **argv)
 		case 'h':
 			log(TF_INF) << MSG_TITLE << flush << MSG_USAGE << flush;
 			return 1;
-			break;
 #ifdef USE_ATASMART
 		case 'd':
 			dnd_disk = true;
@@ -265,6 +264,10 @@ PidFileHolder::~PidFileHolder()
 	if (::unlink(PID_FILE) == -1)
 		log(TF_ERR) << "Deleting " PID_FILE ": " << errno << "." << flush;
 }
+
+
+bool PidFileHolder::file_exists()
+{ return !ifstream(PID_FILE).fail(); }
 
 
 TemperatureState::TemperatureState(unsigned int num_temps)
@@ -397,6 +400,9 @@ int main(int argc, char **argv) {
 		default:
 			return 3;
 		}
+
+		if (PidFileHolder::file_exists())
+			error<SystemError>(MSG_RUNNING);
 
 		// Load the config temporarily once so we may fail before forking
 		LogLevel old_lvl = Logger::instance().log_lvl();

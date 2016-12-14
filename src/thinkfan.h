@@ -82,6 +82,7 @@ class PidFileHolder {
 public:
 	PidFileHolder(::__pid_t pid);
 	~PidFileHolder();
+	static bool file_exists();
 private:
 	std::fstream pid_file_;
 };
