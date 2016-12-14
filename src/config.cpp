@@ -63,12 +63,15 @@ const Config *Config::read_config(const string &filename)
 		throw ConfigError(filename, e.mark, f_data, "Invalid entry");
 #endif
 	} catch(YAML::ParserException &e) {
-		string ext = filename.substr(filename.rfind('.'));
-		std::for_each(ext.begin(), ext.end(), [] (char &c) {
-			return std::toupper(c, std::locale());
-		} );
-		if (ext == "YAML")
-			throw ConfigError(filename + ": YAML syntax error: " + e.what());
+		string::size_type ext_off = filename.rfind('.');
+		if (ext_off != string::npos) {
+			string ext = filename.substr(filename.rfind('.'));
+			std::for_each(ext.begin(), ext.end(), [] (char &c) {
+				c = std::toupper(c, std::locale());
+			} );
+			if (ext == ".YAML")
+				throw ConfigError(filename, e.mark, f_data, e.what());
+		}
 #endif //USE_YAML
 
 		ConfigParser parser;
@@ -201,14 +204,18 @@ Level::Level(int level, const std::vector<int> &lower_limit, const std::vector<i
 : level_s_("level " + std::to_string(level)),
   level_n_(level),
   lower_limit_(lower_limit),
-  upper_limit_(upper_limit)
+  upper_limit_(upper_limit),
+  incline_lower_(lower_limit.size(), 0),
+  incline_upper_(upper_limit.size(), 0)
 {}
 
 Level::Level(string level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit)
 : level_s_(level),
   level_n_(std::numeric_limits<int>::max()),
   lower_limit_(lower_limit),
-  upper_limit_(upper_limit)
+  upper_limit_(upper_limit),
+  incline_lower_(lower_limit.size(), 0),
+  incline_upper_(upper_limit.size(), 0)
 {
 	if (lower_limit.size() != upper_limit.size())
 		error<ConfigError>(MSG_CONF_LIMITLEN);
