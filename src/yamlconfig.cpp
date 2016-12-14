@@ -454,7 +454,11 @@ struct convert<vector<wtf_ptr<Level>>> {
 
 bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 {
+	if (!node.size())
+		throw ParserException(node.Mark(), "Invalid YAML syntax");
+
 	config = make_wtf<Config>();
+
 	for (YAML::const_iterator it = node.begin(); it != node.end(); ++it) {
 		const Node &entry = it->second;
 		const string key = it->first.as<string>();
@@ -464,10 +468,10 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 				config->add_sensor(unique_ptr<SensorDriver>(s.release()));
 			}
 		} else if (key == kw_fans) {
-				auto fans = entry.as<vector<wtf_ptr<FanDriver>>>();
-				for (wtf_ptr<FanDriver> &f : fans) {
-					config->add_fan(unique_ptr<FanDriver>(f.release()));
-				}
+			auto fans = entry.as<vector<wtf_ptr<FanDriver>>>();
+			for (wtf_ptr<FanDriver> &f : fans) {
+				config->add_fan(unique_ptr<FanDriver>(f.release()));
+			}
 		} else if (key == kw_levels) {
 			auto levels = entry.as<vector<wtf_ptr<Level>>>();
 			std::sort(levels.begin(), levels.end(), [] (wtf_ptr<Level> &lhs, wtf_ptr<Level> &rhs) {
