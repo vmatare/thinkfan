@@ -86,7 +86,8 @@ static int filter_pwms(const struct dirent *entry)
 
 static int filter_hwmon_dirs(const struct dirent *entry)
 {
-	if ((entry->d_type & (DT_DIR | DT_LNK)) && !strncmp("hwmon", entry->d_name, 5))
+	if ((entry->d_type & (DT_DIR | DT_LNK)) && (
+				!strncmp("hwmon", entry->d_name, 5) || !strcmp("device", entry->d_name)))
 		return 1;
 	return 0;
 }
