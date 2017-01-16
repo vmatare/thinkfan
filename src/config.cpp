@@ -23,6 +23,7 @@
 #include <fstream>
 #include <limits>
 #include <cstring>
+#include <cerrno>
 #include "parser.h"
 #include "message.h"
 #include "thinkfan.h"
@@ -34,7 +35,23 @@ namespace thinkfan {
 Config::Config() : num_temps_(0), fan_(nullptr) {}
 
 
-const Config *Config::read_config(const string &filename)
+const Config *Config::read_config(const std::vector<string> &filenames)
+{
+	const Config *rv = nullptr;
+	for (auto it = filenames.begin(); it != filenames.end(); ++it) {
+		try {
+			rv = try_read_config(*it);
+		} catch (IOerror &e) {
+			if (e.code() != ENOENT || it+1 >= filenames.end())
+				throw;
+		}
+	}
+
+	return rv;
+}
+
+
+const Config *Config::try_read_config(const string &filename)
 {
 	Config *rv = nullptr;
 

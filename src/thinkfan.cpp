@@ -51,8 +51,13 @@ seconds sleeptime(5);
 seconds tmp_sleeptime = sleeptime;
 float bias_level(1.5);
 float depulse = 0;
-std::string config_file = CONFIG_DEFAULT;
 TemperatureState temp_state(0);
+
+#ifdef USE_YAML
+std::vector<string> config_files({DEFAULT_YAML_CONFIG, DEFAULT_CONFIG});
+#else
+std::vector<std::string> config_files({DEFAULT_CONFIG});
+#endif
 
 volatile int interrupted(0);
 
@@ -163,7 +168,7 @@ int set_options(int argc, char **argv)
 			break;
 #endif
 		case 'c':
-			config_file = optarg;
+			config_files = std::vector<string>({optarg});
 			break;
 		case 'q':
 			--Logger::instance().log_lvl();
@@ -407,7 +412,7 @@ int main(int argc, char **argv) {
 		// Load the config temporarily once so we may fail before forking
 		LogLevel old_lvl = Logger::instance().log_lvl();
 		Logger::instance().log_lvl() = TF_ERR;
-		delete Config::read_config(config_file);
+		delete Config::read_config(config_files);
 		Logger::instance().log_lvl() = old_lvl;
 
 		if (daemonize) {
@@ -432,7 +437,7 @@ int main(int argc, char **argv) {
 		}
 
 		// Load the config for real after forking & enabling syslog
-		std::unique_ptr<const Config> config(Config::read_config(config_file));
+		std::unique_ptr<const Config> config(Config::read_config(config_files));
 		temp_state = TemperatureState(config->num_temps());
 
 		do {
@@ -441,7 +446,7 @@ int main(int argc, char **argv) {
 			if (interrupted == SIGHUP) {
 				log(TF_INF) << MSG_RELOAD_CONF << flush;
 				try {
-					std::unique_ptr<const Config> config_new(Config::read_config(config_file));
+					std::unique_ptr<const Config> config_new(Config::read_config(config_files));
 					config.swap(config_new);
 				} catch(ExpectedError &) {
 					log(TF_ERR) << MSG_CONF_RELOAD_ERR << flush;

@@ -30,7 +30,9 @@
 #if not defined(PID_FILE)
 #define PID_FILE "/var/run/thinkfan.pid"
 #endif
-#define CONFIG_DEFAULT "/etc/thinkfan.conf"
+
+#define DEFAULT_CONFIG "/etc/thinkfan.conf"
+#define DEFAULT_YAML_CONFIG "/etc/thinkfan.yaml"
 
 #ifndef DEFAULT_FAN
 #define DEFAULT_FAN "/proc/acpi/ibm/fan"
@@ -99,7 +101,7 @@ extern seconds sleeptime, tmp_sleeptime;
 extern float bias_level;
 extern volatile int interrupted;
 extern TemperatureState temp_state;
-extern string config_file;
+extern std::vector<string> config_files;
 extern float depulse;
 
 

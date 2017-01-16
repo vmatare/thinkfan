@@ -95,7 +95,7 @@ public:
 	// Not trivially copyable since it holds raw pointers to levels, drivers and fans.
 	Config(const Config &) = delete;
 	~Config();
-	static const Config *read_config(const string &filename);
+	static const Config *read_config(const std::vector<string> &filenames);
 	bool add_fan(std::unique_ptr<FanDriver> &&fan);
 	bool add_sensor(std::unique_ptr<SensorDriver> &&sensor);
 	bool add_level(std::unique_ptr<Level> &&level);
@@ -109,6 +109,7 @@ public:
 	Config &operator = (const Config &) = delete;
 
 private:
+	static const Config *try_read_config(const string &data);
 	std::vector<SensorDriver *> sensors_;
 	std::vector<Level *> levels_;
 	unsigned int num_temps_;
