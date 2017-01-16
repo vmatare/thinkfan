@@ -404,7 +404,12 @@ struct convert<wtf_ptr<SimpleLevel>> {
 			if (!node.IsSequence())
 				return false;
 
-			level = make_wtf<SimpleLevel>(node[0].as<int>(), node[1].as<int>(), node[2].as<int>());
+			try {
+				level = make_wtf<SimpleLevel>(node[0].as<int>(), node[1].as<int>(), node[2].as<int>());
+			} catch (BadConversion &) {
+				level = make_wtf<SimpleLevel>(node[0].as<string>(), node[1].as<int>(), node[2].as<int>());
+			}
+
 			return true;
 		}
 		else {
