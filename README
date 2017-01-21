@@ -49,7 +49,7 @@ Building and installing
 
    Or set your build options from the command line. E.g. to configure a build
    with full debugging support:
-    cmake -D CMAKE_BUILD_TYPE:STRING=Debug .
+    cmake -D CMAKE_BUILD_TYPE:STRING=Debug ..
 
    CMAKE_BUILD_TYPE:STRING can also be "Release", which produces a fully
    optimized binary, or "RelWithDebInfo", which is also optimized but can
