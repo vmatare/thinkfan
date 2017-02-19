@@ -311,7 +311,7 @@ bool ComplexLevel::up() const
 	const int *upper_idx = upper_limit().data();
 
 	while (temp_it != temp_state.biased_temps().end())
-		if (*(temp_it++) >= *upper_idx++) return true;
+		if (*temp_it++ >= *upper_idx++) return true;
 
 	return false;
 }
@@ -322,8 +322,10 @@ bool ComplexLevel::down() const
 	std::vector<int>::const_iterator temp_it = temp_state.biased_temps().begin();
 	const int *lower_idx = lower_limit().data();
 
-	while (temp_it != temp_state.biased_temps().end() && *(temp_it++) < *lower_idx++)
-		;
+	while (temp_it != temp_state.biased_temps().end() && *temp_it < *lower_idx) {
+		temp_it++;
+		lower_idx++;
+	}
 
 	return temp_it == temp_state.biased_temps().end();
 }
