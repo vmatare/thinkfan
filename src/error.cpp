@@ -119,8 +119,7 @@ void handle_uncaught()
 		log(TF_ERR) << "Unhandled " << demangle(typeid(e).name()) << ": " <<
 		        e.what() << "." << flush <<
 				"errno = " << err << "." << flush <<
-				"_GLIBCXX_USE_CXX11_ABI = " << _GLIBCXX_USE_CXX11_ABI << "." << flush <<
-		        flush << "Backtrace:" << flush <<
+				flush << "Backtrace:" << flush <<
 		        make_backtrace() << flush <<
 				MSG_BUG << flush;
 	}
