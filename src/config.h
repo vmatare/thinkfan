@@ -37,17 +37,10 @@ namespace thinkfan {
 
 class Level {
 protected:
-	friend class Config;
 	string level_s_;
 	int level_n_;
 	std::vector<int> lower_limit_;
 	std::vector<int> upper_limit_;
-	std::vector<float> incline_lower_;
-	std::vector<float> incline_upper_;
-
-	float &incline_lower(size_t idx);
-	float &incline_upper(size_t idx);
-
 public:
 	Level(int level, int lower_limit, int upper_limit);
 	Level(string level, int lower_limit, int upper_limit);
@@ -58,10 +51,6 @@ public:
 
 	const std::vector<int> &lower_limit() const;
 	const std::vector<int> &upper_limit() const;
-	int lower_limit(size_t idx) const
-	{ return lower_limit_.at(idx); }
-	int upper_limit(size_t idx) const
-	{ return upper_limit_.at(idx); }
 
 	virtual bool up() const = 0;
 	virtual bool down() const = 0;

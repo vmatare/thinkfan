@@ -166,7 +166,11 @@ bool Config::add_level(std::unique_ptr<Level> &&level)
 	if (!level) return false;
 
 	if (levels_.size() > 0) {
-		Level *last_lvl = levels_.back();
+		const Level *last_lvl = levels_.back();
+		if (level->num() != std::numeric_limits<int>::max()
+				&& level->num() != std::numeric_limits<int>::min()
+				&& last_lvl->num() >= level->num())
+			error<ConfigError>(MSG_CONF_LVLORDER);
 
 		if (last_lvl->upper_limit().size() != level->upper_limit().size())
 			error<ConfigError>(MSG_CONF_LVLORDER);
@@ -177,17 +181,6 @@ bool Config::add_level(std::unique_ptr<Level> &&level)
 		{
 			if (*mit < *oit) error<ConfigError>(MSG_CONF_OVERLAP);
 		}
-
-		for (size_t i = 0; i < level->upper_limit().size(); i++) {
-			// Compute incline for linear level interpolation
-			last_lvl->incline_lower(i) = static_cast<float>(level->num() - last_lvl->num()) /
-					(level->lower_limit(i) - last_lvl->lower_limit(i));
-			last_lvl->incline_upper(i) = static_cast<float>(level->num() - last_lvl->num()) /
-					(level->upper_limit(i) - last_lvl->upper_limit(i));
-			if (last_lvl->incline_lower(i) < 0 || last_lvl->incline_upper(i) < 0)
-				error<ConfigError>(MSG_CONF_LVLORDER);
-		}
-
 	}
 
 	levels_.push_back(level.release());
@@ -221,18 +214,14 @@ Level::Level(int level, const std::vector<int> &lower_limit, const std::vector<i
 : level_s_("level " + std::to_string(level)),
   level_n_(level),
   lower_limit_(lower_limit),
-  upper_limit_(upper_limit),
-  incline_lower_(lower_limit.size(), 0),
-  incline_upper_(upper_limit.size(), 0)
+  upper_limit_(upper_limit)
 {}
 
 Level::Level(string level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit)
 : level_s_(level),
   level_n_(std::numeric_limits<int>::max()),
   lower_limit_(lower_limit),
-  upper_limit_(upper_limit),
-  incline_lower_(lower_limit.size(), 0),
-  incline_upper_(upper_limit.size(), 0)
+  upper_limit_(upper_limit)
 {
 	if (lower_limit.size() != upper_limit.size())
 		error<ConfigError>(MSG_CONF_LIMITLEN);
@@ -258,12 +247,6 @@ Level::Level(string level, const std::vector<int> &lower_limit, const std::vecto
 	}
 }
 
-
-float &Level::incline_lower(size_t idx)
-{ return incline_lower_.at(idx); }
-
-float &Level::incline_upper(size_t idx)
-{ return incline_upper_.at(idx); }
 
 const std::vector<int> &Level::lower_limit() const
 { return lower_limit_; }
