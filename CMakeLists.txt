@@ -9,6 +9,8 @@ cmake_policy(SET CMP0015 NEW)
 find_package(PkgConfig)
 pkg_check_modules(SYSTEMD "systemd")
 pkg_check_modules(OPENRC "openrc")
+pkg_check_modules(YAML_CPP "yaml-cpp")
+pkg_check_modules(ATASMART "libatasmart")
 
 if(SYSTEMD_FOUND)
     set(PID_FILE "/run/thinkfan.pid")
@@ -48,6 +50,9 @@ set(SRC_FILES src/thinkfan.cpp src/config.cpp src/drivers.cpp
     src/message.cpp src/parser.cpp src/error.cpp)
 
 if(USE_YAML)
+    if(NOT YAML_CPP_FOUND)
+	message(FATAL_ERROR "USE_YAML enabled but yaml-cpp not found. Please install yaml-cpp[-devel]!")
+    endif()
     set(SRC_FILES ${SRC_FILES} src/yamlconfig.cpp)
 endif(USE_YAML)
 
@@ -67,13 +72,13 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g3 -DDEBUG")
 add_executable(thinkfan ${SRC_FILES})
 
 
-if(MAXERR)
-    add_definitions(-DMAXERR=${MAXERR})
-endif(MAXERR)
-
 if(USE_ATASMART)
-    add_definitions(-DUSE_ATASMART)
-    target_link_libraries(thinkfan atasmart)
+    if(NOT ATASMART_FOUND)
+	message(FATAL_ERROR "USE_ATASMART enabled but libatasmart not found. Please install libatasmart[-devel]!")
+    else()
+	add_definitions(-DUSE_ATASMART)
+	target_link_libraries(thinkfan atasmart)
+    endif()
 endif(USE_ATASMART)
 
 if(USE_NVML)
