@@ -119,8 +119,7 @@ void handle_uncaught()
 		log(TF_ERR) << "Unhandled " << demangle(typeid(e).name()) << ": " <<
 		        e.what() << "." << flush <<
 				"errno = " << err << "." << flush <<
-				"_GLIBCXX_USE_CXX11_ABI = " << _GLIBCXX_USE_CXX11_ABI << "." << flush <<
-		        flush << "Backtrace:" << flush <<
+				flush << "Backtrace:" << flush <<
 		        make_backtrace() << flush <<
 				MSG_BUG << flush;
 	}
@@ -150,6 +149,38 @@ SyntaxError::SyntaxError(const string filename, const std::ptrdiff_t offset, con
 ConfigError::ConfigError(const string &reason)
 : ExpectedError(reason)
 {}
+
+#ifdef USE_YAML
+
+ConfigError::ConfigError(const string &filename, const YAML::Mark &mark, const string &input, const string &msg)
+{
+	msg_ += filename + ":";
+	if (mark.is_null())
+		msg_ += string(" ") + msg;
+	else {
+		msg_ += std::to_string(mark.line + 1) + ":\n";
+		std::stringstream s(input);
+		std::array<char, 1024> line;
+		for (int i = 0; i <= mark.line; i++)
+			s.getline(&line[0], 1024);
+
+		msg_ += line.data() + string("\n");
+		msg_ += string(static_cast<size_t>(mark.column), ' ') + "^\n";
+	}
+	msg_ +=  msg + ".";
+}
+
+YamlError::YamlError(const YAML::Mark &mark, const string &msg)
+: Error(msg),
+  mark(mark)
+{}
+
+
+MissingEntry::MissingEntry(const string &entry)
+	: YamlError(YAML::Mark::null_mark(), string("Missing `") + entry + "' entry.")
+{}
+
+#endif
 
 
 InvocationError::InvocationError(const string &message)

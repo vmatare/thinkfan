@@ -23,9 +23,11 @@
 #include <fstream>
 #include <limits>
 #include <cstring>
+#include <cerrno>
 #include "parser.h"
 #include "message.h"
 #include "thinkfan.h"
+#include "yamlconfig.h"
 
 
 namespace thinkfan {
@@ -33,7 +35,23 @@ namespace thinkfan {
 Config::Config() : num_temps_(0), fan_(nullptr) {}
 
 
-const Config *Config::read_config(const string &filename)
+const Config *Config::read_config(const std::vector<string> &filenames)
+{
+	const Config *rv = nullptr;
+	for (auto it = filenames.begin(); it != filenames.end(); ++it) {
+		try {
+			rv = try_read_config(*it);
+		} catch (IOerror &e) {
+			if (e.code() != ENOENT || it+1 >= filenames.end())
+				throw;
+		}
+	}
+
+	return rv;
+}
+
+
+const Config *Config::try_read_config(const string &filename)
 {
 	Config *rv = nullptr;
 
@@ -50,9 +68,30 @@ const Config *Config::read_config(const string &filename)
 	if (!f_in.read(&*f_data.begin(), f_size))
 		throw IOerror(filename + ": ", errno);
 
+#ifdef USE_YAML
+	try
 	{
-		ConfigParser parser;
+		YAML::Node root = YAML::Load(f_data);
+		rv = root.as<YAML::wtf_ptr<Config>>().release();
+#if not defined(DISABLE_EXCEPTION_CATCHING)
+	} catch(YamlError &e) {
+		throw ConfigError(filename, e.mark, f_data, e.what());
+	} catch(YAML::BadConversion &e) {
+		throw ConfigError(filename, e.mark, f_data, "Invalid entry");
+#endif
+	} catch(YAML::ParserException &e) {
+		string::size_type ext_off = filename.rfind('.');
+		if (ext_off != string::npos) {
+			string ext = filename.substr(filename.rfind('.'));
+			std::for_each(ext.begin(), ext.end(), [] (char &c) {
+				c = std::toupper(c, std::locale());
+			} );
+			if (ext == ".YAML")
+				throw ConfigError(filename, e.mark, f_data, e.what());
+		}
+#endif //USE_YAML
 
+		ConfigParser parser;
 
 		const char *input = f_data.c_str();
 		const char *start = input;
@@ -62,7 +101,10 @@ const Config *Config::read_config(const string &filename)
 		if (!rv) {
 			throw SyntaxError(filename, parser.get_max_addr() - start, f_data);
 		}
+#ifdef USE_YAML
 	}
+#endif //USE_YAML
+
 	// Consistency checks which require the complete config
 
 	if (rv->levels().size() == 0)
@@ -109,7 +151,7 @@ bool Config::add_fan(std::unique_ptr<FanDriver> &&fan)
 }
 
 
-bool Config::add_sensor(std::unique_ptr<const SensorDriver> &&sensor)
+bool Config::add_sensor(std::unique_ptr<SensorDriver> &&sensor)
 {
 	if (!sensor) return false;
 
@@ -119,7 +161,7 @@ bool Config::add_sensor(std::unique_ptr<const SensorDriver> &&sensor)
 }
 
 
-bool Config::add_level(std::unique_ptr<const Level> &&level)
+bool Config::add_level(std::unique_ptr<Level> &&level)
 {
 	if (!level) return false;
 
@@ -152,10 +194,10 @@ FanDriver *Config::fan() const
 unsigned int Config::num_temps() const
 { return num_temps_; }
 
-const std::vector<const Level *> &Config::levels() const
+const std::vector<Level *> &Config::levels() const
 { return levels_; }
 
-const std::vector<const SensorDriver *> &Config::sensors() const
+const std::vector<SensorDriver *> &Config::sensors() const
 { return sensors_; }
 
 
@@ -252,7 +294,7 @@ bool ComplexLevel::up() const
 	const int *upper_idx = upper_limit().data();
 
 	while (temp_it != temp_state.biased_temps().end())
-		if (*(temp_it++) >= *upper_idx++) return true;
+		if (*temp_it++ >= *upper_idx++) return true;
 
 	return false;
 }
@@ -263,8 +305,10 @@ bool ComplexLevel::down() const
 	std::vector<int>::const_iterator temp_it = temp_state.biased_temps().begin();
 	const int *lower_idx = lower_limit().data();
 
-	while (temp_it != temp_state.biased_temps().end() && *(temp_it++) < *lower_idx++)
-		;
+	while (temp_it != temp_state.biased_temps().end() && *temp_it < *lower_idx) {
+		temp_it++;
+		lower_idx++;
+	}
 
 	return temp_it == temp_state.biased_temps().end();
 }

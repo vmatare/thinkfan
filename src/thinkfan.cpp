@@ -51,8 +51,13 @@ seconds sleeptime(5);
 seconds tmp_sleeptime = sleeptime;
 float bias_level(1.5);
 float depulse = 0;
-std::string config_file = CONFIG_DEFAULT;
 TemperatureState temp_state(0);
+
+#ifdef USE_YAML
+std::vector<string> config_files({DEFAULT_YAML_CONFIG, DEFAULT_CONFIG});
+#else
+std::vector<std::string> config_files({DEFAULT_CONFIG});
+#endif
 
 volatile int interrupted(0);
 
@@ -98,7 +103,7 @@ void run(const Config &config)
 	temp_state.first_run();
 
 	// Set initial fan level
-	std::vector<const Level *>::const_iterator cur_lvl = config.levels().begin();
+	std::vector<Level *>::const_iterator cur_lvl = config.levels().begin();
 	config.fan()->init();
 	while (cur_lvl != --config.levels().end() && (*cur_lvl)->up())
 		cur_lvl++;
@@ -157,14 +162,13 @@ int set_options(int argc, char **argv)
 		case 'h':
 			log(TF_INF) << MSG_TITLE << flush << MSG_USAGE << flush;
 			return 1;
-			break;
 #ifdef USE_ATASMART
 		case 'd':
 			dnd_disk = true;
 			break;
 #endif
 		case 'c':
-			config_file = optarg;
+			config_files = std::vector<string>({optarg});
 			break;
 		case 'q':
 			--Logger::instance().log_lvl();
@@ -265,6 +269,10 @@ PidFileHolder::~PidFileHolder()
 	if (::unlink(PID_FILE) == -1)
 		log(TF_ERR) << "Deleting " PID_FILE ": " << errno << "." << flush;
 }
+
+
+bool PidFileHolder::file_exists()
+{ return !ifstream(PID_FILE).fail(); }
 
 
 TemperatureState::TemperatureState(unsigned int num_temps)
@@ -377,8 +385,10 @@ int main(int argc, char **argv) {
 	 || sigaction(SIGINT, &handler, NULL)
 	 || sigaction(SIGTERM, &handler, NULL)
 	 || sigaction(SIGUSR1, &handler, NULL)
-	 || sigaction(SIGUSR2, &handler, NULL)
-	 || sigaction(SIGSEGV, &handler, NULL)) {
+#if not defined(DISABLE_BUGGER)
+	 || sigaction(SIGSEGV, &handler, NULL)
+#endif
+	 || sigaction(SIGUSR2, &handler, NULL)) {
 		string msg = strerror(errno);
 		log(TF_ERR) << "sigaction: " << msg;
 		return 1;
@@ -390,17 +400,19 @@ int main(int argc, char **argv) {
 		switch (set_options(argc, argv)) {
 		case 1:
 			return 0;
-			break;
 		case 0:
 			break;
 		default:
 			return 3;
 		}
 
+		if (PidFileHolder::file_exists())
+			error<SystemError>(MSG_RUNNING);
+
 		// Load the config temporarily once so we may fail before forking
 		LogLevel old_lvl = Logger::instance().log_lvl();
 		Logger::instance().log_lvl() = TF_ERR;
-		delete Config::read_config(config_file);
+		delete Config::read_config(config_files);
 		Logger::instance().log_lvl() = old_lvl;
 
 		if (daemonize) {
@@ -425,7 +437,7 @@ int main(int argc, char **argv) {
 		}
 
 		// Load the config for real after forking & enabling syslog
-		std::unique_ptr<const Config> config(Config::read_config(config_file));
+		std::unique_ptr<const Config> config(Config::read_config(config_files));
 		temp_state = TemperatureState(config->num_temps());
 
 		do {
@@ -434,7 +446,7 @@ int main(int argc, char **argv) {
 			if (interrupted == SIGHUP) {
 				log(TF_INF) << MSG_RELOAD_CONF << flush;
 				try {
-					std::unique_ptr<const Config> config_new(Config::read_config(config_file));
+					std::unique_ptr<const Config> config_new(Config::read_config(config_files));
 					config.swap(config_new);
 				} catch(ExpectedError &) {
 					log(TF_ERR) << MSG_CONF_RELOAD_ERR << flush;

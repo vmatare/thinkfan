@@ -84,22 +84,23 @@ public:
 	// Not trivially copyable since it holds raw pointers to levels, drivers and fans.
 	Config(const Config &) = delete;
 	~Config();
-	static const Config *read_config(const string &filename);
+	static const Config *read_config(const std::vector<string> &filenames);
 	bool add_fan(std::unique_ptr<FanDriver> &&fan);
-	bool add_sensor(std::unique_ptr<const SensorDriver> &&sensor);
-	bool add_level(std::unique_ptr<const Level> &&level);
+	bool add_sensor(std::unique_ptr<SensorDriver> &&sensor);
+	bool add_level(std::unique_ptr<Level> &&level);
 
 	unsigned int num_temps() const;
 	FanDriver *fan() const;
-	const std::vector<const Level *> &levels() const;
-	const std::vector<const SensorDriver *> &sensors() const;
+	const std::vector<Level *> &levels() const;
+	const std::vector<SensorDriver *> &sensors() const;
 
 	// No copy assignment operator either (not required).
 	Config &operator = (const Config &) = delete;
 
 private:
-	std::vector<const SensorDriver *> sensors_;
-	std::vector<const Level *> levels_;
+	static const Config *try_read_config(const string &data);
+	std::vector<SensorDriver *> sensors_;
+	std::vector<Level *> levels_;
 	unsigned int num_temps_;
 	FanDriver *fan_;
 };

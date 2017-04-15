@@ -28,6 +28,11 @@
 #include "message.h"
 #include "thinkfan.h"
 
+#ifdef USE_YAML
+#include <yaml-cpp/exceptions.h>
+#include <yaml-cpp/node/node.h>
+#endif
+
 #ifndef MAX_BACKTRACE_DEPTH
 #define MAX_BACKTRACE_DEPTH 64
 #endif
@@ -79,9 +84,28 @@ public:
 };
 
 
+#ifdef USE_YAML
+
+class YamlError : public Error {
+public:
+	YamlError(const YAML::Mark &mark = YAML::Mark::null_mark(), const string &msg = "");
+	YAML::Mark mark;
+};
+
+class MissingEntry : public YamlError {
+public:
+	MissingEntry(const string &entry);
+};
+
+#endif
+
+
 class ConfigError : public ExpectedError {
 public:
 	ConfigError(const string &reason);
+#ifdef USE_YAML
+	ConfigError(const string &filename, const YAML::Mark &mark, const string &input, const string &msg);
+#endif
 };
 
 
