@@ -93,8 +93,11 @@ TpFanDriver::TpFanDriver(const std::string &path)
 			throw IOerror(MSG_FAN_INIT(path_), errno);
 		if (line.rfind("level:") != string::npos) {
 			// remember initial level, restore it in d'tor
-			initial_state_ = line.substr(line.find_last_of(" \t") + 1);
-			log(TF_DBG) << path_ << ": Saved initial state: " << initial_state_ << "." << flush;
+			string::size_type offs = line.find_last_of(" \t") + 1;
+			if (offs != string::npos) {
+				// Cut of at bogus \000 char that may occur before EOL
+				initial_state_ = line.substr(offs, line.find_first_of('\000') - offs);
+			}
 		}
 		else if (line.rfind("commands:") != std::string::npos && line.rfind("level <level>") != std::string::npos) {
 			ctrl_supported = true;
@@ -103,6 +106,7 @@ TpFanDriver::TpFanDriver(const std::string &path)
 
 	if (!ctrl_supported)
 		throw SystemError(MSG_FAN_MODOPTS);
+	log(TF_DBG) << path_ << ": Saved initial state: " << initial_state_ << "." << flush;
 }
 
 
@@ -307,7 +311,7 @@ TpSensorDriver::TpSensorDriver(std::string path, const std::vector<unsigned int>
 	string skip;
 	skip.resize(skip_prefix_.size());
 
-	if (!f.getline(&*skip.begin(), static_cast<std::streamsize>(skip_prefix_.size() + 1)))
+	if (!f.get(&*skip.begin(), static_cast<std::streamsize>(skip_prefix_.size() + 1)))
 		throw IOerror(MSG_SENSOR_INIT(path_), errno);
 
 	if (skip == skip_prefix_)
@@ -337,6 +341,7 @@ TpSensorDriver::TpSensorDriver(std::string path, const std::vector<unsigned int>
 	}
 	else {
 		in_use_ = std::vector<bool>(count, true);
+		set_num_temps(count);
 	}
 }
 
