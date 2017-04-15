@@ -2,12 +2,12 @@ sensors:
   - hwmon: /sys/class/graphics/fb0/device/hwmon
     indices: [1, 3]
 
-  #- tp_thermal: /proc/acpi/ibm/thermal
+  #- tpacpi: /proc/acpi/ibm/thermal
 
 fans:
   - hwmon: /sys/class/graphics/fb0/device/hwmon
     indices: [1]
-  #- tp_fan: /proc/acpi/ibm/fan
+  #- tpacpi: /proc/acpi/ibm/fan
 
 #
 # Complex level config
