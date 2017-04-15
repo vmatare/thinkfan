@@ -1,11 +1,11 @@
 sensors:
-  - hwmon: /sys/devices/platform/nct6775.656
+  - hwmon: /sys/class/graphics/fb0/device/hwmon
     indices: [1, 3]
 
   #- tp_thermal: /proc/acpi/ibm/thermal
 
 fans:
-  - hwmon: /sys/class/hwmon....
+  - hwmon: /sys/class/graphics/fb0/device/hwmon
     indices: [1]
   #- tp_fan: /proc/acpi/ibm/fan
 
