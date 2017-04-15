@@ -29,11 +29,6 @@ public:
 		: shared_ptr<unique_ptr<T>>(new unique_ptr<T>(ptr.release()))
 	{}
 
-	/*template<typename T1>
-	wtf_ptr<T>(const wtf_ptr<T1> &ptr)
-		: shared_ptr<unique_ptr<T>>(ptr.get())
-	{}*/
-
 	wtf_ptr()
 		: shared_ptr<unique_ptr<T>>()
 	{}

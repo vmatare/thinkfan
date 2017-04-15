@@ -438,25 +438,6 @@ struct convert<wtf_ptr<SimpleLevel>> {
 };
 
 
-template<>
-struct convert<vector<wtf_ptr<Level>>> {
-	static bool decode(const Node &node, vector<wtf_ptr<Level>> &levels)
-	{
-		auto initial_size = levels.size();
-		if (!node.IsSequence())
-			throw YamlError(node.Mark(), "Level entries must be a sequence. Forgot the dashes?");
-		for (const Node &n_level : node) {
-			try {
-				levels.push_back(n_level.as<wtf_ptr<ComplexLevel>>());
-			} catch (YAML::BadConversion &) {
-				levels.push_back(n_level.as<wtf_ptr<SimpleLevel>>());
-			}
-		}
-		return levels.size() > initial_size;
-	}
-};
-
-
 
 bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 {
@@ -479,16 +460,20 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 				config->add_fan(unique_ptr<FanDriver>(f.release()));
 			}
 		} else if (key == kw_levels) {
-			auto levels = entry.as<vector<wtf_ptr<Level>>>();
-			std::sort(levels.begin(), levels.end(), [] (wtf_ptr<Level> &lhs, wtf_ptr<Level> &rhs) {
-				return lhs->num() <= rhs->num();
-			});
-			for (vector<wtf_ptr<Level>>::iterator lit = levels.begin(); lit != levels.end(); ++lit) {
-				if (lit != levels.begin() && (*lit)->lower_limit().front() == std::numeric_limits<int>::min())
-					error<YamlError>(it->first.Mark(), MSG_CONF_MISSING_LOWER_LIMIT);
-				if (lit != --levels.end() && (*lit)->upper_limit().front() == std::numeric_limits<int>::max())
-					error<YamlError>(it->first.Mark(), MSG_CONF_MISSING_UPPER_LIMIT);
-				config->add_level(unique_ptr<Level>(lit->release()));
+			if (!entry.IsSequence())
+				throw YamlError(node.Mark(), "Level entries must be a sequence. Forgot the dashes?");
+			for (YAML::const_iterator it_lvl = entry.begin(); it_lvl != entry.end(); ++it_lvl) {
+				try {
+					wtf_ptr<ComplexLevel> complex_lvl = it_lvl->as<wtf_ptr<ComplexLevel>>();
+					if (it_lvl != entry.begin() && complex_lvl->lower_limit().front() == std::numeric_limits<int>::min())
+						error<YamlError>(it->first.Mark(), MSG_CONF_MISSING_LOWER_LIMIT);
+					YAML::const_iterator it_tmp = it_lvl;
+					if (++it_tmp != entry.end() && complex_lvl->upper_limit().front() == std::numeric_limits<int>::max())
+						error<YamlError>(it->first.Mark(), MSG_CONF_MISSING_UPPER_LIMIT);
+					config->add_level(unique_ptr<Level>(complex_lvl.release()));
+				} catch (YAML::BadConversion &) {
+					config->add_level(unique_ptr<Level>(it_lvl->as<wtf_ptr<SimpleLevel>>().release()));
+				}
 			}
 		} else {
 			throw YamlError(it->first.Mark(), "Unknown keyword");
