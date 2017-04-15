@@ -49,7 +49,7 @@ protected:
 public:
 	FanDriver() : watchdog_(0) {}
 	bool is_default() { return path_.length() == 0; }
-	virtual ~FanDriver() = default;
+	virtual ~FanDriver() noexcept(false) {}
 	virtual void init() const {}
 	virtual void set_speed(const string &level);
 	virtual void set_speed(const Level *level) = 0;
@@ -61,11 +61,11 @@ public:
 class TpFanDriver : public FanDriver {
 public:
 	TpFanDriver(const string &path);
-	~TpFanDriver() override;
+	virtual ~TpFanDriver() noexcept(false) override;
 	void set_watchdog(const unsigned int timeout);
 	void set_depulse(float duration);
-	void init() const override;
-	void set_speed(const Level *const level) override;
+	virtual void init() const override;
+	virtual void set_speed(const Level *const level) override;
 	virtual void ping_watchdog_and_depulse(const Level *level) override;
 };
 
@@ -73,8 +73,8 @@ public:
 class HwmonFanDriver : public FanDriver {
 public:
 	HwmonFanDriver(const string &path);
-	~HwmonFanDriver() override;
-	void init() const override;
+	virtual ~HwmonFanDriver() noexcept(false) override;
+	virtual void init() const override;
 	virtual void set_speed(const Level *level) override;
 };
 
@@ -84,7 +84,7 @@ protected:
 	SensorDriver(string path, std::vector<int> correction = {});
 	SensorDriver() : num_temps_(0) {}
 public:
-	virtual ~SensorDriver() = default;
+	virtual ~SensorDriver() noexcept(false) {}
 	virtual void read_temps() const = 0;
 	unsigned int num_temps() const { return num_temps_; }
 	void set_correction(const std::vector<int> &correction);
@@ -134,7 +134,7 @@ private:
 class NvmlSensorDriver : public SensorDriver {
 public:
 	NvmlSensorDriver(string bus_id, std::vector<int> correction = {});
-	virtual ~NvmlSensorDriver();
+	virtual ~NvmlSensorDriver() noexcept(false) override;
 	virtual void read_temps() const override;
 private:
 	nvmlDevice_t device_;
