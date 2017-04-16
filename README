@@ -41,6 +41,12 @@ on your carpet...
 Building and installing
 =======================
 
+To compile thinkfan, you will need to have the following things installed:
+- A recent C++ compiler (GCC >= 4.8 or clang)
+- pkgconfig or an equivalent (pkgconf or pkg-config)
+- cmake (and optionally a cmake GUI if you want to configure interactively)
+- optional: libyaml-cpp for YAML support (the -dev or -devel package)
+
 1. In the thinkfan main directory, do
     mkdir build && cd build
 
