@@ -9,7 +9,15 @@ cmake_policy(SET CMP0015 NEW)
 find_package(PkgConfig)
 pkg_check_modules(SYSTEMD "systemd")
 pkg_check_modules(OPENRC "openrc")
+
 pkg_check_modules(YAML_CPP "yaml-cpp")
+
+if(YAML_CPP_FOUND AND YAML_CPP_VERSION VERSION_LESS "0.5.3")
+    message(WARNING "\nyaml-cpp version ${YAML_CPP_VERSION} is very old, buggy and lacks some features.\
+	    Thinkfan will not always be able to point out the location of errors in the YAML config.")
+    add_definitions(-DHAVE_OLD_YAMLCPP)
+endif()
+
 pkg_check_modules(ATASMART "libatasmart")
 
 if(SYSTEMD_FOUND)
@@ -17,6 +25,7 @@ if(SYSTEMD_FOUND)
 else(SYSTEMD_FOUND)
     set(PID_FILE "/var/run/thinkfan.pid")
 endif(SYSTEMD_FOUND)
+
 
 add_definitions(-DPID_FILE=\"${PID_FILE}\")
 

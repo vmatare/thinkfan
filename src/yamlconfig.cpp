@@ -36,6 +36,20 @@ static const string kw_lower("lower_limit");
 static const string kw_indices("indices");
 static const string kw_correction("correction");
 
+#ifdef HAVE_OLD_YAMLCPP
+static inline Mark get_mark_compat(const Node &)
+{ return Mark::null_mark(); }
+
+static inline BadConversion get_bad_conversion_compat(const Node &)
+{ return BadConversion(); }
+#else
+static inline Mark get_mark_compat(const Node &node)
+{ return node.Mark(); }
+
+static inline BadConversion get_bad_conversion_compat(const Node &node)
+{ return BadConversion(node.Mark()); }
+#endif
+
 
 static int get_index(const string &fname, const string &pfx, const string &sfx)
 {
@@ -107,7 +121,7 @@ int scandir< HwmonFanDriver > (const string &path, struct dirent ***entries)
 
 
 template<class T>
-static vector<wtf_ptr<T>> find_hwmons(string path, vector<int> &&indices)
+static vector<wtf_ptr<T>> find_hwmons(string path, const vector<int> &indices)
 {
 	vector<wtf_ptr<T>> rv;
 
@@ -184,14 +198,16 @@ struct convert<vector<wtf_ptr<HwmonSensorDriver>>> {
 						path, node[kw_indices].as<vector<int>>());
 			if (!correction.empty()) {
 				if (correction.size() != hwmons.size())
-					throw YamlError(node[kw_indices].Mark(), MSG_CONF_CORRECTION_LEN(
-										path, correction.size(), hwmons.size()));
+					throw YamlError(
+							get_mark_compat(node[kw_indices]),
+							MSG_CONF_CORRECTION_LEN(path, correction.size(), hwmons.size())
+					);
 				auto it = correction.begin();
 				std::for_each(hwmons.begin(), hwmons.end(), [&] (wtf_ptr<HwmonSensorDriver> &sensor) {
 					sensor->set_correction(vector<int>(1, *it++));
 				});
 			}
-			for (wtf_ptr<HwmonSensorDriver> &h : hwmons)
+			for (const wtf_ptr<HwmonSensorDriver> &h : hwmons)
 				sensors.push_back(std::move(h));
 		}
 		else {
@@ -274,23 +290,29 @@ struct convert<vector<wtf_ptr<SensorDriver>>> {
 	{
 		auto initial_size = sensors.size();
 		if (!node.IsSequence())
-			throw YamlError(node.Mark(), "Sensor entries must be a sequence. Forgot the dashes?");
+			throw YamlError(get_mark_compat(node), "Sensor entries must be a sequence. Forgot the dashes?");
 		for (Node::const_iterator it = node.begin(); it != node.end(); ++it) {
 			if ((*it)[kw_hwmon])
-				for (wtf_ptr<HwmonSensorDriver> &h : it->as<vector<wtf_ptr<HwmonSensorDriver>>>())
+				for (wtf_ptr<HwmonSensorDriver> h : it->as<vector<wtf_ptr<HwmonSensorDriver>>>())
 					sensors.push_back(std::move(h));
-			else if ((*it)[kw_tpacpi])
-				sensors.push_back(it->as<wtf_ptr<TpSensorDriver>>());
+			else if ((*it)[kw_tpacpi]) {
+				wtf_ptr<TpSensorDriver> tmp = it->as<wtf_ptr<TpSensorDriver>>();
+				sensors.push_back(std::move(tmp));
+			}
 #ifdef USE_NVML
-			else if ((*it)[kw_nvidia])
-				sensors.push_back(it->as<wtf_ptr<NvmlSensorDriver>>());
+			else if ((*it)[kw_nvidia]) {
+				wtf_ptr<NvmlSensorDriver> tmp = it->as<wtf_ptr<NvmlSensorDriver>>();
+				sensors.push_back(std::move(tmp));
+			}
 #endif //USE_NVML
 #ifdef USE_ATASMART
-			else if ((*it)[kw_atasmart])
-				sensors.push_back(it->as<wtf_ptr<AtasmartSensorDriver>>());
+			else if ((*it)[kw_atasmart]) {
+				wtf_ptr<AtasmartSensorDriver> tmp = it->as<wtf_ptr<AtasmartSensorDriver>>();
+				sensors.push_back(std::move(tmp));
+			}
 #endif //USE_ATASMART
 			else
-				throw YamlError(it->Mark(), "Invalid sensor entry");
+				throw YamlError(get_mark_compat(*it), "Invalid sensor entry");
 		}
 
 		return sensors.size() > initial_size;
@@ -337,13 +359,14 @@ struct convert<vector<wtf_ptr<FanDriver>>> {
 	{
 		auto initial_size = fans.size();
 		if (!node.IsSequence())
-			throw YamlError(node.Mark(), "Fan entries must be a sequence. Forgot the dashes?");
+			throw YamlError(get_mark_compat(node), "Fan entries must be a sequence. Forgot the dashes?");
 		for (Node::const_iterator it = node.begin(); it != node.end(); ++it) {
 			try {
-				for (auto &f : it->as<vector<wtf_ptr<HwmonFanDriver>>>())
+				for (auto f : it->as<vector<wtf_ptr<HwmonFanDriver>>>())
 					fans.push_back(std::move(f));
 			} catch (YAML::BadConversion &) {
-				fans.push_back(it->as<wtf_ptr<TpFanDriver>>());
+				wtf_ptr<TpFanDriver> tmp = it->as<wtf_ptr<TpFanDriver>>();
+				fans.push_back(std::move(tmp));
 			}
 		}
 		return fans.size() > initial_size;
@@ -374,12 +397,12 @@ struct convert<wtf_ptr<ComplexLevel>> {
 		if (n_lower) {
 			lower = n_lower.as<vector<int>>();
 			if (std::find(lower.begin(), lower.end(), numeric_limits<int>::min()) != lower.end())
-				throw BadConversion(n_lower.Mark());
+				throw get_bad_conversion_compat(n_lower);
 		}
 		if (n_upper) {
 			upper = n_upper.as<vector<int>>();
 			if (std::find(upper.begin(), upper.end(), numeric_limits<int>::max()) != upper.end())
-				throw BadConversion(n_upper.Mark());
+				throw get_bad_conversion_compat(n_upper);
 		}
 
 		if (lower.empty())
@@ -418,7 +441,7 @@ struct convert<wtf_ptr<SimpleLevel>> {
 			if (n_lower) {
 				lower = n_lower.as<int>();
 				if (lower == numeric_limits<int>::min())
-					throw BadConversion(n_lower.Mark());
+					throw get_bad_conversion_compat(n_lower);
 			}
 			else
 				lower = numeric_limits<int>::min();
@@ -426,7 +449,7 @@ struct convert<wtf_ptr<SimpleLevel>> {
 			if (n_upper) {
 				upper = n_upper.as<int>();
 				if (upper == numeric_limits<int>::max())
-					throw BadConversion(n_upper.Mark());
+					throw get_bad_conversion_compat(n_upper);
 			}
 			else
 				upper = numeric_limits<int>::max();
@@ -442,7 +465,7 @@ struct convert<wtf_ptr<SimpleLevel>> {
 bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 {
 	if (!node.size())
-		throw ParserException(node.Mark(), "Invalid YAML syntax");
+		throw ParserException(get_mark_compat(node), "Invalid YAML syntax");
 
 	config = make_wtf<Config>();
 
@@ -461,22 +484,23 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 			}
 		} else if (key == kw_levels) {
 			if (!entry.IsSequence())
-				throw YamlError(node.Mark(), "Level entries must be a sequence. Forgot the dashes?");
+				throw YamlError(get_mark_compat(node), "Level entries must be a sequence. Forgot the dashes?");
 			for (YAML::const_iterator it_lvl = entry.begin(); it_lvl != entry.end(); ++it_lvl) {
 				try {
 					wtf_ptr<ComplexLevel> complex_lvl = it_lvl->as<wtf_ptr<ComplexLevel>>();
 					if (it_lvl != entry.begin() && complex_lvl->lower_limit().front() == std::numeric_limits<int>::min())
-						error<YamlError>(it->first.Mark(), MSG_CONF_MISSING_LOWER_LIMIT);
+						error<YamlError>(get_mark_compat(it->first), MSG_CONF_MISSING_LOWER_LIMIT);
 					YAML::const_iterator it_tmp = it_lvl;
 					if (++it_tmp != entry.end() && complex_lvl->upper_limit().front() == std::numeric_limits<int>::max())
-						error<YamlError>(it->first.Mark(), MSG_CONF_MISSING_UPPER_LIMIT);
+						error<YamlError>(get_mark_compat(it->first), MSG_CONF_MISSING_UPPER_LIMIT);
 					config->add_level(unique_ptr<Level>(complex_lvl.release()));
 				} catch (YAML::BadConversion &) {
-					config->add_level(unique_ptr<Level>(it_lvl->as<wtf_ptr<SimpleLevel>>().release()));
+					wtf_ptr<SimpleLevel> tmp = it_lvl->as<wtf_ptr<SimpleLevel>>();
+					config->add_level(unique_ptr<Level>(tmp.release()));
 				}
 			}
 		} else {
-			throw YamlError(it->first.Mark(), "Unknown keyword");
+			throw YamlError(get_mark_compat(it->first), "Unknown keyword");
 		}
 	}
 	return true;
