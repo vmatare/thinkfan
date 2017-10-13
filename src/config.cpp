@@ -72,7 +72,11 @@ const Config *Config::try_read_config(const string &filename)
 	try
 	{
 		YAML::Node root = YAML::Load(f_data);
-		rv = root.as<YAML::wtf_ptr<Config>>().release();
+
+		// Copy the return value first. Workaround for https://github.com/vmatare/thinkfan/issues/42
+		// due to bug in ancient yaml-cpp: https://github.com/jbeder/yaml-cpp/commit/97d56c3f3608331baaee26e17d2f116d799a7edc
+		YAML::wtf_ptr<Config> rv_tmp = root.as<YAML::wtf_ptr<Config>>();
+		rv = rv_tmp.release();
 #if not defined(DISABLE_EXCEPTION_CATCHING)
 	} catch(YamlError &e) {
 		throw ConfigError(filename, e.mark, f_data, e.what());
