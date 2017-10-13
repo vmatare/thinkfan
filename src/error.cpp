@@ -155,7 +155,9 @@ ConfigError::ConfigError(const string &reason)
 ConfigError::ConfigError(const string &filename, const YAML::Mark &mark, const string &input, const string &msg)
 {
 	msg_ += filename + ":";
-	if (mark.is_null())
+
+	// Another workaround for Ubuntu's libyaml-cpp0.5v5
+	if (mark.pos == -1 && mark.line == -1 && mark.column == -1)
 		msg_ += string(" ") + msg;
 	else {
 		msg_ += std::to_string(mark.line + 1) + ":\n";
