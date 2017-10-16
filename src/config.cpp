@@ -41,6 +41,7 @@ const Config *Config::read_config(const std::vector<string> &filenames)
 	for (auto it = filenames.begin(); it != filenames.end(); ++it) {
 		try {
 			rv = try_read_config(*it);
+			break;
 		} catch (IOerror &e) {
 			if (e.code() != ENOENT || it+1 >= filenames.end())
 				throw;
