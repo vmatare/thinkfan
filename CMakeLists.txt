@@ -126,9 +126,16 @@ if(SYSTEMD_FOUND)
 	rcscripts/systemd/thinkfan-wakeup.service
 	"${CMAKE_BINARY_DIR}/rcscripts/systemd/thinkfan.service"
 	DESTINATION "${CMAKE_INSTALL_LIBDIR}/systemd/system")
-    install(FILES
-	rcscripts/systemd/override.conf
-	DESTINATION "/etc/systemd/system/thinkfan.service.d")
+    if(NOT EXISTS "/etc/systemd/system/thinkfan.service.d/override.conf")
+	install(FILES
+	    rcscripts/systemd/override.conf
+	    DESTINATION "/etc/systemd/system/thinkfan.service.d")
+    else()
+	install(FILES
+	    rcscripts/systemd/override.conf
+	    DESTINATION "/etc/systemd/system/thinkfan.service.d"
+	    RENAME "default.conf")
+    endif()
 endif(SYSTEMD_FOUND)
 
 if(OPENRC_FOUND)
