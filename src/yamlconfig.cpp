@@ -38,6 +38,7 @@ static const string kw_self(".");
 static const string kw_parent("..");
 static const string kw_indices("indices");
 static const string kw_correction("correction");
+static const string kw_optional("optional");
 
 #ifdef HAVE_OLD_YAMLCPP
 static inline Mark get_mark_compat(const Node &)
@@ -265,8 +266,11 @@ struct convert<vector<wtf_ptr<HwmonSensorDriver>>> {
 					sensor->set_correction(vector<int>(1, *it++));
 				});
 			}
-			for (const wtf_ptr<HwmonSensorDriver> &h : hwmons)
+			for (wtf_ptr<HwmonSensorDriver> &h : hwmons) {
+				if (node[kw_optional])
+					h->set_optional(node[kw_optional].as<bool>());
 				sensors.push_back(std::move(h));
+			}
 		}
 		else {
 			wtf_ptr<HwmonSensorDriver> h = make_wtf<HwmonSensorDriver>(path, correction);
@@ -298,6 +302,9 @@ struct convert<wtf_ptr<TpSensorDriver>> {
 		else
 			sensor = make_wtf<TpSensorDriver>(node[kw_tpacpi].as<string>(), correction);
 
+		if (node[kw_optional])
+			sensor->set_optional(node[kw_optional].as<bool>());
+
 		return true;
 	}
 };
@@ -316,6 +323,9 @@ struct convert<wtf_ptr<NvmlSensorDriver>> {
 			correction = node[kw_correction].as<vector<int>>();
 
 		sensor = make_wtf<NvmlSensorDriver>(node[kw_nvidia].as<string>(), correction);
+		if (node[kw_optional])
+			sensor->set_optional(node[kw_optional].as<bool>());
+
 		return true;
 	}
 };
@@ -335,6 +345,9 @@ struct convert<wtf_ptr<AtasmartSensorDriver>> {
 			correction = node[kw_correction].as<vector<int>>();
 
 		sensor = make_wtf<AtasmartSensorDriver>(node["atasmart"].as<string>(), correction);
+		if (node[kw_optional])
+			sensor->set_optional(node[kw_optional].as<bool>());
+
 		return true;
 	}
 };

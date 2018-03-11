@@ -256,7 +256,8 @@ void HwmonFanDriver::set_speed(const Level *level)
 SensorDriver::SensorDriver(std::string path, std::vector<int> correction)
 : path_(path),
   correction_(correction),
-  num_temps_(0)
+  num_temps_(0),
+  optional_(false)
 {
 	std::ifstream f(path_);
 	if (!(f.is_open() && f.good()))
@@ -306,6 +307,15 @@ void SensorDriver::check_correction_length()
 		log(TF_WRN) << MSG_CONF_CORRECTION_LEN(path_, correction_.size(), num_temps()) << flush;
 }
 
+
+void SensorDriver::set_optional(bool o)
+{ optional_ = o; }
+
+bool SensorDriver::optional() const
+{ return optional_; }
+
+const string &SensorDriver::path() const
+{ return path_; }
 
 /*----------------------------------------------------------------------------
 | HwmonSensorDriver: A driver for sensors provided by other kernel drivers,  |

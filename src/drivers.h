@@ -90,11 +90,15 @@ public:
 	void set_correction(const std::vector<int> &correction);
 	void set_num_temps(unsigned int n);
 	bool operator == (const SensorDriver &other) const;
+	void set_optional(bool);
+	bool optional() const;
+	const string &path() const;
 protected:
 	string path_;
 	std::vector<int> correction_;
 private:
 	unsigned int num_temps_;
+	bool optional_;
 	void check_correction_length();
 };
 

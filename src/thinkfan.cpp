@@ -40,6 +40,7 @@
 #include "thinkfan.h"
 #include "config.h"
 #include "message.h"
+#include "error.h"
 
 
 namespace thinkfan {
@@ -52,6 +53,7 @@ seconds tmp_sleeptime = sleeptime;
 float bias_level(1.5);
 float depulse = 0;
 TemperatureState temp_state(0);
+bool can_lose_sensor = false;
 
 #ifdef USE_YAML
 std::vector<string> config_files { DEFAULT_YAML_CONFIG, DEFAULT_CONFIG };
@@ -92,6 +94,15 @@ void sig_handler(int signum) {
 
 
 
+static void sensor_lost(const SensorDriver *s, const ExpectedError &e) {
+	if (!s->optional())
+		error<SensorLost>(e);
+	else
+		log(TF_INF) << SensorLost(e).what();
+	temp_state.add_temp(0);
+}
+
+
 void run(const Config &config)
 {
 	tmp_sleeptime = sleeptime;
@@ -115,8 +126,16 @@ void run(const Config &config)
 
 		temp_state.restart();
 
-		for (const SensorDriver *sensor : config.sensors())
-			sensor->read_temps();
+		for (const SensorDriver *sensor : config.sensors()) {
+			try {
+				sensor->read_temps();
+			} catch (SystemError &e) {
+				sensor_lost(sensor, e);
+			} catch (IOerror &e) {
+				sensor_lost(sensor, e);
+			}
+		}
+
 		if (unlikely(!temp_state.complete()))
 			throw SystemError(MSG_SENSOR_LOST);
 
