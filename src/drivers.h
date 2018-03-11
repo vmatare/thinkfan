@@ -82,9 +82,9 @@ public:
 class SensorDriver {
 protected:
 	SensorDriver(string path, std::vector<int> correction = {});
-	SensorDriver() : num_temps_(0) {}
+	SensorDriver();
 public:
-	virtual ~SensorDriver() noexcept(false) {}
+	virtual ~SensorDriver() noexcept(false);
 	virtual void read_temps() const = 0;
 	unsigned int num_temps() const { return num_temps_; }
 	void set_correction(const std::vector<int> &correction);

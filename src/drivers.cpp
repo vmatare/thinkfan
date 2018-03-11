@@ -235,6 +235,15 @@ SensorDriver::SensorDriver(std::string path, std::vector<int> correction)
 }
 
 
+SensorDriver::SensorDriver()
+: num_temps_(0)
+{}
+
+
+SensorDriver::~SensorDriver() noexcept(false)
+{}
+
+
 void SensorDriver::set_correction(const std::vector<int> &correction)
 {
 	correction_ = correction;
@@ -322,7 +331,7 @@ TpSensorDriver::TpSensorDriver(std::string path, const std::vector<unsigned int>
 	while (!(f.eof() || f.fail())) {
 		f >> tmp;
 		if (f.bad())
-			throw IOerror(MSG_SENSOR_INIT(path_), errno);
+			throw IOerror(MSG_T_GET(path_), errno);
 		if (!f.fail())
 			++count;
 	}
