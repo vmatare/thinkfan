@@ -144,7 +144,7 @@ void TpFanDriver::ping_watchdog_and_depulse(const Level *level)
 		std::this_thread::sleep_for(depulse_);
 		set_speed(level);
 	}
-	else if (last_watchdog_ping_ + watchdog_ + sleeptime >= std::chrono::system_clock::now())
+	else if (last_watchdog_ping_ + watchdog_ + sleeptime <= std::chrono::system_clock::now())
 		set_speed(level);
 }
 
