@@ -125,7 +125,7 @@ const Config *Config::try_read_config(const string &filename)
 
 	if (rv->sensors().size() < 1) {
 		log(TF_WRN) << MSG_SENSOR_DEFAULT << flush;
-		rv->add_sensor(unique_ptr<TpSensorDriver>(new TpSensorDriver(DEFAULT_SENSOR)));
+		rv->add_sensor(unique_ptr<TpSensorDriver>(new TpSensorDriver(DEFAULT_SENSOR, false)));
 	}
 
 	int maxlvl = (*rv->levels_.rbegin())->num();

@@ -141,9 +141,9 @@ SensorDriver *SensorParser::_parse(const char *&input)
 	if ((path = unique_ptr<string>(KeywordParser("sensor").parse(input))))
 		throw ConfigError(MSG_CONF_SENSOR_DEPRECATED);
 	else if ((path = unique_ptr<string>(KeywordParser("tp_thermal").parse(input))))
-		sensor = new TpSensorDriver(*path);
+		sensor = new TpSensorDriver(*path, false);
 	else if ((path = unique_ptr<string>(KeywordParser("hwmon").parse(input))))
-		sensor = new HwmonSensorDriver(*path);
+		sensor = new HwmonSensorDriver(*path, false);
 	else if ((path = unique_ptr<string>(KeywordParser("atasmart").parse(input)))) {
 #ifdef USE_ATASMART
 		sensor = new AtasmartSensorDriver(*path);
@@ -153,7 +153,7 @@ SensorDriver *SensorParser::_parse(const char *&input)
 	}
 	else if ((path = unique_ptr<string>(KeywordParser("nv_thermal").parse(input)))) {
 #ifdef USE_NVML
-		sensor = new NvmlSensorDriver(*path);
+		sensor = new NvmlSensorDriver(*path, false);
 #else
 		error<SystemError>(MSG_CONF_NVML_UNSUPP);
 #endif /* USE_NVML */
