@@ -94,12 +94,12 @@ void sig_handler(int signum) {
 
 
 
-static void sensor_lost(const SensorDriver *s, const ExpectedError &e) {
+static inline void sensor_lost(const SensorDriver *s, const ExpectedError &e) {
 	if (!s->optional())
 		error<SensorLost>(e);
 	else
 		log(TF_INF) << SensorLost(e).what();
-	temp_state.add_temp(0);
+	temp_state.add_temp(-128);
 }
 
 
@@ -133,6 +133,8 @@ void run(const Config &config)
 				sensor_lost(sensor, e);
 			} catch (IOerror &e) {
 				sensor_lost(sensor, e);
+			} catch (std::ios_base::failure &e) {
+				sensor_lost(sensor, IOerror(e.what(), e.code().value()));
 			}
 		}
 
