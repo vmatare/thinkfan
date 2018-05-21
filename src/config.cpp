@@ -131,7 +131,8 @@ const Config *Config::try_read_config(const string &filename)
 		error<ConfigError>(MSG_CONF_MAXLVL((*rv->levels_.rbegin())->num()));
 	else if (dynamic_cast<TpFanDriver *>(rv->fan())
 			 && maxlvl != std::numeric_limits<int>::max()
-			 && maxlvl > 7)
+			 && maxlvl > 7
+			 && maxlvl != 127)
 		error<ConfigError>(MSG_CONF_TP_LVL7(maxlvl, 7));
 
 	return rv;
