@@ -435,7 +435,7 @@ void AtasmartSensorDriver::read_temps() const
 			throw SystemError(MSG_T_GET(path_) + std::to_string(tmp) + " isn't a valid temperature.");
 		}
 
-		temp_state.add_temp(int(tmp));
+		temp_state.add_temp(int(tmp) + correction_[0]);
 	}
 }
 #endif /* USE_ATASMART */
