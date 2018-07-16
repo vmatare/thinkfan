@@ -28,8 +28,10 @@
 #include "parser.h"
 #include "message.h"
 #include "thinkfan.h"
-#include "yamlconfig.h"
 
+#ifdef USE_YAML
+#include "yamlconfig.h"
+#endif
 
 namespace thinkfan {
 
