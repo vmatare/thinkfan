@@ -358,16 +358,19 @@ Config *ConfigParser::_parse(const char *&input)
 {
 	// Use smart pointers here since we may cause an exception (rv->add_*()...)
 	unique_ptr<Config> rv(new Config());
+	unique_ptr<StepwiseMapping> fan_cfg(new StepwiseMapping());
 
 	bool some_match;
 	do {
 		some_match = comment_parser.match(input)
 				|| space_parser.match(input)
-				|| rv->add_fan(unique_ptr<FanDriver>(parser_fan.parse(input)))
+				|| fan_cfg->set_fan(unique_ptr<FanDriver>(parser_fan.parse(input)))
 				|| rv->add_sensor(unique_ptr<SensorDriver>(parser_sensor.parse(input)))
-				|| rv->add_level(unique_ptr<SimpleLevel>(parser_simple_lvl.parse(input)))
-				|| rv->add_level(unique_ptr<ComplexLevel>(parser_complex_lvl.parse(input)));
+				|| fan_cfg->add_level(unique_ptr<SimpleLevel>(parser_simple_lvl.parse(input)))
+				|| fan_cfg->add_level(unique_ptr<ComplexLevel>(parser_complex_lvl.parse(input)));
 	} while(*input != 0 && some_match);
+
+	rv->add_fan_config(std::move(fan_cfg));
 
 	if (*input != 0 && !some_match) return nullptr;
 

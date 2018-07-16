@@ -469,43 +469,49 @@ struct convert<vector<wtf_ptr<FanDriver>>> {
 };
 
 
-template<class LevelT, class LimitT>
-static wtf_ptr<LevelT> make_level(const Node &node, LimitT lower, LimitT upper)
-{
-	try {
-		return make_wtf<LevelT>(node[kw_speed].as<int>(), lower, upper);
-	} catch (BadConversion &) {
-		return make_wtf<LevelT>(node[kw_speed].as<string>(), lower, upper);
-	}
-}
-
-
 template<>
-struct convert<wtf_ptr<ComplexLevel>> {
-	static bool decode(const Node &node, wtf_ptr<ComplexLevel> &level)
+struct convert<LevelEntry> {
+	static bool decode(const Node &node, LevelEntry &rv)
 	{
 		const Node &n_lower = node[kw_lower], &n_upper = node[kw_upper];
 		if (!(node[kw_speed] && (n_lower || n_upper)))
 			return false;
 
-		vector<int> lower, upper;
+		if (node[kw_speed].IsSequence()) {
+			for (YAML::const_iterator it = node[kw_speed].begin(); it != node[kw_speed].end(); ++it) {
+				int level_n;
+				string level_s;
+				try {
+					level_n = it->second.as<int>();
+					if (level_n == 127)
+						level_s = "level disengaged";
+					else
+						level_s = "level " + std::to_string(level_n);
+				} catch (std::bad_cast &) {
+					level_s = it->second.as<string>();
+					level_n = Level::string_to_int(level_s);
+				}
+				rv.fan_levels.push_back({level_s, level_n});
+			}
+		}
+
 		if (n_lower) {
-			lower = n_lower.as<vector<int>>();
+			vector<int> lower = n_lower.as<vector<int>>();
 			if (std::find(lower.begin(), lower.end(), numeric_limits<int>::min()) != lower.end())
 				throw get_bad_conversion_compat(n_lower);
+			rv.lower_limit = std::move(lower);
 		}
 		if (n_upper) {
-			upper = n_upper.as<vector<int>>();
+			vector<int> upper = n_upper.as<vector<int>>();
 			if (std::find(upper.begin(), upper.end(), numeric_limits<int>::max()) != upper.end())
 				throw get_bad_conversion_compat(n_upper);
+			rv.upper_limit = std::move(upper);
 		}
 
-		if (lower.empty())
-			lower = vector<int>(upper.size(), numeric_limits<int>::min());
-		else if (upper.empty())
-			upper = vector<int>(lower.size(), numeric_limits<int>::max());
-
-		level = make_level<ComplexLevel>(node, lower, upper);
+		if (rv.lower_limit.empty())
+			rv.lower_limit = vector<int>(rv.upper_limit.size(), numeric_limits<int>::min());
+		else if (rv.upper_limit.empty())
+			rv.upper_limit = vector<int>(rv.lower_limit.size(), numeric_limits<int>::max());
 
 		return true;
 	}
@@ -527,8 +533,6 @@ struct convert<wtf_ptr<SimpleLevel>> {
 			} catch (BadConversion &) {
 				level = make_wtf<SimpleLevel>(node[0].as<string>(), node[1].as<int>(), node[2].as<int>());
 			}
-
-			return true;
 		}
 		else {
 			int lower, upper;
@@ -549,9 +553,13 @@ struct convert<wtf_ptr<SimpleLevel>> {
 			else
 				upper = numeric_limits<int>::max();
 
-			level = make_level<SimpleLevel>(node, lower, upper);
-			return true;
+			try {
+				level = make_wtf<SimpleLevel>(node[kw_speed].as<int>(), lower, upper);
+			} catch (BadConversion &) {
+				level = make_wtf<SimpleLevel>(node[kw_speed].as<string>(), lower, upper);
+			}
 		}
+		return true;
 	}
 };
 
@@ -563,6 +571,7 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 		throw ParserException(get_mark_compat(node), "Invalid YAML syntax");
 
 	config = make_wtf<Config>();
+	vector<wtf_ptr<FanDriver>> fans;
 
 	for (YAML::const_iterator it = node.begin(); it != node.end(); ++it) {
 		const Node entry = it->second;
@@ -573,31 +582,48 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 				config->add_sensor(unique_ptr<SensorDriver>(s.release()));
 			}
 		} else if (key == kw_fans) {
-			auto fans = entry.as<vector<wtf_ptr<FanDriver>>>();
-			for (wtf_ptr<FanDriver> &f : fans) {
-				config->add_fan(unique_ptr<FanDriver>(f.release()));
-			}
+			fans = entry.as<vector<wtf_ptr<FanDriver>>>();
 		} else if (key == kw_levels) {
 			if (!entry.IsSequence())
 				throw YamlError(get_mark_compat(node), "Level entries must be a sequence. Forgot the dashes?");
+
 			for (YAML::const_iterator it_lvl = entry.begin(); it_lvl != entry.end(); ++it_lvl) {
 				try {
-					wtf_ptr<ComplexLevel> complex_lvl = it_lvl->as<wtf_ptr<ComplexLevel>>();
-					if (it_lvl != entry.begin() && complex_lvl->lower_limit().front() == std::numeric_limits<int>::min())
+					LevelEntry lvl_entry = it_lvl->as<LevelEntry>();
+
+					if (lvl_entry.fan_levels.size() != fans.size())
+						throw YamlError(get_mark_compat(it_lvl->second),
+							"Number of " + kw_speed + " entries doesn't match number of " + kw_fans
+						);
+
+					if (it_lvl != entry.begin() && lvl_entry.lower_limit.empty())
 						error<YamlError>(get_mark_compat(it->first), MSG_CONF_MISSING_LOWER_LIMIT);
 					YAML::const_iterator it_tmp = it_lvl;
-					if (++it_tmp != entry.end() && complex_lvl->upper_limit().front() == std::numeric_limits<int>::max())
+					if (++it_tmp != entry.end() && lvl_entry.upper_limit.empty())
 						error<YamlError>(get_mark_compat(it->first), MSG_CONF_MISSING_UPPER_LIMIT);
-					config->add_level(unique_ptr<Level>(complex_lvl.release()));
+
+					size_t fan_idx = 0;
+					for (wtf_ptr<FanDriver> &fan : fans) {
+						unique_ptr<StepwiseMapping> fan_cfg = std::make_unique<StepwiseMapping>();
+						fan_cfg->set_fan(unique_ptr<FanDriver>(fan.release()));
+						fan_cfg->add_level(
+							std::make_unique<ComplexLevel>(
+								lvl_entry.fan_levels[fan_idx].first,
+								lvl_entry.lower_limit,
+								lvl_entry.upper_limit
+							)
+						);
+						++fan_idx;
+					}
 				} catch (YAML::BadConversion &) {
-					wtf_ptr<SimpleLevel> tmp = it_lvl->as<wtf_ptr<SimpleLevel>>();
-					config->add_level(unique_ptr<Level>(tmp.release()));
+					unique_ptr<SimpleLevel> simple_lvl(it_lvl->as<wtf_ptr<SimpleLevel>>().release());
 				}
 			}
 		} else {
 			throw YamlError(get_mark_compat(it->first), "Unknown keyword");
 		}
 	}
+
 	return true;
 }
 

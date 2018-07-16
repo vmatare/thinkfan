@@ -149,7 +149,7 @@ template<class ErrT, class... ArgTs> void error(const ArgTs &... args) {
 #define MSG_BUG "This is probably a bug. Please consider reporting this at " TRACKER_URL ". Thanks."
 
 
-#define MSG_SENSOR_DEFAULT "Using default temperature inputs in " DEFAULT_SENSOR "."
+#define MSG_NO_SENSOR "No sensors in config file."
 #define MSG_T_GET(file) string(__func__) + ": Failed to read temperature(s) from " + file + ": "
 #define MSG_T_INVALID(s, d) s + ": Invalid temperature: " + std::to_string(d)
 #define MSG_SENSOR_INIT(file) string(__func__) + ": Initializing sensor in " + file + ": "

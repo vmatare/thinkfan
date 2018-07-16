@@ -162,6 +162,13 @@ ConfigError::ConfigError(const string &reason)
 : ExpectedError(reason)
 {}
 
+void ConfigError::set_filename(const string &filename)
+{ filename_ = filename; }
+
+const char* ConfigError::what() const _GLIBCXX_USE_NOEXCEPT
+{ return (filename_ + ": " + msg_).c_str(); }
+
+
 #ifdef USE_YAML
 
 ConfigError::ConfigError(const string &filename, const YAML::Mark &mark, const string &input, const string &msg)

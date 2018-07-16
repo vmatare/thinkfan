@@ -93,8 +93,8 @@ void sig_handler(int signum) {
 
 
 
-static inline void sensor_lost(const SensorDriver *s, const ExpectedError &e) {
-	if (!s->optional())
+static inline void sensor_lost(const SensorDriver &s, const ExpectedError &e) {
+	if (!s.optional())
 		error<SensorLost>(e);
 	else
 		log(TF_INF) << SensorLost(e).what();
@@ -102,18 +102,18 @@ static inline void sensor_lost(const SensorDriver *s, const ExpectedError &e) {
 }
 
 
-static inline void read_temps_safe(const std::vector<SensorDriver *> &sensors)
+static inline void read_temps_safe(const std::vector<std::unique_ptr<SensorDriver>> &sensors)
 {
 	temp_state.restart();
-	for (const SensorDriver *sensor : sensors) {
+	for (const std::unique_ptr<SensorDriver> &sensor : sensors) {
 		try {
 			sensor->read_temps();
 		} catch (SystemError &e) {
-			sensor_lost(sensor, e);
+			sensor_lost(*sensor, e);
 		} catch (IOerror &e) {
-			sensor_lost(sensor, e);
+			sensor_lost(*sensor, e);
 		} catch (std::ios_base::failure &e) {
-			sensor_lost(sensor, IOerror(e.what(), THINKFAN_IO_ERROR_CODE(e)));
+			sensor_lost(*sensor, IOerror(e.what(), THINKFAN_IO_ERROR_CODE(e)));
 		}
 	}
 }
@@ -124,17 +124,13 @@ void run(const Config &config)
 	tmp_sleeptime = sleeptime;
 
 	read_temps_safe(config.sensors());
-
 	temp_state.init();
 
 	// Set initial fan level
-	std::vector<Level *>::const_iterator cur_lvl = config.levels().begin();
-	config.fan()->init();
-	while (cur_lvl != --config.levels().end() && (*cur_lvl)->up())
-		cur_lvl++;
-	log(TF_NFY) << temp_state << " -> " <<
-			(*cur_lvl)->str() << flush;
-	config.fan()->set_speed(*cur_lvl);
+	++Logger::instance().log_lvl();
+	for (auto &fan_config : config.fan_configs())
+		fan_config->set_fanspeed(temp_state);
+	--Logger::instance().log_lvl();
 
 	while (likely(!interrupted)) {
 		std::this_thread::sleep_for(sleeptime);
@@ -144,28 +140,8 @@ void run(const Config &config)
 		if (unlikely(!temp_state.complete()))
 			throw SystemError(MSG_SENSOR_LOST);
 
-		if (unlikely(cur_lvl != --config.levels().end() && (*cur_lvl)->up())) {
-			while (cur_lvl != --config.levels().end() && (*cur_lvl)->up())
-				cur_lvl++;
-			log(TF_INF) << temp_state << " -> " <<
-					(*cur_lvl)->str() << flush;
-			config.fan()->set_speed(*cur_lvl);
-		}
-		else if (unlikely(cur_lvl != config.levels().begin() && (*cur_lvl)->down())) {
-			while (cur_lvl != config.levels().begin() && (*cur_lvl)->down())
-				cur_lvl--;
-			log(TF_INF) << temp_state << " -> " <<
-					(*cur_lvl)->str() << flush;
-			config.fan()->set_speed(*cur_lvl);
-			tmp_sleeptime = sleeptime;
-		}
-		else {
-			config.fan()->ping_watchdog_and_depulse(*cur_lvl);
-#ifdef DEBUG
-			log(TF_DBG) << temp_state << flush;
-#endif
-		}
-
+		for (auto &fan_config : config.fan_configs())
+			fan_config->set_fanspeed(temp_state);
 	}
 }
 
@@ -502,7 +478,7 @@ int main(int argc, char **argv) {
 				interrupted = 0;
 			}
 			else if (interrupted == SIGUSR2) {
-				config->fan()->init();
+				config->init_fans();
 				interrupted = 0;
 			}
 		} while (!interrupted);

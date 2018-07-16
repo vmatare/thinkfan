@@ -133,14 +133,14 @@ void TpFanDriver::set_depulse(float duration)
 { depulse_ = std::chrono::duration<float>(duration); }
 
 
-void TpFanDriver::set_speed(const Level *level)
+void TpFanDriver::set_speed(const Level &level)
 {
-	FanDriver::set_speed(level->str());
+	FanDriver::set_speed(level.str());
 	last_watchdog_ping_ = std::chrono::system_clock::now();
 }
 
 
-void TpFanDriver::ping_watchdog_and_depulse(const Level *level)
+void TpFanDriver::ping_watchdog_and_depulse(const Level &level)
 {
 	if (depulse_ > std::chrono::milliseconds(0)) {
 		FanDriver::set_speed("level disengaged");
@@ -230,17 +230,17 @@ void HwmonFanDriver::init()
 }
 
 
-void HwmonFanDriver::set_speed(const Level *level)
+void HwmonFanDriver::set_speed(const Level &level)
 {
 	try {
-		FanDriver::set_speed(std::to_string(level->num()));
+		FanDriver::set_speed(std::to_string(level.num()));
 	} catch (IOerror &e) {
 		if (e.code() == EINVAL) {
 			// This happens when the hwmon kernel driver is reset to automatic control
 			// e.g. after the system has woken up from suspend.
 			// In that case, we need to re-initialize and try once more.
 			init();
-			FanDriver::set_speed(std::to_string(level->num()));
+			FanDriver::set_speed(std::to_string(level.num()));
 			log(TF_DBG) << "It seems we woke up from suspend. PWM fan driver had to be re-initialized." << flush;
 		} else {
 			throw;
@@ -378,9 +378,11 @@ TpSensorDriver::TpSensorDriver(std::string path, bool optional, const std::vecto
 
 	if (temp_indices.size() > 0) {
 		if (temp_indices.size() > count)
-			throw ConfigError("Config specifies " + std::to_string(temp_indices.size())
-		                      + " temperature inputs in " + path
-		                      + ", but there are only " + std::to_string(count) + ".");
+			throw ConfigError(
+				"Config specifies " + std::to_string(temp_indices.size())
+				+ " temperature inputs in " + path
+				+ ", but there are only " + std::to_string(count) + "."
+			);
 
 		set_num_temps(static_cast<unsigned int>(temp_indices.size()));
 
