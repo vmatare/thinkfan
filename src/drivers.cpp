@@ -110,7 +110,7 @@ TpFanDriver::TpFanDriver(const std::string &path)
 }
 
 
-TpFanDriver::~TpFanDriver()
+TpFanDriver::~TpFanDriver() noexcept(false)
 {
 	std::ofstream f(path_);
 	if (!(f.is_open() && f.good()))
@@ -180,7 +180,7 @@ HwmonFanDriver::HwmonFanDriver(const std::string &path)
 }
 
 
-HwmonFanDriver::~HwmonFanDriver()
+HwmonFanDriver::~HwmonFanDriver() noexcept(false)
 {
 	std::ofstream f(path_ + "_enable");
 	if (!(f.is_open() && f.good()))
@@ -491,7 +491,7 @@ NvmlSensorDriver::NvmlSensorDriver(string bus_id, std::vector<int> correction)
 }
 
 
-NvmlSensorDriver::~NvmlSensorDriver()
+NvmlSensorDriver::~NvmlSensorDriver() noexcept(false)
 {
 	nvmlReturn_t ret;
 	if ((ret = dl_nvmlShutdown()))
@@ -505,7 +505,7 @@ void NvmlSensorDriver::read_temps() const
 	unsigned int tmp;
 	if ((ret = dl_nvmlDeviceGetTemperature(device_, NVML_TEMPERATURE_GPU, &tmp)))
 		throw SystemError(MSG_T_GET(path_) + "Error code (cf. nvml.h): " + std::to_string(ret));
-	temp_state.add_temp(tmp);
+	temp_state.add_temp(int(tmp));
 }
 #endif /* USE_NVML */
 

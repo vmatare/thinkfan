@@ -282,7 +282,7 @@ TemperatureState::TemperatureState(unsigned int num_temps)
   temp_(temps_.begin()),
   bias_(biases_.begin()),
   biased_temp_(biased_temps_.begin()),
-  tmax(0)
+  tmax(nullptr)
 {}
 
 
