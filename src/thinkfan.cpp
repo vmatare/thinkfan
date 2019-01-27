@@ -103,13 +103,29 @@ static inline void sensor_lost(const SensorDriver *s, const ExpectedError &e) {
 }
 
 
+static inline void read_temps_safe(const std::vector<SensorDriver *> &sensors)
+{
+	temp_state.restart();
+	for (const SensorDriver *sensor : sensors) {
+		try {
+			sensor->read_temps();
+		} catch (SystemError &e) {
+			sensor_lost(sensor, e);
+		} catch (IOerror &e) {
+			sensor_lost(sensor, e);
+		} catch (std::ios_base::failure &e) {
+			sensor_lost(sensor, IOerror(e.what(), e.code().value()));
+		}
+	}
+}
+
+
 void run(const Config &config)
 {
 	tmp_sleeptime = sleeptime;
 
-	temp_state.restart();
-	for (const SensorDriver *sensor : config.sensors())
-		sensor->read_temps();
+	read_temps_safe(config.sensors());
+
 	temp_state.init();
 
 	// Set initial fan level
@@ -124,19 +140,7 @@ void run(const Config &config)
 	while (likely(!interrupted)) {
 		std::this_thread::sleep_for(sleeptime);
 
-		temp_state.restart();
-
-		for (const SensorDriver *sensor : config.sensors()) {
-			try {
-				sensor->read_temps();
-			} catch (SystemError &e) {
-				sensor_lost(sensor, e);
-			} catch (IOerror &e) {
-				sensor_lost(sensor, e);
-			} catch (std::ios_base::failure &e) {
-				sensor_lost(sensor, IOerror(e.what(), e.code().value()));
-			}
-		}
+		read_temps_safe(config.sensors());
 
 		if (unlikely(!temp_state.complete()))
 			throw SystemError(MSG_SENSOR_LOST);
