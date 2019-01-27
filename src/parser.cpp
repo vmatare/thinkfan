@@ -146,7 +146,7 @@ SensorDriver *SensorParser::_parse(const char *&input)
 		sensor = new HwmonSensorDriver(*path, false);
 	else if ((path = unique_ptr<string>(KeywordParser("atasmart").parse(input)))) {
 #ifdef USE_ATASMART
-		sensor = new AtasmartSensorDriver(*path);
+		sensor = new AtasmartSensorDriver(*path, false);
 #else
 		error<SystemError>(MSG_CONF_ATASMART_UNSUPP);
 #endif /* USE_ATASMART */

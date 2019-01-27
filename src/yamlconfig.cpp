@@ -325,8 +325,6 @@ struct convert<wtf_ptr<NvmlSensorDriver>> {
 		bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
 
 		sensor = make_wtf<NvmlSensorDriver>(node[kw_nvidia].as<string>(), optional, correction);
-		if (node[kw_optional])
-			sensor->set_optional(node[kw_optional].as<bool>());
 
 		return true;
 	}
@@ -346,9 +344,9 @@ struct convert<wtf_ptr<AtasmartSensorDriver>> {
 		if (node[kw_correction])
 			correction = node[kw_correction].as<vector<int>>();
 
-		sensor = make_wtf<AtasmartSensorDriver>(node["atasmart"].as<string>(), correction);
-		if (node[kw_optional])
-			sensor->set_optional(node[kw_optional].as<bool>());
+		bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
+
+		sensor = make_wtf<AtasmartSensorDriver>(node["atasmart"].as<string>(), optional, correction);
 
 		return true;
 	}
