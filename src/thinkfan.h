@@ -82,7 +82,7 @@ public:
 
 class PidFileHolder {
 public:
-	PidFileHolder(::__pid_t pid);
+	PidFileHolder(::pid_t pid);
 	~PidFileHolder();
 	static bool file_exists();
 private:

@@ -251,7 +251,7 @@ int set_options(int argc, char **argv)
 }
 
 
-PidFileHolder::PidFileHolder(::__pid_t pid)
+PidFileHolder::PidFileHolder(::pid_t pid)
 : pid_file_(PID_FILE, std::ios_base::in)
 {
 	if (!pid_file_.fail())
