@@ -20,7 +20,9 @@
  * ******************************************************************/
 
 #include "error.h"
-#include <execinfo.h>
+#ifndef DISABLE_BACKTRACE  
+#   include <execinfo.h>
+#endif
 #include <cstring>
 #include <sstream>
 
@@ -35,6 +37,9 @@ namespace thinkfan {
 
 static string make_backtrace()
 {
+#ifdef DISABLE_BACKTRACE  
+  return "";
+#else  
 	string backtrace_;
 	void *bt_buffer[MAX_BACKTRACE_DEPTH];
 	int stack_depth = ::backtrace(bt_buffer, MAX_BACKTRACE_DEPTH);
@@ -54,6 +59,7 @@ static string make_backtrace()
 	}
 	free(bt_pretty);
 	return backtrace_;
+#endif
 }
 
 

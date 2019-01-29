@@ -53,7 +53,7 @@ option(DISABLE_BUGGER "Disable bug detection, i.e. dont't catch segfaults\
 option(DISABLE_SYSLOG "Disable logging to syslog, always log to stdout" OFF)
 option(DISABLE_EXCEPTION_CATCHING "Terminate with SIGABRT on all exceptions,\
  causing a core dump on every error" OFF)
-
+option(DISABLE_BACKTRACE "Disable backtrace generation (not implemented on MUSL for instance)" OFF)
 
 set(SRC_FILES src/thinkfan.cpp src/config.cpp src/drivers.cpp
     src/message.cpp src/parser.cpp src/error.cpp)
@@ -79,7 +79,6 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g3 -DDEBUG")
 
 
 add_executable(thinkfan ${SRC_FILES})
-
 
 if(USE_ATASMART)
     if(NOT ATASMART_FOUND)
@@ -111,7 +110,9 @@ endif(DISABLE_SYSLOG)
 if(DISABLE_EXCEPTION_CATCHING)
     add_definitions(-DDISABLE_EXCEPTION_CATCHING)
 endif(DISABLE_EXCEPTION_CATCHING)
-
+if(DISABLE_BACKTRACE)
+    add_definitions(-DDISABLE_BACKTRACE)
+endif(DISABLE_BACKTRACE)
 
 install(TARGETS thinkfan DESTINATION "${CMAKE_INSTALL_SBINDIR}")
 install(FILES COPYING README examples/thinkfan.conf.complex
