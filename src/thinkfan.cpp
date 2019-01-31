@@ -114,7 +114,7 @@ static inline void read_temps_safe(const std::vector<SensorDriver *> &sensors)
 		} catch (IOerror &e) {
 			sensor_lost(sensor, e);
 		} catch (std::ios_base::failure &e) {
-			sensor_lost(sensor, IOerror(e.what(), e.code().value()));
+			sensor_lost(sensor, IOerror(e.what(), THINKFAN_IO_ERROR_CODE(e)));
 		}
 	}
 }
