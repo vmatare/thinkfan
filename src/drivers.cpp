@@ -372,7 +372,7 @@ void TpSensorDriver::read_temps() const
 
 	unsigned int tidx = 0;
 	int tmp;
-	while (!f.eof()) {
+	while (!(f.eof() || f.fail())) {
 		f >> tmp;
 		if (f.bad())
 			throw IOerror(MSG_T_GET(path_), errno);
