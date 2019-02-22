@@ -66,7 +66,7 @@ endif(USE_YAML)
 # Set default build type
 #
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Options are: Debug Release RelWithDebInfo MinSizeRel."
+    set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Options are: Debug Release RelWithDebInfo MinSizeRel."
 	FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
 
