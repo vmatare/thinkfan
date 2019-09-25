@@ -318,10 +318,10 @@ void TemperatureState::add_temp(int t)
 			// Slowly return to normal sleeptime
 			if (unlikely(tmp_sleeptime < sleeptime)) tmp_sleeptime++;
 			// slowly reduce the bias_
-#pragma GCC push
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wfloat-equal" // bias is set to 0 explicitly
 			if (unlikely(*bias_ != 0)) {
-#pragma GCC pop
+#pragma GCC diagnostic pop
 				if (std::abs(*bias_) < 0.5f)
 					*bias_ = 0;
 				else
