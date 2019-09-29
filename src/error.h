@@ -117,8 +117,6 @@ public:
 #ifdef USE_YAML
 	ConfigError(const string &filename, const YAML::Mark &mark, const string &input, const string &msg);
 #endif
-private:
-	string filename_;
 };
 
 
