@@ -38,7 +38,7 @@ namespace thinkfan {
 
 class FanConfig {
 public:
-	FanConfig();
+	FanConfig(std::unique_ptr<FanDriver> && = nullptr);
 	virtual ~FanConfig() = default;
 	virtual void set_fanspeed(const TemperatureState &) = 0;
 	virtual void ensure_consistency() = 0;
@@ -52,7 +52,7 @@ private:
 
 class StepwiseMapping : public FanConfig {
 public:
-	StepwiseMapping();
+	StepwiseMapping(std::unique_ptr<FanDriver> && = nullptr);
 	virtual ~StepwiseMapping() override = default;
 	virtual void set_fanspeed(const TemperatureState &) override;
 	virtual void ensure_consistency() override;

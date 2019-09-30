@@ -36,7 +36,8 @@
 namespace thinkfan {
 
 
-FanConfig::FanConfig()
+FanConfig::FanConfig(std::unique_ptr<FanDriver> &&fan_drv)
+: fan_(std::move(fan_drv))
 {}
 
 const unique_ptr<FanDriver> &FanConfig::fan() const
@@ -50,7 +51,8 @@ bool FanConfig::set_fan(unique_ptr<FanDriver> &&fan)
 
 
 
-StepwiseMapping::StepwiseMapping()
+StepwiseMapping::StepwiseMapping(std::unique_ptr<FanDriver> &&fan_drv)
+: FanConfig(std::move(fan_drv))
 {}
 
 const std::vector<unique_ptr<Level>> &StepwiseMapping::levels() const
@@ -111,7 +113,7 @@ bool StepwiseMapping::add_level(std::unique_ptr<Level> &&level)
 		const unique_ptr<Level> &last_lvl = levels_.back();
 		if (level->num() != std::numeric_limits<int>::max()
 				&& level->num() != std::numeric_limits<int>::min()
-				&& last_lvl->num() >= level->num())
+				&& last_lvl->num() > level->num())
 			error<ConfigError>(MSG_CONF_LVLORDER);
 
 		if (last_lvl->upper_limit().size() != level->upper_limit().size())
