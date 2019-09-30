@@ -113,12 +113,14 @@ TpFanDriver::TpFanDriver(const std::string &path)
 TpFanDriver::~TpFanDriver() noexcept(false)
 {
 	std::ofstream f(path_);
-	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_FAN_RESET(path_), errno);
+	if (!(f.is_open() && f.good())) {
+		log(TF_ERR) << MSG_FAN_RESET(path_) << strerror(errno) << flush;
+		return;
+	}
 
 	log(TF_DBG) << path_ << ": Restoring initial state: " << initial_state_ << "." << flush;
 	if (!(f << "level " << initial_state_ << std::flush))
-		throw IOerror(MSG_FAN_RESET(path_), errno);
+		log(TF_ERR) << MSG_FAN_RESET(path_) << strerror(errno) << flush;
 }
 
 
@@ -183,11 +185,13 @@ HwmonFanDriver::HwmonFanDriver(const std::string &path)
 HwmonFanDriver::~HwmonFanDriver() noexcept(false)
 {
 	std::ofstream f(path_ + "_enable");
-	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_FAN_RESET(path_), errno);
+	if (!(f.is_open() && f.good())) {
+		log(TF_ERR) << MSG_FAN_RESET(path_) << strerror(errno) << flush;
+		return;
+	}
 	log(TF_DBG) << path_ << ": Restoring initial state: " << initial_state_ << "." << flush;
 	if (!(f << initial_state_ << std::flush))
-		throw IOerror(MSG_FAN_RESET(path_), errno);
+		log(TF_ERR) << MSG_FAN_RESET(path_) << strerror(errno) << flush;
 }
 
 
