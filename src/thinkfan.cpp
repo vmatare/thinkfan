@@ -441,9 +441,11 @@ int main(int argc, char **argv) {
 
 		// Load the config for real after forking & enabling syslog
 		std::unique_ptr<const Config> config(Config::read_config(config_files));
+
 		temp_state = TemperatureState(config->num_temps());
 
 		do {
+			config->init_fans();
 			run(*config);
 
 			if (interrupted == SIGHUP) {

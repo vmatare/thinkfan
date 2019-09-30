@@ -50,7 +50,7 @@ public:
 	FanDriver() : watchdog_(0) {}
 	bool is_default() { return path_.length() == 0; }
 	virtual ~FanDriver() noexcept(false) {}
-	virtual void init() const {}
+	virtual void init() {}
 	virtual void set_speed(const string &level);
 	virtual void set_speed(const Level *level) = 0;
 	virtual void ping_watchdog_and_depulse(const Level *) {}
@@ -64,7 +64,7 @@ public:
 	virtual ~TpFanDriver() noexcept(false) override;
 	void set_watchdog(const unsigned int timeout);
 	void set_depulse(float duration);
-	virtual void init() const override;
+	virtual void init() override;
 	virtual void set_speed(const Level *const level) override;
 	virtual void ping_watchdog_and_depulse(const Level *level) override;
 };
@@ -74,7 +74,7 @@ class HwmonFanDriver : public FanDriver {
 public:
 	HwmonFanDriver(const string &path);
 	virtual ~HwmonFanDriver() noexcept(false) override;
-	virtual void init() const override;
+	virtual void init() override;
 	virtual void set_speed(const Level *level) override;
 };
 
