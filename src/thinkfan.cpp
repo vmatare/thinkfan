@@ -412,13 +412,21 @@ int main(int argc, char **argv) {
 		if (PidFileHolder::file_exists())
 			error<SystemError>(MSG_RUNNING);
 
-		// Load the config temporarily once so we may fail before forking
-		LogLevel old_lvl = Logger::instance().log_lvl();
-		Logger::instance().log_lvl() = TF_ERR;
-		delete Config::read_config(config_files);
-		Logger::instance().log_lvl() = old_lvl;
-
 		if (daemonize) {
+			{
+				// Test the config before forking
+				LogLevel old_lvl = Logger::instance().log_lvl();
+				Logger::instance().log_lvl() = TF_ERR;
+				std::unique_ptr<const Config> test_cfg(Config::read_config(config_files));
+				temp_state = TemperatureState(test_cfg->num_temps());
+				temp_state.init();
+				test_cfg->init_fans();
+				for (auto &sensor : test_cfg->sensors())
+					sensor->read_temps();
+				Logger::instance().log_lvl() = old_lvl;
+				// Own scope so the config gets destroyed before forking
+			}
+
 			pid_t child_pid = ::fork();
 			if (child_pid < 0) {
 				string msg(strerror(errno));
