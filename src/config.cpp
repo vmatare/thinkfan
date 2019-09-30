@@ -60,9 +60,9 @@ const std::vector<unique_ptr<Level>> &StepwiseMapping::levels() const
 
 void StepwiseMapping::init_fanspeed(const TemperatureState &)
 {
-	cur_lvl_ = levels().begin();
-	while (cur_lvl_ != --levels().end() && (*cur_lvl_)->up())
-		cur_lvl_++;
+	cur_lvl_ = --levels().end();
+	while (cur_lvl_ != levels().begin() && (*cur_lvl_)->down())
+		cur_lvl_--;
 	fan()->set_speed(**cur_lvl_);
 }
 
