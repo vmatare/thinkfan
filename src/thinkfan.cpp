@@ -54,9 +54,9 @@ float depulse = 0;
 TemperatureState temp_state(0);
 
 #ifdef USE_YAML
-std::vector<string> config_files({DEFAULT_YAML_CONFIG, DEFAULT_CONFIG});
+std::vector<string> config_files { DEFAULT_YAML_CONFIG, DEFAULT_CONFIG };
 #else
-std::vector<std::string> config_files({DEFAULT_CONFIG});
+std::vector<std::string> config_files { DEFAULT_CONFIG };
 #endif
 
 volatile int interrupted(0);
@@ -82,7 +82,6 @@ void sig_handler(int signum) {
 	case SIGSEGV:
 		// Let's hope memory isn't too fucked up to get through with this ;)
 		throw Bug("Segmentation fault.");
-		break;
 #endif
 	case SIGUSR2:
 		interrupted = signum;
@@ -100,7 +99,7 @@ void run(const Config &config)
 	temp_state.restart();
 	for (const SensorDriver *sensor : config.sensors())
 		sensor->read_temps();
-	temp_state.first_run();
+	temp_state.init();
 
 	// Set initial fan level
 	std::vector<Level *>::const_iterator cur_lvl = config.levels().begin();
@@ -191,7 +190,7 @@ int set_options(int argc, char **argv)
 					size_t invalid;
 					int s;
 					string arg(optarg);
-					s = std::stoul(arg, &invalid);
+					s = int(std::stoul(arg, &invalid));
 					if (invalid < arg.length())
 						throw InvocationError(MSG_OPT_S_INVAL(optarg));
 					if (s > 15)
@@ -302,7 +301,7 @@ void TemperatureState::add_temp(int t)
 
 	if (unlikely(diff > 2)) {
 		// Apply bias_ if temperature changed quickly
-		float tmp_bias = (float)diff * bias_level;
+		float tmp_bias = float(diff) * bias_level;
 
 		*bias_ = int(tmp_bias);
 		if (tmp_sleeptime > seconds(2))
@@ -357,7 +356,7 @@ const std::vector<float> & TemperatureState::biases() const
 { return biases_; }
 
 
-void TemperatureState::first_run()
+void TemperatureState::init()
 {
 	biases_.clear();
 	biases_.resize(temps_.size(), 0);
