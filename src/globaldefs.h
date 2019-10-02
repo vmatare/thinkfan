@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <time.h>
+#include <sys/types.h>
 
 #define VERSION "0.9.1"
 
