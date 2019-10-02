@@ -161,8 +161,8 @@ static vector<string> find_hwmons_by_name(string path, string name, unsigned cha
 }
 
 
-template<class T, class...ExtraArgTs>
-static vector<wtf_ptr<T>> find_hwmons_by_indices(string path, const vector<int> &indices, ExtraArgTs... extra_args, unsigned char depth = 0)
+template<class T>
+static vector<wtf_ptr<T>> find_hwmons_by_indices(string path, const vector<int> &indices, unsigned char depth = 0)
 {
 	vector<wtf_ptr<T>> rv;
 
@@ -201,7 +201,7 @@ static vector<wtf_ptr<T>> find_hwmons_by_indices(string path, const vector<int> 
 
 			if (nentries > 0 && depth <= max_depth) {
 				for (int i = 0; i < nentries && rv.empty(); i++)
-					rv = find_hwmons_by_indices<T, ExtraArgTs...>(path + "/" + entries[i]->d_name, indices, extra_args..., depth + 1);
+					rv = find_hwmons_by_indices<T>(path + "/" + entries[i]->d_name, indices, depth + 1);
 			}
 			else
 				throw ConfigError("Could not find an `hwmon*' directory or `temp*_input' file in " + path + ".");
@@ -251,7 +251,7 @@ struct convert<vector<wtf_ptr<HwmonSensorDriver>>> {
 		}
 
 		if (node[kw_indices]) {
-			vector<wtf_ptr<HwmonSensorDriver>> hwmons = find_hwmons_by_indices<HwmonSensorDriver, bool>(
+			vector<wtf_ptr<HwmonSensorDriver>> hwmons = find_hwmons_by_indices<HwmonSensorDriver>(
 						path,
 						node[kw_indices].as<vector<int>>());
 			if (!correction.empty()) {
