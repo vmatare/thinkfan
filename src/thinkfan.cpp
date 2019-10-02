@@ -127,11 +127,11 @@ void run(const Config &config)
 	temp_state.init();
 
 	// Set initial fan level
-	++Logger::instance().log_lvl();
 	for (auto &fan_config : config.fan_configs())
-		fan_config->set_fanspeed(temp_state);
-	--Logger::instance().log_lvl();
+		fan_config->init_fanspeed(temp_state);
+	log(TF_NFY) << temp_state << " -> " << config.fan_configs() << flush;
 
+	bool did_something = false;
 	while (likely(!interrupted)) {
 		std::this_thread::sleep_for(sleeptime);
 
@@ -141,7 +141,12 @@ void run(const Config &config)
 			throw SystemError(MSG_SENSOR_LOST);
 
 		for (auto &fan_config : config.fan_configs())
-			fan_config->set_fanspeed(temp_state);
+			did_something |= fan_config->set_fanspeed(temp_state);
+
+		if (unlikely(did_something))
+			log(TF_INF) << temp_state << " -> " << config.fan_configs() << flush;
+
+		did_something = false;
 	}
 }
 

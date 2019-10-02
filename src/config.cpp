@@ -58,35 +58,38 @@ StepwiseMapping::StepwiseMapping(std::unique_ptr<FanDriver> &&fan_drv)
 const std::vector<unique_ptr<Level>> &StepwiseMapping::levels() const
 { return levels_; }
 
-void StepwiseMapping::set_fanspeed(const TemperatureState &temp_state)
+void StepwiseMapping::init_fanspeed(const TemperatureState &)
+{
+	cur_lvl_ = levels().begin();
+	while (cur_lvl_ != --levels().end() && (*cur_lvl_)->up())
+		cur_lvl_++;
+	fan()->set_speed(**cur_lvl_);
+}
+
+bool StepwiseMapping::set_fanspeed(const TemperatureState &temp_state)
 {
 	if (unlikely(cur_lvl_ != --levels().end() && (*cur_lvl_)->up())) {
 		while (cur_lvl_ != --levels().end() && (*cur_lvl_)->up())
 			cur_lvl_++;
-		log(TF_INF) << temp_state << " -> " <<
-		(*cur_lvl_)->str() << flush;
 		fan()->set_speed(**cur_lvl_);
+		return true;
 	}
 	else if (unlikely(cur_lvl_ != levels().begin() && (*cur_lvl_)->down())) {
 		while (cur_lvl_ != levels().begin() && (*cur_lvl_)->down())
 			cur_lvl_--;
-		log(TF_INF) << temp_state << " -> " <<
-		(*cur_lvl_)->str() << flush;
 		fan()->set_speed(**cur_lvl_);
 		tmp_sleeptime = sleeptime;
+		return true;
 	}
 	else {
 		fan()->ping_watchdog_and_depulse(**cur_lvl_);
-#ifdef DEBUG
-		log(TF_DBG) << temp_state << flush;
-#endif
+		return false;
 	}
 }
 
+
 void StepwiseMapping::ensure_consistency()
 {
-	// TODO: throw these from the config parser
-
 	if (levels().size() == 0)
 		throw ConfigError("No fan levels specified.");
 
@@ -101,8 +104,8 @@ void StepwiseMapping::ensure_consistency()
 			 && maxlvl > 7
 			 && maxlvl != 127)
 		error<ConfigError>(MSG_CONF_TP_LVL7(maxlvl, 7));
-}
 
+}
 
 
 bool StepwiseMapping::add_level(std::unique_ptr<Level> &&level)
@@ -174,8 +177,7 @@ const Config *Config::try_read_config(const string &filename)
 		throw IOerror(filename + ": ", errno);
 
 #ifdef USE_YAML
-	try
-	{
+	try	{
 		YAML::Node root = YAML::Load(f_data);
 
 		// Copy the return value first. Workaround for https://github.com/vmatare/thinkfan/issues/42

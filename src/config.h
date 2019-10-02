@@ -40,7 +40,8 @@ class FanConfig {
 public:
 	FanConfig(std::unique_ptr<FanDriver> && = nullptr);
 	virtual ~FanConfig() = default;
-	virtual void set_fanspeed(const TemperatureState &) = 0;
+	virtual void init_fanspeed(const TemperatureState &) = 0;
+	virtual bool set_fanspeed(const TemperatureState &) = 0;
 	virtual void ensure_consistency() = 0;
 	bool set_fan(std::unique_ptr<FanDriver> &&);
 	const std::unique_ptr<FanDriver> &fan() const;
@@ -54,14 +55,15 @@ class StepwiseMapping : public FanConfig {
 public:
 	StepwiseMapping(std::unique_ptr<FanDriver> && = nullptr);
 	virtual ~StepwiseMapping() override = default;
-	virtual void set_fanspeed(const TemperatureState &) override;
+	virtual void init_fanspeed(const TemperatureState &) override;
+	virtual bool set_fanspeed(const TemperatureState &) override;
 	virtual void ensure_consistency() override;
 	bool add_level(std::unique_ptr<Level> &&level);
 	const std::vector<std::unique_ptr<Level>> &levels() const;
 
 private:
 	std::vector<std::unique_ptr<Level>> levels_;
-	std::vector<std::unique_ptr<Level>>::iterator cur_lvl_;
+	std::vector<std::unique_ptr<Level>>::const_iterator cur_lvl_;
 };
 
 

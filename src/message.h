@@ -49,6 +49,7 @@ LogLevel &operator--(LogLevel &l);
 LogLevel &operator++(LogLevel &l);
 
 class ExpectedError;
+class FanConfig;
 
 class Logger {
 private:
@@ -71,6 +72,7 @@ public:
 	Logger &operator<< (char *msg);
 
 	Logger &operator<< (const TemperatureState &);
+	Logger &operator<< (const std::vector<std::unique_ptr<FanConfig>> &);
 
 	template<class ListT>
 	Logger &operator<< (const ListT &l) {

@@ -42,6 +42,7 @@ class FanDriver {
 protected:
 	string path_;
 	string initial_state_;
+	string current_speed_;
 	seconds watchdog_;
 	secondsf depulse_;
 	std::chrono::system_clock::time_point last_watchdog_ping_;
@@ -53,6 +54,7 @@ public:
 	virtual void init() {}
 	virtual void set_speed(const string &level);
 	virtual void set_speed(const Level &level) = 0;
+	const string &current_speed() const;
 	virtual void ping_watchdog_and_depulse(const Level &) {}
 	bool operator == (const FanDriver &other) const;
 };

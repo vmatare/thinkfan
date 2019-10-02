@@ -48,7 +48,6 @@ FanDriver::FanDriver(const std::string &path, const unsigned int watchdog_timeou
   depulse_(0)
 {}
 
-
 void FanDriver::set_speed(const string &level)
 {
 	std::ofstream f_out(path_);
@@ -59,6 +58,7 @@ void FanDriver::set_speed(const string &level)
 		else
 			throw IOerror(MSG_FAN_CTRL(level, path_), err);
 	}
+	current_speed_ = level;
 }
 
 
@@ -69,6 +69,9 @@ bool FanDriver::operator == (const FanDriver &other) const
 			&& this->depulse_ == other.depulse_
 			&& this->watchdog_ == other.watchdog_;
 }
+
+const string &FanDriver::current_speed() const
+{ return current_speed_; }
 
 
 /*----------------------------------------------------------------------------
