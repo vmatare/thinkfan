@@ -68,6 +68,7 @@ public:
 	Logger &operator<< (const float &d);
 	Logger &operator<< (Logger & (*pf_flush)(Logger &));
 	Logger &operator<< (const char *msg);
+	Logger &operator<< (char *msg);
 
 	Logger &operator<< (const TemperatureState &);
 
