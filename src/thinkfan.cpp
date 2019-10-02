@@ -415,16 +415,10 @@ int main(int argc, char **argv) {
 		if (daemonize) {
 			{
 				// Test the config before forking
-				LogLevel old_lvl = Logger::instance().log_lvl();
-				Logger::instance().log_lvl() = TF_ERR;
-				std::unique_ptr<const Config> test_cfg(Config::read_config(config_files));
-				temp_state = TemperatureState(test_cfg->num_temps());
-				temp_state.init();
-				test_cfg->init_fans();
-				for (auto &sensor : test_cfg->sensors())
-					sensor->read_temps();
-				Logger::instance().log_lvl() = old_lvl;
-				// Own scope so the config gets destroyed before forking
+                               LogLevel old_lvl = Logger::instance().log_lvl();
+                               Logger::instance().log_lvl() = TF_ERR;
+                               delete Config::read_config(config_files);
+                               Logger::instance().log_lvl() = old_lvl;
 			}
 
 			pid_t child_pid = ::fork();
@@ -453,7 +447,6 @@ int main(int argc, char **argv) {
 		temp_state = TemperatureState(config->num_temps());
 
 		do {
-			config->init_fans();
 			run(*config);
 
 			if (interrupted == SIGHUP) {
