@@ -528,7 +528,7 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 	config = make_wtf<Config>();
 
 	for (YAML::const_iterator it = node.begin(); it != node.end(); ++it) {
-		const Node &entry = it->second;
+		const Node entry = it->second;
 		const string key = it->first.as<string>();
 		if (key == kw_sensors) {
 			auto sensors = entry.as<vector<wtf_ptr<SensorDriver>>>();
