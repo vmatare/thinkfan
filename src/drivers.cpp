@@ -106,19 +106,22 @@ TpFanDriver::TpFanDriver(const std::string &path)
 
 	if (!ctrl_supported)
 		throw SystemError(MSG_FAN_MODOPTS);
-	log(TF_DBG) << path_ << ": Saved initial state: " << initial_state_ << "." << flush;
 }
 
 
-TpFanDriver::~TpFanDriver()
+TpFanDriver::~TpFanDriver() noexcept(false)
 {
 	std::ofstream f(path_);
-	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_FAN_RESET(path_), errno);
+	if (!(f.is_open() && f.good())) {
+		log(TF_ERR) << MSG_FAN_RESET(path_) << strerror(errno) << flush;
+		return;
+	}
 
-	log(TF_DBG) << path_ << ": Restoring initial state: " << initial_state_ << "." << flush;
-	if (!(f << "level " << initial_state_ << std::flush))
-		throw IOerror(MSG_FAN_RESET(path_), errno);
+	if (!initial_state_.empty()) {
+		log(TF_DBG) << path_ << ": Restoring initial state: " << initial_state_ << "." << flush;
+		if (!(f << "level " << initial_state_ << std::flush))
+			log(TF_ERR) << MSG_FAN_RESET(path_) << strerror(errno) << flush;
+	}
 }
 
 
@@ -149,11 +152,33 @@ void TpFanDriver::ping_watchdog_and_depulse(const Level *level)
 }
 
 
-void TpFanDriver::init() const
+void TpFanDriver::init()
 {
 	std::fstream f(path_);
 	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_FAN_INIT(path_), errno);
+
+	std::string line;
+	line.resize(256);
+
+	if (initial_state_.empty())
+		while (f.getline(&*line.begin(), 255)) {
+			if (f.fail())
+				throw IOerror(MSG_FAN_INIT(path_), errno);
+			if (line.rfind("level:") != string::npos) {
+				// remember initial level, restore it in d'tor
+				string::size_type offs = line.find_last_of(" \t") + 1;
+				if (offs != string::npos) {
+					// Cut of at bogus \000 char that may occur before EOL
+					initial_state_ = line.substr(offs, line.find_first_of('\000') - offs);
+				}
+				log(TF_DBG) << path_ << ": Saved initial state: " << initial_state_ << "." << flush;
+				break;
+			}
+		}
+
+	if (initial_state_.empty())
+		throw SystemError(MSG_FAN_INIT(path_) + "Failed to read initial state.");
 
 	if (!(f << "watchdog " << watchdog_.count() << std::flush))
 		throw IOerror(MSG_FAN_INIT(path_), errno);
@@ -166,36 +191,40 @@ void TpFanDriver::init() const
 
 HwmonFanDriver::HwmonFanDriver(const std::string &path)
 : FanDriver(path, 0)
-{
-	std::ifstream f(path_ + "_enable");
-	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_FAN_INIT(path_), errno);
+{}
 
-	std::string line;
-	line.resize(64);
-	if (!f.getline(&*line.begin(), 63))
-		throw IOerror(MSG_FAN_INIT(path_), errno);
-	initial_state_ = line;
-	log(TF_DBG) << path_ << ": Saved initial state: " << initial_state_ << "." << flush;
+
+HwmonFanDriver::~HwmonFanDriver() noexcept(false)
+{
+	std::ofstream f(path_ + "_enable");
+	if (!(f.is_open() && f.good())) {
+		log(TF_ERR) << MSG_FAN_RESET(path_) << strerror(errno) << flush;
+		return;
+	}
+
+	if (!initial_state_.empty()) {
+		log(TF_DBG) << path_ << ": Restoring initial state: " << initial_state_ << "." << flush;
+		if (!(f << initial_state_ << std::flush))
+			log(TF_ERR) << MSG_FAN_RESET(path_) << strerror(errno) << flush;
+	}
 }
 
 
-HwmonFanDriver::~HwmonFanDriver()
+void HwmonFanDriver::init()
 {
-	std::ofstream f(path_ + "_enable");
-	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_FAN_RESET(path_), errno);
-	log(TF_DBG) << path_ << ": Restoring initial state: " << initial_state_ << "." << flush;
-	if (!(f << initial_state_ << std::flush))
-		throw IOerror(MSG_FAN_RESET(path_), errno);
-}
-
-
-void HwmonFanDriver::init() const
-{
-	std::ofstream f(path_ + "_enable");
+	std::fstream f(path_ + "_enable");
 	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_FAN_INIT(path_), errno);
+
+	if (initial_state_.empty()) {
+		std::string line;
+		line.resize(64);
+		if (!f.getline(&*line.begin(), 63))
+			throw IOerror(MSG_FAN_INIT(path_), errno);
+		initial_state_ = line;
+		log(TF_DBG) << path_ << ": Saved initial state: " << initial_state_ << "." << flush;
+	}
+
 	if (!(f << "1" << std::flush))
 		throw IOerror(MSG_FAN_INIT(path_), errno);
 }
@@ -372,7 +401,7 @@ void TpSensorDriver::read_temps() const
 
 	unsigned int tidx = 0;
 	int tmp;
-	while (!f.eof()) {
+	while (!(f.eof() || f.fail())) {
 		f >> tmp;
 		if (f.bad())
 			throw IOerror(MSG_T_GET(path_), errno);
@@ -491,7 +520,7 @@ NvmlSensorDriver::NvmlSensorDriver(string bus_id, std::vector<int> correction)
 }
 
 
-NvmlSensorDriver::~NvmlSensorDriver()
+NvmlSensorDriver::~NvmlSensorDriver() noexcept(false)
 {
 	nvmlReturn_t ret;
 	if ((ret = dl_nvmlShutdown()))
@@ -505,7 +534,7 @@ void NvmlSensorDriver::read_temps() const
 	unsigned int tmp;
 	if ((ret = dl_nvmlDeviceGetTemperature(device_, NVML_TEMPERATURE_GPU, &tmp)))
 		throw SystemError(MSG_T_GET(path_) + "Error code (cf. nvml.h): " + std::to_string(ret));
-	temp_state.add_temp(tmp);
+	temp_state.add_temp(int(tmp));
 }
 #endif /* USE_NVML */
 

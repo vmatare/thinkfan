@@ -68,6 +68,7 @@ public:
 	Logger &operator<< (const float &d);
 	Logger &operator<< (Logger & (*pf_flush)(Logger &));
 	Logger &operator<< (const char *msg);
+	Logger &operator<< (char *msg);
 
 	Logger &operator<< (const TemperatureState &);
 
@@ -152,6 +153,8 @@ template<class ErrT, class... ArgTs> void error(ArgTs... args) {
 #define MSG_T_GET(file) string(__func__) + ": Failed to read temperature(s) from " + file + ": "
 #define MSG_T_INVALID(s, d) s + ": Invalid temperature: " + std::to_string(d)
 #define MSG_SENSOR_INIT(file) string(__func__) + ": Initializing sensor in " + file + ": "
+#define MSG_HWMON_NOT_FOUND "Could not find a hwmon with this name"
+#define MSG_MULTIPLE_HWMONS_FOUND "Found multiple hwmons with this name: "
 
 
 #define MSG_FAN_MODOPTS \

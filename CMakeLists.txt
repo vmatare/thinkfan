@@ -13,8 +13,7 @@ pkg_check_modules(OPENRC "openrc")
 pkg_check_modules(YAML_CPP "yaml-cpp")
 
 if(YAML_CPP_FOUND AND YAML_CPP_VERSION VERSION_LESS "0.5.3")
-    message(WARNING "\nyaml-cpp version ${YAML_CPP_VERSION} is very old, buggy and lacks some features.\
-	    Thinkfan will not always be able to point out the location of errors in the YAML config.")
+    message(WARNING "yaml-cpp version ${YAML_CPP_VERSION} is very old, buggy and lacks some features. Thinkfan will not always be able to point out the location of errors in the YAML config.")
     add_definitions(-DHAVE_OLD_YAMLCPP)
 endif()
 
@@ -39,8 +38,7 @@ option(USE_ATASMART "Enable reading temperatures from HDDs via S.M.A.R.T" OFF)
 # loaded at runtime, so we don't add a compile-time dependency on the
 # proprietary nVidia driver.
 #
-option(USE_NVML "Get temperatures directly from nVidia GPUs via their\
- proprietary NVML API" ON)
+option(USE_NVML "Get temperatures directly from nVidia GPUs via their proprietary NVML API" ON)
 
 #
 # The shiny new YAML config parser. Depends on yaml-cpp.
@@ -48,11 +46,9 @@ option(USE_NVML "Get temperatures directly from nVidia GPUs via their\
 option(USE_YAML "Enable the new YAML-based config format" ON)
 
 
-option(DISABLE_BUGGER "Disable bug detection, i.e. dont't catch segfaults\
- and unhandled exceptions" OFF)
+option(DISABLE_BUGGER "Disable bug detection, i.e. dont't catch segfaults and unhandled exceptions" OFF)
 option(DISABLE_SYSLOG "Disable logging to syslog, always log to stdout" OFF)
-option(DISABLE_EXCEPTION_CATCHING "Terminate with SIGABRT on all exceptions,\
- causing a core dump on every error" OFF)
+option(DISABLE_EXCEPTION_CATCHING "Terminate with SIGABRT on all exceptions, causing a core dump on every error" OFF)
 option(DISABLE_BACKTRACE "Disable backtrace generation (not implemented on MUSL for instance)" OFF)
 
 set(SRC_FILES src/thinkfan.cpp src/config.cpp src/drivers.cpp
@@ -70,7 +66,7 @@ endif(USE_YAML)
 # Set default build type
 #
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Options are: Debug Release RelWithDebInfo MinSizeRel."
+    set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Options are: Debug Release RelWithDebInfo MinSizeRel."
 	FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
 

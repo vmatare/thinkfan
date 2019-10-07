@@ -67,7 +67,7 @@ public:
 	const std::vector<int> &temps() const;
 	const std::vector<float> &biases() const;
 	bool complete() const;
-	void first_run();
+	void init();
 private:
 	std::vector<int> temps_;
 	std::vector<float> biases_;
@@ -90,6 +90,7 @@ private:
 };
 
 
+// Command line options
 extern bool chk_sanity;
 extern bool resume_is_safe;
 extern bool quiet;

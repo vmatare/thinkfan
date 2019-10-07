@@ -33,6 +33,9 @@ static const string kw_atasmart("atasmart");
 static const string kw_speed("speed");
 static const string kw_upper("upper_limit");
 static const string kw_lower("lower_limit");
+static const string kw_name("name");
+static const string kw_self(".");
+static const string kw_parent("..");
 static const string kw_indices("indices");
 static const string kw_correction("correction");
 
@@ -100,10 +103,15 @@ static int filter_pwms(const struct dirent *entry)
 
 static int filter_hwmon_dirs(const struct dirent *entry)
 {
-	if ((entry->d_type & (DT_DIR | DT_LNK)) && (
-				!strncmp("hwmon", entry->d_name, 5) || !strcmp("device", entry->d_name)))
+	if ((entry->d_type == DT_DIR || entry->d_type == DT_LNK)	 && (
+	            !strncmp("hwmon", entry->d_name, 5) || !strcmp("device", entry->d_name)))
 		return 1;
 	return 0;
+}
+
+static int filter_subdirs(const struct dirent *entry)
+{
+	return entry->d_type & DT_DIR && entry->d_name != kw_self && entry->d_name != kw_parent;
 }
 
 
@@ -119,13 +127,45 @@ int scandir< HwmonFanDriver > (const string &path, struct dirent ***entries)
 { return ::scandir(path.c_str(), entries, filter_pwms, alphasort); }
 
 
+static vector<string> find_hwmons_by_name(string path, string name, unsigned char depth = 1) {
+	const unsigned char max_depth = 5;
+	vector<string> result;
+
+	ifstream f(path + "/name");
+	if (f.is_open() && f.good()) {
+		string tmp;
+		if ((f >> tmp) && tmp == name) {
+			result.push_back(path);
+			return result;
+		}
+	}
+	if (depth >= max_depth) {
+		return result;  // don't recurse to subdirs
+	}
+
+	struct dirent **entries;
+	int nentries = ::scandir(path.c_str(), &entries, filter_subdirs, NULL);
+	if (nentries == -1) {
+		return result;
+	}
+	for (int i = 0; i < nentries; i++) {
+		auto subdir = path + "/" + entries[i]->d_name;
+		free(entries[i]);
+
+		auto found = find_hwmons_by_name(subdir, name, depth + 1);
+		result.insert(result.end(), found.begin(), found.end());
+	}
+	free(entries);
+
+	return result;
+}
+
 
 template<class T>
-static vector<wtf_ptr<T>> find_hwmons(string path, const vector<int> &indices)
+static vector<wtf_ptr<T>> find_hwmons_by_indices(string path, const vector<int> &indices, unsigned char depth = 0)
 {
 	vector<wtf_ptr<T>> rv;
 
-	unsigned char depth = 0;
 	const unsigned char max_depth = 3;
 
 	filter_indices = indices;
@@ -158,13 +198,13 @@ static vector<wtf_ptr<T>> find_hwmons(string path, const vector<int> &indices)
 			nentries = ::scandir(path.c_str(), &entries, filter_hwmon_dirs, alphasort);
 			if (nentries < 0)
 				throw IOerror("Error scanning " + path + ": ", errno);
-			if (nentries == 0)
-				throw ConfigError("Could not find an `hwmon*' directory or `temp*_input' file in " + path + ".");
 
-			if (depth <= max_depth && !strncmp(kw_hwmon.c_str(), entries[0]->d_name, 5)) {
-				(path += "/") += entries[0]->d_name;
-				depth++;
+			if (nentries > 0 && depth <= max_depth) {
+				for (int i = 0; i < nentries && rv.empty(); i++)
+					rv = find_hwmons_by_indices<T>(path + "/" + entries[i]->d_name, indices, depth + 1);
 			}
+			else
+				throw ConfigError("Could not find an `hwmon*' directory or `temp*_input' file in " + path + ".");
 		}
 
 		for (int i = 0; i < nentries; i++)
@@ -193,9 +233,27 @@ struct convert<vector<wtf_ptr<HwmonSensorDriver>>> {
 		if (node[kw_correction])
 			correction = node[kw_correction].as<vector<int>>();
 
+		if (node[kw_name]) {
+			auto paths = find_hwmons_by_name(path, node[kw_name].as<string>());
+			if (paths.size() != 1) {
+				string msg;
+				if (paths.size() == 0) {
+					msg = MSG_HWMON_NOT_FOUND;
+				} else {
+					msg = MSG_MULTIPLE_HWMONS_FOUND;
+					for (string hwmon_path : paths) {
+						msg += " " + hwmon_path;
+					}
+				}
+				throw YamlError(get_mark_compat(node[kw_name]), msg);
+			}
+			path = paths[0];
+		}
+
 		if (node[kw_indices]) {
-			vector<wtf_ptr<HwmonSensorDriver>> hwmons = find_hwmons<HwmonSensorDriver>(
-						path, node[kw_indices].as<vector<int>>());
+			vector<wtf_ptr<HwmonSensorDriver>> hwmons = find_hwmons_by_indices<HwmonSensorDriver>(
+						path,
+						node[kw_indices].as<vector<int>>());
 			if (!correction.empty()) {
 				if (correction.size() != hwmons.size())
 					throw YamlError(
@@ -344,7 +402,7 @@ struct convert<vector<wtf_ptr<HwmonFanDriver>>> {
 		string path = node[kw_hwmon].as<string>();
 
 		if (node[kw_indices])
-			fans = find_hwmons<HwmonFanDriver>(path, node[kw_indices].as<vector<int>>());
+			fans = find_hwmons_by_indices<HwmonFanDriver>(path, node[kw_indices].as<vector<int>>());
 		else
 			fans.push_back(make_wtf<HwmonFanDriver>(node[kw_hwmon].as<string>()));
 
@@ -470,7 +528,7 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 	config = make_wtf<Config>();
 
 	for (YAML::const_iterator it = node.begin(); it != node.end(); ++it) {
-		const Node &entry = it->second;
+		const Node entry = it->second;
 		const string key = it->first.as<string>();
 		if (key == kw_sensors) {
 			auto sensors = entry.as<vector<wtf_ptr<SensorDriver>>>();

@@ -158,6 +158,10 @@ Logger &Logger::operator<< (const float &i)
 Logger &Logger::operator<< (const char *msg)
 { msg_pfx_ += msg; return *this; }
 
+Logger &Logger::operator<< (char *msg)
+{ msg_pfx_ += msg; return *this; }
+
+
 Logger &Logger::operator<< (Logger & (*pf_flush)(Logger &))
 { return pf_flush(*this); }
 

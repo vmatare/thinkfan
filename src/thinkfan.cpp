@@ -54,9 +54,9 @@ float depulse = 0;
 TemperatureState temp_state(0);
 
 #ifdef USE_YAML
-std::vector<string> config_files({DEFAULT_YAML_CONFIG, DEFAULT_CONFIG});
+std::vector<string> config_files { DEFAULT_YAML_CONFIG, DEFAULT_CONFIG };
 #else
-std::vector<std::string> config_files({DEFAULT_CONFIG});
+std::vector<std::string> config_files { DEFAULT_CONFIG };
 #endif
 
 volatile int interrupted(0);
@@ -82,7 +82,6 @@ void sig_handler(int signum) {
 	case SIGSEGV:
 		// Let's hope memory isn't too fucked up to get through with this ;)
 		throw Bug("Segmentation fault.");
-		break;
 #endif
 	case SIGUSR2:
 		interrupted = signum;
@@ -100,7 +99,7 @@ void run(const Config &config)
 	temp_state.restart();
 	for (const SensorDriver *sensor : config.sensors())
 		sensor->read_temps();
-	temp_state.first_run();
+	temp_state.init();
 
 	// Set initial fan level
 	std::vector<Level *>::const_iterator cur_lvl = config.levels().begin();
@@ -191,7 +190,7 @@ int set_options(int argc, char **argv)
 					size_t invalid;
 					int s;
 					string arg(optarg);
-					s = std::stoul(arg, &invalid);
+					s = int(std::stoul(arg, &invalid));
 					if (invalid < arg.length())
 						throw InvocationError(MSG_OPT_S_INVAL(optarg));
 					if (s > 15)
@@ -282,7 +281,7 @@ TemperatureState::TemperatureState(unsigned int num_temps)
   temp_(temps_.begin()),
   bias_(biases_.begin()),
   biased_temp_(biased_temps_.begin()),
-  tmax(0)
+  tmax(biased_temps_.begin())
 {}
 
 
@@ -302,7 +301,7 @@ void TemperatureState::add_temp(int t)
 
 	if (unlikely(diff > 2)) {
 		// Apply bias_ if temperature changed quickly
-		float tmp_bias = (float)diff * bias_level;
+		float tmp_bias = float(diff) * bias_level;
 
 		*bias_ = int(tmp_bias);
 		if (tmp_sleeptime > seconds(2))
@@ -318,8 +317,11 @@ void TemperatureState::add_temp(int t)
 			// Slowly return to normal sleeptime
 			if (unlikely(tmp_sleeptime < sleeptime)) tmp_sleeptime++;
 			// slowly reduce the bias_
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal" // bias is set to 0 explicitly
 			if (unlikely(*bias_ != 0)) {
-				if (std::abs(*bias_) < 0.5)
+#pragma GCC diagnostic pop
+				if (std::abs(*bias_) < 0.5f)
 					*bias_ = 0;
 				else
 					*bias_ -= 1 + *bias_/5 ;
@@ -327,7 +329,7 @@ void TemperatureState::add_temp(int t)
 		}
 	}
 
-	*biased_temp_ = *temp_ + *bias_;
+	*biased_temp_ = *temp_ + int(*bias_);
 
 	if (*biased_temp_ > *tmax)
 		tmax = biased_temp_;
@@ -354,7 +356,7 @@ const std::vector<float> & TemperatureState::biases() const
 { return biases_; }
 
 
-void TemperatureState::first_run()
+void TemperatureState::init()
 {
 	biases_.clear();
 	biases_.resize(temps_.size(), 0);
@@ -381,14 +383,14 @@ int main(int argc, char **argv) {
 	memset(&handler, 0, sizeof(handler));
 	handler.sa_handler = sig_handler;
 
-	if (sigaction(SIGHUP, &handler, NULL)
-	 || sigaction(SIGINT, &handler, NULL)
-	 || sigaction(SIGTERM, &handler, NULL)
-	 || sigaction(SIGUSR1, &handler, NULL)
+	if (sigaction(SIGHUP, &handler, nullptr)
+	 || sigaction(SIGINT, &handler, nullptr)
+	 || sigaction(SIGTERM, &handler, nullptr)
+	 || sigaction(SIGUSR1, &handler, nullptr)
 #if not defined(DISABLE_BUGGER)
-	 || sigaction(SIGSEGV, &handler, NULL)
+	 || sigaction(SIGSEGV, &handler, nullptr)
 #endif
-	 || sigaction(SIGUSR2, &handler, NULL)) {
+	 || sigaction(SIGUSR2, &handler, nullptr)) {
 		string msg = strerror(errno);
 		log(TF_ERR) << "sigaction: " << msg;
 		return 1;
@@ -409,13 +411,21 @@ int main(int argc, char **argv) {
 		if (PidFileHolder::file_exists())
 			error<SystemError>(MSG_RUNNING);
 
-		// Load the config temporarily once so we may fail before forking
-		LogLevel old_lvl = Logger::instance().log_lvl();
-		Logger::instance().log_lvl() = TF_ERR;
-		delete Config::read_config(config_files);
-		Logger::instance().log_lvl() = old_lvl;
-
 		if (daemonize) {
+			{
+				// Test the config before forking
+				LogLevel old_lvl = Logger::instance().log_lvl();
+				Logger::instance().log_lvl() = TF_ERR;
+				std::unique_ptr<const Config> test_cfg(Config::read_config(config_files));
+				temp_state = TemperatureState(test_cfg->num_temps());
+				temp_state.init();
+				test_cfg->fan()->init();
+				for (auto &sensor : test_cfg->sensors())
+					sensor->read_temps();
+				Logger::instance().log_lvl() = old_lvl;
+				// Own scope so the config gets destroyed before forking
+			}
+
 			pid_t child_pid = ::fork();
 			if (child_pid < 0) {
 				string msg(strerror(errno));
@@ -438,9 +448,11 @@ int main(int argc, char **argv) {
 
 		// Load the config for real after forking & enabling syslog
 		std::unique_ptr<const Config> config(Config::read_config(config_files));
+
 		temp_state = TemperatureState(config->num_temps());
 
 		do {
+			config->fan()->init();
 			run(*config);
 
 			if (interrupted == SIGHUP) {
