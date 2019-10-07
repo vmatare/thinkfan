@@ -65,7 +65,7 @@ Maximum seconds between temperature updates (default: 5)
 .TP
 \fB\-b\fR BIAS
 Floating point number (\-10 to 30) to control rising temperature exaggeration.
-If the temperature increases by more than 2 °C during one cycle, this number
+If the temperature increases by more than 2 \[char176]C during one cycle, this number
 is used to calculate a bias, which is added to the current highest temperature
 seen in the system:
 
@@ -98,7 +98,7 @@ Use the pulsing\-fan workaround (for older Thinkpads). Takes an optional
 floating\-point argument (0\-10s) as depulsing duration. Default 0.5s.
 .TP
 \fB\-d\fR
-Do not read temperature from sleeping disks. Instead, 0 °C is used as that
+Do not read temperature from sleeping disks. Instead, 0 \[char176]C is used as that
 disk's temperature. This is needed if reading the temperature causes your
 disk to wake up unnecessarily.
 \fBNote\fR: This option is only available if thinkfan was built with \-D USE_ATASMART.
