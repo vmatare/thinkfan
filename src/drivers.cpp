@@ -25,7 +25,6 @@
 #include "config.h"
 
 #include <fstream>
-#include <sstream>
 #include <cstring>
 #include <thread>
 #include <typeinfo>
@@ -404,13 +403,6 @@ void TpSensorDriver::read_temps() const
 	int tmp;
 	while (!(f.eof() || f.fail())) {
 		f >> tmp;
-		if (tmp < 0) {
-			std::stringstream ss;
-			ss << "Getting unusual values from thermal sensor (";
-			ss << tmp;
-			ss << "). Are you using right thermal sensor?";
-			log(TF_NFY) << ss.str() << flush;
-		}
 		if (f.bad())
 			throw IOerror(MSG_T_GET(path_), errno);
 		if (!f.fail() && in_use_[tidx])
