@@ -72,8 +72,8 @@ statement in a config file.
 Use a standard hwmon temperature input that may be provided by all kinds of
 kernel drivers.
 .I sysfs-path
-is usually a file named `temp*_input', somewhere under /sys, so you
-can search for them e.g. with `find /sys -type f -name "temp*_input"'.
+is usually a file named `temp*_input`, somewhere under /sys, so you
+can search for them e.g. with `find /sys -type f -name "temp*_input"`.
 Each of these files contains one temperature, so you need to add a
 .B hwmon
 statement for each device whose temperature you wish to control.
