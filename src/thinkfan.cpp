@@ -282,9 +282,9 @@ TemperatureState::TemperatureState(unsigned int num_temps)
   temp_(temps_.begin()),
   bias_(biases_.begin()),
   biased_temp_(biased_temps_.begin()),
-  tmax(biased_temps_.begin()),
   noise_counters(num_temps, 0),
-  noise_counter(noise_counters.begin())
+  noise_counter(noise_counters.begin()),
+  tmax(biased_temps_.begin())
 {}
 
 
@@ -294,6 +294,7 @@ void TemperatureState::restart()
 	bias_ = biases_.begin();
 	biased_temp_ = biased_temps_.begin();
 	tmax = biased_temps_.begin();
+	noise_counter = noise_counters.begin();
 }
 
 

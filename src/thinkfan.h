@@ -75,8 +75,8 @@ private:
 	std::vector<int>::iterator temp_;
 	std::vector<float>::iterator bias_;
 	std::vector<int>::iterator biased_temp_;
-	std::vector<short> noise_counters;
-	std::vector<short>::iterator noise_counter;
+	std::vector<int> noise_counters;
+	std::vector<int>::iterator noise_counter;
 public:
 	std::vector<int>::const_iterator tmax;
 };
