@@ -6,6 +6,8 @@ Type=forking
 ExecStart=/usr/local/sbin/thinkfan $THINKFAN_ARGS
 PIDFile=/run/thinkfan.pid
 ExecReload=/bin/kill -HUP $MAINPID
+Restart=Always
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
