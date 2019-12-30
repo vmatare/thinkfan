@@ -231,11 +231,10 @@ int set_options(int argc, char **argv)
 		case 'p':
 			if (optarg) {
 				size_t invalid;
-				depulse = std::stof(optarg, &invalid);
-				if (invalid != 0 || depulse > 10 )
+				string arg(optarg);
+				depulse = std::stof(arg, &invalid);
+				if (invalid < arg.length() || depulse > 10 || depulse < 0)
 					error<InvocationError>(MSG_OPT_P(optarg));
-				else if (depulse < 0)
-					throw InvocationError(MSG_OPT_P(optarg));
 			}
 			else depulse = 0.5f;
 			break;
