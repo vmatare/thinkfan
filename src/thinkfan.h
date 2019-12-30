@@ -110,7 +110,6 @@ extern volatile int interrupted;
 extern TemperatureState temp_state;
 extern std::vector<string> config_files;
 extern float depulse;
-extern bool can_lose_sensor;
 
 
 }

@@ -53,7 +53,6 @@ seconds tmp_sleeptime = sleeptime;
 float bias_level(1.5);
 float depulse = 0;
 TemperatureState temp_state(0);
-bool can_lose_sensor = false;
 
 #ifdef USE_YAML
 std::vector<string> config_files { DEFAULT_YAML_CONFIG, DEFAULT_CONFIG };
