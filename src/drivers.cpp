@@ -524,7 +524,7 @@ NvmlSensorDriver::~NvmlSensorDriver() noexcept(false)
 {
 	nvmlReturn_t ret;
 	if ((ret = dl_nvmlShutdown()))
-		log(TF_ERR) << "Failed to shutdown NVML driver. Error code (cf. nvml.h): " << ret;
+		log(TF_ERR) << "Failed to shutdown NVML driver. Error code (cf. nvml.h): " << std::to_string(ret);
 	dlclose(nvml_so_handle_);
 }
 
