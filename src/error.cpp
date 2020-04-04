@@ -20,7 +20,12 @@
  * ******************************************************************/
 
 #include "error.h"
+
+#include <features.h>
+#if defined(__GLIBC__)
 #include <execinfo.h>
+#endif
+
 #include <cstring>
 #include <sstream>
 
@@ -35,6 +40,7 @@ namespace thinkfan {
 
 static string make_backtrace()
 {
+#if defined(__GLIBC__)
 	string backtrace_;
 	void *bt_buffer[MAX_BACKTRACE_DEPTH];
 	int stack_depth = ::backtrace(bt_buffer, MAX_BACKTRACE_DEPTH);
@@ -54,6 +60,9 @@ static string make_backtrace()
 	}
 	free(bt_pretty);
 	return backtrace_;
+#else
+	return "[not supported by C library]";
+#endif
 }
 
 
@@ -64,7 +73,7 @@ std::string demangle(const char* name) {
 	int status = -4; // some arbitrary value to eliminate the compiler warning
 
 	std::unique_ptr<char, void(*)(void*)> res {
-		abi::__cxa_demangle(name, NULL, NULL, &status),
+		abi::__cxa_demangle(name, nullptr, nullptr, &status),
 		std::free
 	};
 
