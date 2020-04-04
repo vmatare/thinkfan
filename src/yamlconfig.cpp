@@ -144,7 +144,7 @@ static vector<string> find_hwmons_by_name(string path, string name, unsigned cha
 	}
 
 	struct dirent **entries;
-	int nentries = ::scandir(path.c_str(), &entries, filter_subdirs, NULL);
+	int nentries = ::scandir(path.c_str(), &entries, filter_subdirs, nullptr);
 	if (nentries == -1) {
 		return result;
 	}
