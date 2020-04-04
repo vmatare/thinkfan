@@ -72,8 +72,8 @@ statement in a config file.
 Use a standard hwmon temperature input that may be provided by all kinds of
 kernel drivers.
 .I sysfs-path
-is usually a file named `temp*_input', somewhere under /sys, so you
-can search for them e.g. with `find /sys -type f -name "temp*_input"'.
+is usually a file named \[oq]temp*_input\[cq], somewhere under /sys, so you
+can search for them e.g. with \[oq]find /sys -type f -name "temp*_input"\[cq].
 Each of these files contains one temperature, so you need to add a
 .B hwmon
 statement for each device whose temperature you wish to control.
@@ -101,7 +101,7 @@ specifially on libnvidia-ml.so that is usually installed with the binary nVidia
 driver.
 The correct
 .I pci-bus-id
-can be retrieved using e.g. lspci with: `lspci | grep -i vga'.
+can be retrieved using e.g. lspci with: \[oq]lspci | grep -i vga\[cq].
 Most open-source graphics drivers (radeon, nouveau, possibly others too) can
 instead be used with the
 .B hwmon
@@ -133,7 +133,7 @@ modes.
 The
 .B auto
 mode should delegate fan control to the firmware, so it can be regarded as a
-`default' mode that does not change the fan behavior.
+\[oq]default\[cq] mode that does not change the fan behavior.
 This is useful for example if you only want to change the fan behavior at high
 and/or low temperatures.
 .
@@ -151,13 +151,13 @@ wears its bearings down quickly.
 .TP
 .BI pwm_fan " sysfs-path"
 Control a sysfs PWM fan.
-Many hwmon drivers that provide a `temp*_input' file also allow fan control,
+Many hwmon drivers that provide a \[oq]temp*_input\[cq] file also allow fan control,
 although there may also be drivers that are specific to either temperature
 reading or fan control.
-You can search for a PWM control file e.g. with `find /sys -type f -name
-"pwm?"'.
+You can search for a PWM control file e.g. with \[oq]find /sys -type f -name
+"pwm?"\[cq].
 Note that with PWM, fan levels usually range from 0 to 255, although besides a
-file like `pwm1' there may also be `pwm1_min' and `pwm1_max' that specify
+file like \fBpwm1\fR there may also be \fBpwm1_min\fR and \fBpwm1_max\fR that specify
 different (soft or recommended?) limits for a particular fan.
 
 
