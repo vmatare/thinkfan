@@ -1,4 +1,5 @@
-# thinkfan
+# thinkfan [![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/MASKOR/gologpp.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/MASKOR/gologpp/context:cpp) [![Total alerts](https://img.shields.io/lgtm/alerts/g/MASKOR/gologpp.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/MASKOR/gologpp/alerts/)
+
 Thinkfan is a simple, lightweight fan control program. 
 
 # WARNING
