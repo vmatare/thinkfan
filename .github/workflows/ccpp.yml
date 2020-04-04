@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+    - name: install-deps
+      run: apt install libyaml-cpp-dev libatasmart-dev
     - name: run-cmake
       uses: lukka/run-cmake@v1.2
       with:
@@ -22,6 +24,8 @@ jobs:
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v2
+    - name: install-deps
+      run: apt install libyaml-cpp-dev libatasmart-dev
     - name: run-cmake
       uses: lukka/run-cmake@v1.2
       with:
