@@ -8,3 +8,5 @@ ExecStart=/usr/bin/pkill -usr2 thinkfan
 
 [Install]
 WantedBy=suspend.target
+WantedBy=hibernate.target
+WantedBy=hybrid-sleep.target
