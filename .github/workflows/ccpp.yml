@@ -1,0 +1,32 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build-ubuntu-latest:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: run-cmake
+      uses: lukka/run-cmake@v1.2
+      with:
+        # Select the build configuration, typically Debug or Release. Used by CMakeListsTxtBasic mode.
+        cmakeBuildType: RelWithDebInfo # optional, default is Debug
+        # Provides a mean to provide all the CMake arguments. This is required when using CMakeLists.txt in Advanced mode. For CMakeSettings.json, the arguments are already inferred, but you can append your arguments providing them here.  Used by CMakeListsTxtAdvanced and CMakeSettingsJson modes.
+        cmakeAppendedArgs: -DUSE_YAML=ON -DUSE_ATASMART=ON
+  build-xenial:
+    runs-on: ubuntu-16.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: run-cmake
+      uses: lukka/run-cmake@v1.2
+      with:
+        # Select the build configuration, typically Debug or Release. Used by CMakeListsTxtBasic mode.
+        cmakeBuildType: RelWithDebInfo # optional, default is Debug
+        # Provides a mean to provide all the CMake arguments. This is required when using CMakeLists.txt in Advanced mode. For CMakeSettings.json, the arguments are already inferred, but you can append your arguments providing them here.  Used by CMakeListsTxtAdvanced and CMakeSettingsJson modes.
+        cmakeAppendedArgs: -DUSE_YAML=ON -DUSE_ATASMART=ON
+    
