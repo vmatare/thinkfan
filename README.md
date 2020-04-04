@@ -1,26 +1,8 @@
-thinkfan version 1.0 beta -- copyleft 2015, Victor Mataré
-=========================================================
+# thinkfan
 
-thinkfan is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-thinkfan is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-You should have received a copy of the GNU General Public License
-along with thinkfan.  If not, see <http://www.gnu.org/licenses/>.
+Thinkfan is a simple, lightweight fan control program. 
 
-Thinkfan is a simple, lightweight fan control program. Originally designed
-specifically for IBM/Lenovo Thinkpads, it now supports any kind of system via
-the sysfs hwmon interface (/sys/class/hwmon). It is designed to eat as little
-CPU power as possible.
-
-
-
-WARNING!!!!
-===========
+# WARNING
 
 There's only very basic sanity checking on the configuration (semantic
 plausibility). You can set the temperature limits as insane as you like.
@@ -29,7 +11,7 @@ Any change to fan behaviour that results in higher temperatures in some parts
 of the system will shorten your system's lifetime and/or cause weird hardware
 bugs that'll make you pull out your hair.
 
-   No warranties whatsoever.
+   *No warranties whatsoever*
 
 If this program steals your car, kills your horse, smokes your dope or pees
 on your carpet...
@@ -38,8 +20,7 @@ on your carpet...
 
 
 
-Building and installing
-=======================
+# Building and installing
 
 To compile thinkfan, you will need to have the following things installed:
 - A recent C++ compiler (GCC >= 4.8 or clang)
@@ -95,8 +76,7 @@ To compile thinkfan, you will need to have the following things installed:
 
 
 
-Documentation
-=============
+# Documentation
 
 Run thinkfan -h
 Manpages: thinkfan(1), thinkfan.conf(5)
