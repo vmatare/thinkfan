@@ -166,8 +166,12 @@ ConfigError::ConfigError(const string &filename, const YAML::Mark &mark, const s
 	msg_ += filename + ":";
 
 	// Another workaround for Ubuntu's libyaml-cpp0.5v5
-	if (mark.pos == -1 && mark.line == -1 && mark.column == -1)
-		msg_ += string(" ") + msg;
+	if (mark.pos == -1 && mark.line == -1 && mark.column == -1) {
+		msg_ += string(" ") + msg + ".";
+#ifdef HAVE_OLD_YAMLCPP
+		msg_+= "\nYou have an ancient libyaml-cpp which can't give line numbers on errors. Please complain to your Linux distribution."
+#endif
+	}
 	else {
 		msg_ += std::to_string(mark.line + 1) + ":\n";
 		std::stringstream s(input);
@@ -177,8 +181,8 @@ ConfigError::ConfigError(const string &filename, const YAML::Mark &mark, const s
 
 		msg_ += line.data() + string("\n");
 		msg_ += string(static_cast<size_t>(mark.column), ' ') + "^\n";
+		msg_ +=  msg + ".";
 	}
-	msg_ +=  msg + ".";
 }
 
 YamlError::YamlError(const YAML::Mark &mark, const string &msg)
