@@ -169,7 +169,7 @@ ConfigError::ConfigError(const string &filename, const YAML::Mark &mark, const s
 	if (mark.pos == -1 && mark.line == -1 && mark.column == -1) {
 		msg_ += string(" ") + msg + ".";
 #ifdef HAVE_OLD_YAMLCPP
-		msg_+= "\nYou have an ancient libyaml-cpp which can't give line numbers on errors. Please complain to your Linux distribution."
+		msg_+= "\nYou have an ancient libyaml-cpp which can't give line numbers on errors. Please complain to your Linux distribution.";
 #endif
 	}
 	else {
