@@ -7,30 +7,39 @@ on:
     branches: [ master ]
 
 jobs:
-  build-ubuntu-latest:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: install-deps
-      run: sudo apt install libyaml-cpp-dev libatasmart-dev
-    - name: run-cmake
-      uses: lukka/run-cmake@v1.2
-      with:
-        # Select the build configuration, typically Debug or Release. Used by CMakeListsTxtBasic mode.
-        cmakeBuildType: RelWithDebInfo # optional, default is Debug
-        # Provides a mean to provide all the CMake arguments. This is required when using CMakeLists.txt in Advanced mode. For CMakeSettings.json, the arguments are already inferred, but you can append your arguments providing them here.  Used by CMakeListsTxtAdvanced and CMakeSettingsJson modes.
-        cmakeAppendedArgs: -DUSE_YAML=ON -DUSE_ATASMART=ON
   build-xenial:
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v2
     - name: install-deps
       run: sudo apt install libyaml-cpp-dev libatasmart-dev
-    - name: run-cmake
+    - name: build
       uses: lukka/run-cmake@v1.2
       with:
         # Select the build configuration, typically Debug or Release. Used by CMakeListsTxtBasic mode.
         cmakeBuildType: RelWithDebInfo # optional, default is Debug
         # Provides a mean to provide all the CMake arguments. This is required when using CMakeLists.txt in Advanced mode. For CMakeSettings.json, the arguments are already inferred, but you can append your arguments providing them here.  Used by CMakeListsTxtAdvanced and CMakeSettingsJson modes.
         cmakeAppendedArgs: -DUSE_YAML=ON -DUSE_ATASMART=ON
+        # Set the build directory, i.e. where CMake generates the build system files. Defaults to `$(Build.ArtifactStagingDirectory)` for CMakeLists.txt, and to `$(Build.ArtifactStagingDirectory)/<configuration-name>` for CMakeSettings.json. Used by any mode.
+        buildDirectory: ${{ github.workspace }}/build # optional, default is ${{ github.workspace }}/../../_temp
+    - name: install
+      run: sudo cmake --install ${{ github.workspace }}/build
+    
+  build-latest:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: install-deps
+      run: sudo apt install libyaml-cpp-dev libatasmart-dev
+    - name: build
+      uses: lukka/run-cmake@v1.2
+      with:
+        # Select the build configuration, typically Debug or Release. Used by CMakeListsTxtBasic mode.
+        cmakeBuildType: RelWithDebInfo # optional, default is Debug
+        # Provides a mean to provide all the CMake arguments. This is required when using CMakeLists.txt in Advanced mode. For CMakeSettings.json, the arguments are already inferred, but you can append your arguments providing them here.  Used by CMakeListsTxtAdvanced and CMakeSettingsJson modes.
+        cmakeAppendedArgs: -DUSE_YAML=ON -DUSE_ATASMART=ON
+        # Set the build directory, i.e. where CMake generates the build system files. Defaults to `$(Build.ArtifactStagingDirectory)` for CMakeLists.txt, and to `$(Build.ArtifactStagingDirectory)/<configuration-name>` for CMakeSettings.json. Used by any mode.
+        buildDirectory: ${{ github.workspace }}/build # optional, default is ${{ github.workspace }}/../../_temp
+    - name: install
+      run: sudo cmake --install ${{ github.workspace }}/build
     
