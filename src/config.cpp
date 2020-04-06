@@ -84,7 +84,7 @@ const Config *Config::try_read_config(const string &filename)
 #if not defined(DISABLE_EXCEPTION_CATCHING)
 	} catch(YamlError &e) {
 		throw ConfigError(filename, e.mark, f_data, e.what());
-	} catch(YAML::BadConversion &e) {
+	} catch(YAML::RepresentationException &e) {
 		throw ConfigError(filename, e.mark, f_data, "Invalid entry");
 #endif
 	} catch(YAML::ParserException &e) {
