@@ -80,8 +80,7 @@ To compile thinkfan, you will need to have the following things installed:
 
 
 # Documentation
-
-Run `thinkfan -h`
-Manpages: `thinkfan(1)`, `thinkfan.conf(5)`
-Example configs in examples/ subfolder
-If all fails: https://github.com/vmatare/thinkfan/issues
+- Run `thinkfan -h`
+- Manpages: `thinkfan(1)`, `thinkfan.conf(5)`
+- Example configs in examples/ subfolder
+- If all fails: https://github.com/vmatare/thinkfan/issues
