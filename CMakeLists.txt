@@ -1,7 +1,7 @@
 project(thinkfan)
 include(GNUInstallDirs)
 
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.0)
 
 # Generate absolute paths or something
 cmake_policy(SET CMP0015 NEW)
@@ -94,7 +94,7 @@ endif(USE_NVML)
 if(USE_YAML)
 	target_compile_definitions(thinkfan PRIVATE -DUSE_YAML)
 	target_include_directories(thinkfan PRIVATE ${YAML_CPP_INCLUDE_DIRS})
-	target_link_options(thinkfan PRIVATE ${YAML_CPP_LDFLAGS})
+	target_link_libraries(thinkfan PRIVATE ${YAML_CPP_LDFLAGS})
 endif(USE_YAML)
 
 if(DISABLE_BUGGER)
