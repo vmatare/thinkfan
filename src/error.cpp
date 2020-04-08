@@ -125,12 +125,15 @@ void handle_uncaught()
 	try {
 		std::rethrow_exception(std::current_exception());
 	} catch (const std::exception &e) {
-		log(TF_ERR) << "Unhandled " << demangle(typeid(e).name()) << ": " <<
-		        e.what() << "." << flush <<
-				"errno = " << err << "." << flush <<
-				flush << "Backtrace:" << flush <<
-		        make_backtrace() << flush <<
-				MSG_BUG << flush;
+		log(TF_ERR) << "Unhandled " << demangle(typeid(e).name()) << ": "
+		               << e.what() << "." << flush
+		               << "errno = " << err << "." << flush
+		               << flush << "Backtrace:" << flush
+		               << make_backtrace() << flush
+#if not defined(DISABLE_EXCEPTION_CATCHING)
+		               << MSG_BUG << flush
+#endif
+		               ;
 	}
 	// We can expect to be killed by SIGABRT after this function returns.
 }
