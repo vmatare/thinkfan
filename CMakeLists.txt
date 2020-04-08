@@ -94,7 +94,7 @@ endif(USE_NVML)
 if(USE_YAML)
 	target_compile_definitions(thinkfan PRIVATE -DUSE_YAML)
 	target_include_directories(thinkfan PRIVATE ${YAML_CPP_INCLUDE_DIRS})
-	target_link_libraries(thinkfan PRIVATE ${YAML_CPP_LDFLAGS})
+	target_link_libraries(thinkfan PRIVATE ${YAML_CPP_LIBRARIES})
 endif(USE_YAML)
 
 if(DISABLE_BUGGER)
