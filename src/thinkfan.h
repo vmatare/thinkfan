@@ -26,7 +26,6 @@
 #include <chrono>
 #include <fstream>
 
-#define VERSION "0.99.0"
 #if not defined(PID_FILE)
 #define PID_FILE "/var/run/thinkfan.pid"
 #endif

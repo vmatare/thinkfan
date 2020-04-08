@@ -75,6 +75,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g3 -DDEBUG")
 add_executable(thinkfan ${SRC_FILES})
 
 target_compile_definitions(thinkfan PRIVATE -DPID_FILE=\"${PID_FILE}\")
+target_compile_definitions(thinkfan PRIVATE -DVERSION="1.2")
 
 if(USE_ATASMART)
 	if(NOT ATASMART_FOUND)
