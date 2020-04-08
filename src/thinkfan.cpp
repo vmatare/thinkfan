@@ -273,6 +273,7 @@ int set_options(int argc, char **argv)
 }
 
 
+#if defined(PID_FILE)
 PidFileHolder::PidFileHolder(::pid_t pid)
 : pid_file_(PID_FILE, std::ios_base::in)
 {
@@ -295,6 +296,7 @@ PidFileHolder::~PidFileHolder()
 
 bool PidFileHolder::file_exists()
 { return !ifstream(PID_FILE).fail(); }
+#endif // defined(PID_FILE)
 
 
 TemperatureState::TemperatureState(unsigned int num_temps)
@@ -393,7 +395,9 @@ int main(int argc, char **argv) {
 	using namespace thinkfan;
 
 	struct sigaction handler;
+#if defined(PID_FILE)
 	std::unique_ptr<PidFileHolder> pid_file;
+#endif
 
 	if (!isatty(fileno(stdout))) {
 		Logger::instance().enable_syslog();
@@ -431,8 +435,10 @@ int main(int argc, char **argv) {
 			return 3;
 		}
 
+#if defined(PID_FILE)
 		if (PidFileHolder::file_exists())
 			error<SystemError>(MSG_RUNNING);
+#endif
 
 		if (daemonize) {
 			{
@@ -460,14 +466,18 @@ int main(int argc, char **argv) {
 			}
 			else {
 				Logger::instance().enable_syslog();
+#if defined(PID_FILE)
 				// Own PID file only in the child...
 				pid_file.reset(new PidFileHolder(::getpid()));
+#endif
 			}
 		}
+#if defined(PID_FILE)
 		else {
 			// ... or when we're not forking at all
 			pid_file.reset(new PidFileHolder(::getpid()));
 		}
+#endif
 
 		// Load the config for real after forking & enabling syslog
 		std::unique_ptr<const Config> config(Config::read_config(config_files));

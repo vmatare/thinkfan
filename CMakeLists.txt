@@ -19,11 +19,9 @@ endif()
 
 pkg_check_modules(ATASMART "libatasmart")
 
-if(SYSTEMD_FOUND)
-	set(PID_FILE "/run/thinkfan.pid")
-else(SYSTEMD_FOUND)
+if(NOT SYSTEMD_FOUND)
 	set(PID_FILE "/var/run/thinkfan.pid")
-endif(SYSTEMD_FOUND)
+endif()
 
 
 #
@@ -74,7 +72,9 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g3 -DDEBUG")
 
 add_executable(thinkfan ${SRC_FILES})
 
-target_compile_definitions(thinkfan PRIVATE -DPID_FILE=\"${PID_FILE}\")
+if (PID_FILE)
+	target_compile_definitions(thinkfan PRIVATE -DPID_FILE=\"${PID_FILE}\")
+endif()
 target_compile_definitions(thinkfan PRIVATE -DVERSION="1.2")
 
 if(USE_ATASMART)

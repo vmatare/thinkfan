@@ -26,10 +26,6 @@
 #include <chrono>
 #include <fstream>
 
-#if not defined(PID_FILE)
-#define PID_FILE "/var/run/thinkfan.pid"
-#endif
-
 #define DEFAULT_CONFIG "/etc/thinkfan.conf"
 #define DEFAULT_YAML_CONFIG "/etc/thinkfan.yaml"
 
@@ -85,6 +81,7 @@ public:
 };
 
 
+#if defined(PID_FILE)
 class PidFileHolder {
 public:
 	PidFileHolder(::pid_t pid);
@@ -93,6 +90,7 @@ public:
 private:
 	std::fstream pid_file_;
 };
+#endif // defined(PID_FILE)
 
 
 // Command line options
