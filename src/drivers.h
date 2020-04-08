@@ -81,8 +81,8 @@ public:
 
 class SensorDriver {
 protected:
-	SensorDriver(string path, std::vector<int> correction = {});
-	SensorDriver();
+	SensorDriver(string path, bool optional, std::vector<int> correction = {});
+	SensorDriver(bool optional);
 public:
 	virtual ~SensorDriver() noexcept(false);
 	virtual void read_temps() const = 0;
@@ -90,19 +90,23 @@ public:
 	void set_correction(const std::vector<int> &correction);
 	void set_num_temps(unsigned int n);
 	bool operator == (const SensorDriver &other) const;
+	void set_optional(bool);
+	bool optional() const;
+	const string &path() const;
 protected:
 	string path_;
 	std::vector<int> correction_;
 private:
 	unsigned int num_temps_;
+	bool optional_;
 	void check_correction_length();
 };
 
 
 class TpSensorDriver : public SensorDriver {
 public:
-	TpSensorDriver(string path, std::vector<int> correction = {});
-	TpSensorDriver(string path, const std::vector<unsigned int> &temp_indices, std::vector<int> correction = {});
+	TpSensorDriver(string path, bool optional, std::vector<int> correction = {});
+	TpSensorDriver(string path, bool optional, const std::vector<unsigned int> &temp_indices, std::vector<int> correction = {});
 	virtual void read_temps() const override;
 private:
 	std::char_traits<char>::off_type skip_bytes_;
@@ -113,7 +117,7 @@ private:
 
 class HwmonSensorDriver : public SensorDriver {
 public:
-	HwmonSensorDriver(string path, std::vector<int> correction = {});
+	HwmonSensorDriver(string path, bool optional, std::vector<int> correction = {});
 	virtual void read_temps() const override;
 };
 
@@ -121,7 +125,7 @@ public:
 #ifdef USE_ATASMART
 class AtasmartSensorDriver : public SensorDriver {
 public:
-	AtasmartSensorDriver(string device_path, std::vector<int> correction = {});
+	AtasmartSensorDriver(string device_path, bool optional, std::vector<int> correction = {});
 	virtual ~AtasmartSensorDriver();
 	virtual void read_temps() const override;
 private:
@@ -133,7 +137,7 @@ private:
 #ifdef USE_NVML
 class NvmlSensorDriver : public SensorDriver {
 public:
-	NvmlSensorDriver(string bus_id, std::vector<int> correction = {});
+	NvmlSensorDriver(string bus_id, bool optional, std::vector<int> correction = {});
 	virtual ~NvmlSensorDriver() noexcept(false) override;
 	virtual void read_temps() const override;
 private:

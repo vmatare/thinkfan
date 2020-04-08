@@ -167,8 +167,8 @@ static vector<string> find_hwmons_by_name(string path, string name, unsigned cha
 }
 
 
-template<class T>
-static vector<wtf_ptr<T>> find_hwmons_by_indices(string path, const vector<int> &indices, unsigned char depth = 0)
+template<class T, class...ExtraArgTs>
+static vector<wtf_ptr<T>> find_hwmons_by_indices(string path, const vector<int> &indices, ExtraArgTs... extra_args, unsigned char depth = 0)
 {
 	vector<wtf_ptr<T>> rv;
 
@@ -193,7 +193,7 @@ static vector<wtf_ptr<T>> find_hwmons_by_indices(string path, const vector<int> 
 
 				auto it = std::find(filter_indices.begin(), filter_indices.end(), temp_idx);
 
-				rv.push_back(make_wtf<T>(path + "/" + entries[i]->d_name));
+				rv.push_back(make_wtf<T>(path + "/" + entries[i]->d_name, extra_args...));
 				filter_indices.erase(it);
 				// stop crawling at this level
 				depth = std::numeric_limits<unsigned char>::max();
@@ -207,7 +207,7 @@ static vector<wtf_ptr<T>> find_hwmons_by_indices(string path, const vector<int> 
 
 			if (nentries > 0 && depth <= max_depth) {
 				for (int i = 0; i < nentries && rv.empty(); i++)
-					rv = find_hwmons_by_indices<T>(path + "/" + entries[i]->d_name, indices, depth + 1);
+					rv = find_hwmons_by_indices<T, ExtraArgTs...>(path + "/" + entries[i]->d_name, indices, extra_args..., depth + 1);
 			}
 			else
 				throw ConfigError("Could not find an `hwmon*' directory or `temp*_input' file in " + path + ".");
@@ -253,9 +253,11 @@ struct convert<vector<wtf_ptr<HwmonSensorDriver>>> {
 			path = paths[0];
 		}
 
+		bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
+
 		if (node[kw_indices]) {
 			vector<int> indices = node[kw_indices].as<vector<int>>();
-			vector<wtf_ptr<HwmonSensorDriver>> hwmons = find_hwmons_by_indices<HwmonSensorDriver>(path, indices);
+			vector<wtf_ptr<HwmonSensorDriver>> hwmons = find_hwmons_by_indices<HwmonSensorDriver, bool>(path, indices, optional);
 			if (indices.size() != hwmons.size())
 				throw YamlError(get_mark_compat(node[kw_indices]), "Unable to find requested temperature inputs in " + path + ".");
 
@@ -274,7 +276,7 @@ struct convert<vector<wtf_ptr<HwmonSensorDriver>>> {
 			}
 		}
 		else {
-			wtf_ptr<HwmonSensorDriver> h = make_wtf<HwmonSensorDriver>(path, correction);
+			wtf_ptr<HwmonSensorDriver> h = make_wtf<HwmonSensorDriver>(path, optional, correction);
 			sensors.push_back(h);
 		}
 
@@ -294,14 +296,17 @@ struct convert<wtf_ptr<TpSensorDriver>> {
 		if (node[kw_correction])
 			correction = node[kw_correction].as<vector<int>>();
 
+		bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
+
 		if (node[kw_indices]) {
 			sensor = make_wtf<TpSensorDriver>(
-						node[kw_tpacpi].as<string>(),
-						node[kw_indices].as<vector<unsigned int>>(),
-						correction);
+			            node[kw_tpacpi].as<string>(),
+			            optional,
+			            node[kw_indices].as<vector<unsigned int>>(),
+			            correction);
 		}
 		else
-			sensor = make_wtf<TpSensorDriver>(node[kw_tpacpi].as<string>(), correction);
+			sensor = make_wtf<TpSensorDriver>(node[kw_tpacpi].as<string>(), optional, correction);
 
 		return true;
 	}
@@ -320,7 +325,10 @@ struct convert<wtf_ptr<NvmlSensorDriver>> {
 		if (node[kw_correction])
 			correction = node[kw_correction].as<vector<int>>();
 
-		sensor = make_wtf<NvmlSensorDriver>(node[kw_nvidia].as<string>(), correction);
+		bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
+
+		sensor = make_wtf<NvmlSensorDriver>(node[kw_nvidia].as<string>(), optional, correction);
+
 		return true;
 	}
 };
@@ -339,7 +347,10 @@ struct convert<wtf_ptr<AtasmartSensorDriver>> {
 		if (node[kw_correction])
 			correction = node[kw_correction].as<vector<int>>();
 
-		sensor = make_wtf<AtasmartSensorDriver>(node["atasmart"].as<string>(), correction);
+		bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
+
+		sensor = make_wtf<AtasmartSensorDriver>(node["atasmart"].as<string>(), optional, correction);
+
 		return true;
 	}
 };

@@ -47,6 +47,12 @@
 #define likely(x)       __builtin_expect((x),1)
 #define unlikely(x)     __builtin_expect((x),0)
 
+#if defined(__GNUC__) && __GNUC__ < 5
+#define THINKFAN_IO_ERROR_CODE(e) errno
+#else
+#define THINKFAN_IO_ERROR_CODE(e) e.code().value()
+#endif
+
 namespace thinkfan {
 
 typedef std::string string;

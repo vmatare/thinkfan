@@ -40,6 +40,7 @@
 #include "thinkfan.h"
 #include "config.h"
 #include "message.h"
+#include "error.h"
 
 
 namespace thinkfan {
@@ -92,13 +93,38 @@ void sig_handler(int signum) {
 
 
 
+static inline void sensor_lost(const SensorDriver *s, const ExpectedError &e) {
+	if (!s->optional())
+		error<SensorLost>(e);
+	else
+		log(TF_INF) << SensorLost(e).what();
+	temp_state.add_temp(-128);
+}
+
+
+static inline void read_temps_safe(const std::vector<SensorDriver *> &sensors)
+{
+	temp_state.restart();
+	for (const SensorDriver *sensor : sensors) {
+		try {
+			sensor->read_temps();
+		} catch (SystemError &e) {
+			sensor_lost(sensor, e);
+		} catch (IOerror &e) {
+			sensor_lost(sensor, e);
+		} catch (std::ios_base::failure &e) {
+			sensor_lost(sensor, IOerror(e.what(), THINKFAN_IO_ERROR_CODE(e)));
+		}
+	}
+}
+
+
 void run(const Config &config)
 {
 	tmp_sleeptime = sleeptime;
 
-	temp_state.restart();
-	for (const SensorDriver *sensor : config.sensors())
-		sensor->read_temps();
+	read_temps_safe(config.sensors());
+
 	temp_state.init();
 
 	// Set initial fan level
@@ -113,10 +139,8 @@ void run(const Config &config)
 	while (likely(!interrupted)) {
 		std::this_thread::sleep_for(sleeptime);
 
-		temp_state.restart();
+		read_temps_safe(config.sensors());
 
-		for (const SensorDriver *sensor : config.sensors())
-			sensor->read_temps();
 		if (unlikely(!temp_state.complete()))
 			throw SystemError(MSG_SENSOR_LOST);
 

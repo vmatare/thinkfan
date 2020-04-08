@@ -27,6 +27,7 @@
 
 #include "message.h"
 #include "thinkfan.h"
+#include "drivers.h"
 
 #ifdef USE_YAML
 #include <yaml-cpp/exceptions.h>
@@ -73,8 +74,16 @@ private:
 	const int code_;
 public:
 	IOerror(const string &message, const int error_code);
-
 	int code();
+};
+
+
+class SensorLost : public ExpectedError {
+public:
+	template<class CauseT>
+	SensorLost(const CauseT &cause) {
+		msg_ = string("Lost sensor ") + cause.what();
+	}
 };
 
 
