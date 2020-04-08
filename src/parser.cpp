@@ -190,7 +190,7 @@ vector<int> *IntListParser::_parse(const char *&input)
 		else if (allow_dot_ && ( (void)dot.reset(dot_parser_.parse(input)), dot))
 			rv->push_back(numeric_limits<int>::max());
 		else
-			return nullptr;
+			break;
 		if (!(separator_parser.match(input) || comment_parser.match(input)))
 			break;
 
