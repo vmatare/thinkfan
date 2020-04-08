@@ -26,8 +26,6 @@ else(SYSTEMD_FOUND)
 endif(SYSTEMD_FOUND)
 
 
-add_definitions(-DPID_FILE=\"${PID_FILE}\")
-
 #
 # Defaults to OFF because libatasmart seems to be horribly inefficient
 #
@@ -76,36 +74,37 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g3 -DDEBUG")
 
 add_executable(thinkfan ${SRC_FILES})
 
+target_compile_definitions(thinkfan PRIVATE -DPID_FILE=\"${PID_FILE}\")
 
 if(USE_ATASMART)
 	if(NOT ATASMART_FOUND)
 		message(FATAL_ERROR "USE_ATASMART enabled but libatasmart not found. Please install libatasmart[-devel]!")
 	else()
-		add_definitions(-DUSE_ATASMART)
-		target_link_libraries(thinkfan atasmart)
+		target_compile_definitions(thinkfan PRIVATE -DUSE_ATASMART)
+		target_link_libraries(thinkfan PRIVATE atasmart)
 	endif()
 endif(USE_ATASMART)
 
 if(USE_NVML)
-	include_directories(AFTER "include")
-	add_definitions(-DUSE_NVML)
-	target_link_libraries(thinkfan dl)
+	target_include_directories(thinkfan PRIVATE "include")
+	target_compile_definitions(thinkfan PRIVATE -DUSE_NVML)
+	target_link_libraries(thinkfan PRIVATE dl)
 endif(USE_NVML)
 
 if(USE_YAML)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_YAML")
-	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/home/vmatare/devel/yaml-cpp/include -L/home/vmatare/devel/build-yaml-cpp-Desktop-Default")
-	target_link_libraries(thinkfan yaml-cpp)
+	target_compile_definitions(thinkfan PRIVATE -DUSE_YAML)
+	target_include_directories(thinkfan PRIVATE ${YAML_CPP_INCLUDE_DIRS})
+	target_link_options(thinkfan PRIVATE ${YAML_CPP_LDFLAGS})
 endif(USE_YAML)
 
 if(DISABLE_BUGGER)
-	add_definitions(-DDISABLE_BUGGER)
+	target_compile_definitions(thinkfan PRIVATE -DDISABLE_BUGGER)
 endif(DISABLE_BUGGER)
 if(DISABLE_SYSLOG)
-	add_definitions(-DDISABLE_SYSLOG)
+	target_compile_definitions(thinkfan PRIVATE -DDISABLE_SYSLOG)
 endif(DISABLE_SYSLOG)
 if(DISABLE_EXCEPTION_CATCHING)
-	add_definitions(-DDISABLE_EXCEPTION_CATCHING)
+	target_compile_definitions(thinkfan PRIVATE -DDISABLE_EXCEPTION_CATCHING)
 endif(DISABLE_EXCEPTION_CATCHING)
 
 
