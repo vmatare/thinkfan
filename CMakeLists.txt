@@ -120,7 +120,7 @@ if(SYSTEMD_FOUND)
 	install(FILES
 		rcscripts/systemd/thinkfan-wakeup.service
 		"${CMAKE_BINARY_DIR}/rcscripts/systemd/thinkfan.service"
-		DESTINATION "${CMAKE_INSTALL_LIBDIR}/systemd/system")
+		DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/systemd/system")
 	if(NOT EXISTS "/etc/systemd/system/thinkfan.service.d/override.conf")
 		install(FILES
 			rcscripts/systemd/override.conf
