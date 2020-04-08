@@ -19,7 +19,9 @@ endif()
 
 pkg_check_modules(ATASMART "libatasmart")
 
-if(NOT SYSTEMD_FOUND)
+if(SYSTEMD_FOUND)
+	set(PID_FILE "/run/thinkfan.pid")
+else()
 	set(PID_FILE "/var/run/thinkfan.pid")
 endif()
 
