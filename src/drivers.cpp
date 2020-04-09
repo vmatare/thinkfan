@@ -417,7 +417,8 @@ void TpSensorDriver::read_temps() const
 		if (f.bad())
 			throw IOerror(MSG_T_GET(path_), errno);
 		if (!f.fail() && in_use_[tidx])
-			temp_state.add_temp(tmp + correction_[tidx++]);
+			temp_state.add_temp(tmp + correction_[tidx]);
+		tidx++;
 	}
 }
 
