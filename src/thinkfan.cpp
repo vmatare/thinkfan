@@ -32,9 +32,8 @@
 #include <string>
 #include <iostream>
 #include <memory>
+#include <thread>
 #include <cmath>
-#include <mutex>
-#include <condition_variable>
 
 #include <unistd.h>
 
@@ -137,17 +136,8 @@ void run(const Config &config)
 			(*cur_lvl)->str() << flush;
 	config.fan()->set_speed(*cur_lvl);
 
-	std::mutex sleep_mutex;
-	std::condition_variable sleep_cond;
-
 	while (likely(!interrupted)) {
-
-		std::unique_lock<std::mutex> sleep_locked(sleep_mutex);
-		sleep_cond.wait_for(sleep_locked, tmp_sleeptime, [] () {
-			return !interrupted;
-		} );
-		if (unlikely(interrupted))
-			break;
+		std::this_thread::sleep_for(sleeptime);
 
 		read_temps_safe(config.sensors());
 
