@@ -94,7 +94,7 @@ private:
 Logger &flush(Logger &l);
 Logger &log(LogLevel lvl);
 
-template<class ErrT, class... ArgTs> void error(ArgTs... args) {
+template<class ErrT, class... ArgTs> void error(const ArgTs &... args) {
 	if (chk_sanity)
 		throw ErrT(args...);
 	else
