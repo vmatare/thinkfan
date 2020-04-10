@@ -25,6 +25,9 @@
 #include <vector>
 #include <chrono>
 #include <fstream>
+#include <atomic>
+#include <mutex>
+#include <condition_variable>
 
 #define DEFAULT_CONFIG "/etc/thinkfan.conf"
 #define DEFAULT_YAML_CONFIG "/etc/thinkfan.yaml"
@@ -55,7 +58,7 @@ typedef std::ifstream ifstream;
 typedef std::ofstream ofstream;
 typedef std::fstream fstream;
 typedef std::chrono::duration<unsigned int> seconds;
-typedef std::chrono::duration<float> secondsf;
+typedef std::chrono::duration<double> secondsf;
 
 
 class TemperatureState {
@@ -103,10 +106,14 @@ extern bool dnd_disk;
 #endif /* USE_ATASMART */
 extern seconds sleeptime, tmp_sleeptime;
 extern float bias_level;
-extern volatile int interrupted;
+extern std::atomic<int> interrupted;
 extern TemperatureState temp_state;
 extern std::vector<string> config_files;
 extern float depulse;
+
+extern std::condition_variable sleep_cond;
+extern std::mutex sleep_mutex;
+
 
 
 }
