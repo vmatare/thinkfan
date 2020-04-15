@@ -10,4 +10,6 @@ ExecReload=/bin/kill -HUP $MAINPID
 
 [Install]
 WantedBy=multi-user.target
-Also=thinkfan-wakeup.service
+Also=thinkfan-suspend.service
+Also=thinkfan-hibernate.service
+Also=thinkfan-hybrid-suspend.service

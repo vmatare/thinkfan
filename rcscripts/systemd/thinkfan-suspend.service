@@ -2,8 +2,6 @@
 Description=Reload thinkfan after waking up from suspend
 After=sysinit.target
 After=suspend.target
-After=hibernate.target
-After=hybrid-sleep.target
 
 [Service]
 Type=oneshot
@@ -11,5 +9,3 @@ ExecStart=/usr/bin/pkill -usr2 thinkfan
 
 [Install]
 WantedBy=suspend.target
-WantedBy=hibernate.target
-WantedBy=hybrid-sleep.target
