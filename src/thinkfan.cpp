@@ -32,7 +32,6 @@
 #include <string>
 #include <iostream>
 #include <memory>
-#include <thread>
 #include <cmath>
 
 #include <unistd.h>
@@ -54,13 +53,17 @@ float bias_level(1.5);
 float depulse = 0;
 TemperatureState temp_state(0);
 
+std::condition_variable sleep_cond;
+std::mutex sleep_mutex;
+
+
 #ifdef USE_YAML
 std::vector<string> config_files { DEFAULT_YAML_CONFIG, DEFAULT_CONFIG };
 #else
 std::vector<std::string> config_files { DEFAULT_CONFIG };
 #endif
 
-volatile int interrupted(0);
+std::atomic<int> interrupted(0);
 
 #ifdef USE_ATASMART
 /** Do Not Disturb disk, i.e. don't get temperature from a sleeping disk */
@@ -75,6 +78,7 @@ void sig_handler(int signum) {
 	case SIGINT:
 	case SIGTERM:
 		interrupted = signum;
+		sleep_cond.notify_all();
 		break;
 	case SIGUSR1:
 		log(TF_INF) << temp_state << flush;
@@ -86,6 +90,7 @@ void sig_handler(int signum) {
 #endif
 	case SIGUSR2:
 		interrupted = signum;
+		sleep_cond.notify_all();
 		log(TF_INF) << "Received SIGUSR2: Re-initializing fan control." << flush;
 		break;
 	}
@@ -133,7 +138,14 @@ void run(const Config &config)
 
 	bool did_something = false;
 	while (likely(!interrupted)) {
-		std::this_thread::sleep_for(sleeptime);
+		auto until = std::chrono::steady_clock::now() + tmp_sleeptime;
+
+		std::unique_lock<std::mutex> sleep_locked(sleep_mutex);
+		sleep_cond.wait_until(sleep_locked, until, [] () {
+			return interrupted != 0;
+		} );
+		if (unlikely(interrupted))
+			break;
 
 		read_temps_safe(config.sensors());
 

@@ -1,0 +1,11 @@
+[Unit]
+Description=Reload thinkfan after waking up from suspend
+After=sysinit.target
+After=hibernate.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/pkill -usr2 thinkfan
+
+[Install]
+WantedBy=hibernate.target
