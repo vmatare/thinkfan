@@ -7,6 +7,7 @@ cmake_minimum_required(VERSION 3.0)
 cmake_policy(SET CMP0015 NEW)
 
 find_package(PkgConfig)
+find_package(Threads)
 pkg_check_modules(SYSTEMD "systemd")
 pkg_check_modules(OPENRC "openrc")
 
@@ -78,6 +79,11 @@ if (PID_FILE)
 	target_compile_definitions(thinkfan PRIVATE -DPID_FILE=\"${PID_FILE}\")
 endif()
 target_compile_definitions(thinkfan PRIVATE -DVERSION="1.2")
+
+# std::condition_variable::wait_for doesn't block if not explicitly linked against libpthread
+# https://stackoverflow.com/questions/41394670/c-condition-variable-wait-for-returns-instantly
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=58929
+target_link_libraries(thinkfan PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 
 if(USE_ATASMART)
 	if(NOT ATASMART_FOUND)
