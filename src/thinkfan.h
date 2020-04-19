@@ -85,14 +85,27 @@ public:
 
 
 #if defined(PID_FILE)
+
 class PidFileHolder {
 public:
 	PidFileHolder(::pid_t pid);
 	~PidFileHolder();
 	static bool file_exists();
+	static void cleanup();
 private:
+	void remove_file();
+
 	std::fstream pid_file_;
+	static PidFileHolder *instance_;
 };
+
+#else
+
+class PidFileHolder {
+public:
+	static void cleanup();
+};
+
 #endif // defined(PID_FILE)
 
 
