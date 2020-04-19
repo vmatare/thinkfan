@@ -44,9 +44,10 @@ can be used.
 .TP
 .B levels:
 Maps temperatures to fan speeds.
-A \*(lqsimple mapping\*(rq just specifies one temperature as the lower and bound
-(respectively) for a give fan speed.  In a \*(lqcomplex mapping\*(rq, the upper
-and lower bounds are specified for each driver/sensor configured under
+A \*(lqsimple mapping\*(rq just specifies one temperature as the lower and
+upper bound (respectively) for a given fan speed.
+In a \*(lqcomplex mapping\*(rq, the upper and lower bounds are specified for
+each driver/sensor configured under
 .BR sensors: .
 This mode should be used when thinkfan is monitoring multiple devices that can
 tolerate different amounts of heat.
