@@ -239,7 +239,7 @@ SensorDriver::SensorDriver(std::string path, bool optional, std::vector<int> cor
 {
 	std::ifstream f(path_);
 	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_FAN_INIT(path_), errno);
+		throw IOerror(path_ + ": ", errno);
 }
 
 
