@@ -266,29 +266,53 @@ int set_options(int argc, char **argv)
 }
 
 
+
 #if defined(PID_FILE)
+
+PidFileHolder *PidFileHolder::instance_ = nullptr;
+
 PidFileHolder::PidFileHolder(::pid_t pid)
 : pid_file_(PID_FILE, std::ios_base::in)
 {
 	if (!pid_file_.fail())
 		error<SystemError>(MSG_RUNNING);
+	if (instance_)
+		throw Bug("Attempt to initialize PID file twice");
 	pid_file_.close();
 	pid_file_.open(PID_FILE, std::ios_base::out | std::ios_base::trunc);
 	if (!(pid_file_ << pid << std::flush))
 		error<IOerror>("Writing to " PID_FILE ": ", errno);
+	instance_ = this;
 }
-
 
 PidFileHolder::~PidFileHolder()
-{
-	pid_file_.close();
-	if (::unlink(PID_FILE) == -1)
-		log(TF_ERR) << "Deleting " PID_FILE ": " << errno << "." << flush;
-}
-
+{ remove_file(); }
 
 bool PidFileHolder::file_exists()
 { return !ifstream(PID_FILE).fail(); }
+
+
+void PidFileHolder::remove_file()
+{
+	if (pid_file_.is_open()) {
+		pid_file_.close();
+		if (::unlink(PID_FILE) == -1)
+			log(TF_ERR) << "Deleting " PID_FILE ": " << errno << "." << flush;
+	}
+}
+
+
+void PidFileHolder::cleanup()
+{
+	if (instance_)
+		instance_->remove_file();
+}
+
+#else
+
+void PidFileHolder::cleanup()
+{}
+
 #endif // defined(PID_FILE)
 
 

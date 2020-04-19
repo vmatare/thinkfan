@@ -136,6 +136,7 @@ void handle_uncaught()
 		               ;
 	}
 	// We can expect to be killed by SIGABRT after this function returns.
+	PidFileHolder::cleanup();
 }
 
 

@@ -82,35 +82,7 @@ const string &FanDriver::current_speed() const
 
 TpFanDriver::TpFanDriver(const std::string &path)
 : FanDriver(path, 120)
-{
-	bool ctrl_supported = false;
-	std::fstream f(path_);
-	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_FAN_INIT(path_), errno);
-
-	std::string line;
-	line.resize(256);
-
-	while (f.getline(&*line.begin(), 255)) {
-		if (f.fail())
-			throw IOerror(MSG_FAN_INIT(path_), errno);
-		if (line.rfind("level:") != string::npos) {
-			// remember initial level, restore it in d'tor
-			string::size_type offs = line.find_last_of(" \t") + 1;
-			if (offs != string::npos) {
-				// Cut of at bogus \000 char that may occur before EOL
-				initial_state_ = line.substr(offs, line.find_first_of('\000') - offs);
-			}
-		}
-		else if (line.rfind("commands:") != std::string::npos && line.rfind("level <level>") != std::string::npos) {
-			ctrl_supported = true;
-		}
-	}
-
-	if (!ctrl_supported)
-		throw SystemError(MSG_FAN_MODOPTS);
-}
-
+{}
 
 TpFanDriver::~TpFanDriver() noexcept(false)
 {
@@ -157,6 +129,7 @@ void TpFanDriver::ping_watchdog_and_depulse(const Level &level)
 
 void TpFanDriver::init()
 {
+	bool ctrl_supported = false;
 	std::fstream f(path_);
 	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_FAN_INIT(path_), errno);
@@ -164,24 +137,29 @@ void TpFanDriver::init()
 	std::string line;
 	line.resize(256);
 
-	if (initial_state_.empty())
-		while (f.getline(&*line.begin(), 255)) {
-			if (f.fail())
-				throw IOerror(MSG_FAN_INIT(path_), errno);
-			if (line.rfind("level:") != string::npos) {
-				// remember initial level, restore it in d'tor
-				string::size_type offs = line.find_last_of(" \t") + 1;
-				if (offs != string::npos) {
-					// Cut of at bogus \000 char that may occur before EOL
-					initial_state_ = line.substr(offs, line.find_first_of('\000') - offs);
-				}
-				log(TF_DBG) << path_ << ": Saved initial state: " << initial_state_ << "." << flush;
-				break;
+	while (f.getline(&*line.begin(), 255)) {
+		if (initial_state_.empty() && line.rfind("level:") != string::npos) {
+			// remember initial level, restore it in d'tor
+			string::size_type offs = line.find_last_of(" \t") + 1;
+			if (offs != string::npos) {
+				// Cut of at bogus \000 char that may occur before EOL
+				initial_state_ = line.substr(offs, line.find_first_of('\000') - offs);
 			}
+			log(TF_DBG) << path_ << ": Saved initial state: " << initial_state_ << "." << flush;
 		}
+		else if (line.rfind("commands:") != std::string::npos && line.rfind("level <level>") != std::string::npos) {
+			ctrl_supported = true;
+		}
+	}
+
+	if (!ctrl_supported)
+		throw SystemError(MSG_FAN_MODOPTS);
 
 	if (initial_state_.empty())
 		throw SystemError(MSG_FAN_INIT(path_) + "Failed to read initial state.");
+
+	f.close();
+	f.open(path_);
 
 	if (!(f << "watchdog " << watchdog_.count() << std::flush))
 		throw IOerror(MSG_FAN_INIT(path_), errno);
@@ -264,7 +242,7 @@ SensorDriver::SensorDriver(std::string path, bool optional, std::vector<int> cor
 {
 	std::ifstream f(path_);
 	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_FAN_INIT(path_), errno);
+		throw IOerror(path_ + ": ", errno);
 }
 
 

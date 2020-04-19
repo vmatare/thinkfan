@@ -44,9 +44,10 @@ can be used.
 .TP
 .B levels:
 Maps temperatures to fan speeds.
-A \*(lqsimple mapping\*(rq just specifies one temperature as the lower and bound
-(respectively) for a give fan speed.  In a \*(lqcomplex mapping\*(rq, the upper
-and lower bounds are specified for each driver/sensor configured under
+A \*(lqsimple mapping\*(rq just specifies one temperature as the lower and
+upper bound (respectively) for a given fan speed.
+In a \*(lqcomplex mapping\*(rq, the upper and lower bounds are specified for
+each driver/sensor configured under
 .BR sensors: .
 This mode should be used when thinkfan is monitoring multiple devices that can
 tolerate different amounts of heat.
@@ -65,10 +66,10 @@ and which fan drivers it should use.
 The mapping between temperature readings and fan speeds is specified in a
 separate config section (see the
 .B FAN SPEEDS
-section of this man page below.
+section below).
 
 
-.SS Sensor Key Structure
+.SS Sensor Syntax
 
 The entries under the
 .B sensors:
@@ -79,8 +80,16 @@ section can specify
 or
 .BR atasmart
 drivers, where the latter two must be enabled at compile-time.
-The entries must all be in a list below the
-.B sensors:
+There can be any number (greater than zero) and combination of
+.BR hwmon ,
+.BR tpacpi ,
+.BR nvml
+and
+.BR atasmart
+entries.
+However there may be at most one instance of the
+.BR tpacpi
+entry.
 
 .nf
 .B  "sensors:"
@@ -102,19 +111,8 @@ The entries must all be in a list below the
 .BR "  \- " ...
 .fi
 
-There can be any number (greater than zero) and combination of
-.BR hwmon ,
-.BR tpacpi ,
-.BR nvml
-and
-.BR atasmart
-entries.
-However there may be only one instance of the
-.BR tpacpi
-entry.
 
-
-.SS Fan Key Structure
+.SS Fan Syntax
 
 Currently, thinkfan supports only one fan, so there can be only one entry in the
 list.
@@ -205,7 +203,7 @@ entries, this is required if
 .I hwmon-path
 does not refer directly to a single \*(lqtemp*_input\*(rq file, but to a folder
 that contains one or more of them.
-A hwmon interface may also contain multiple PWM controls for fans so if the
+A hwmon interface may also contain multiple PWM controls for fans, so if the
 .I hwmon-path
 of a particular hwmon fan does not refer directly to the \*(lqpwm\fIX\fR\*(rq file, a
 list with a single entry
@@ -217,13 +215,15 @@ For
 sensors, this entry is optional.
 If it is omitted, all temperatures found in
 .I tpacpi-path
-will e used.
+will be used.
 
 .TP
 .IR correction-list " (always optional)"
 A YAML list that specifies temperature offsets for each sensor in use by the
 given driver. Use this if you want to use the \*(lqsimple\*(rq level syntax,
-need to compensate for devices with a lower heat tolerance.
+but need to compensate for devices with a lower heat tolerance.
+Note however that the complex level syntax is usually the better (i.e. more
+fine-grained) choice.
 
 
 
@@ -236,7 +236,7 @@ temperature bounds.
 If temperature(s) drop below the lower bound, thinkfan switches to the previous
 level, and if the upper bound is reached, thinkfan switches to the next level.
 
-.SS Simple Key Structure
+.SS Simple Syntax
 In the simplified form, only one temperature is specified as an upper/lower
 limit for a given fan speed.
 In that case, the
@@ -256,8 +256,8 @@ required fan behaviour is similar enough for all heat-generating devices.
 .fi
 
 
-.SS Complex Key Structure
-This mode is suitable for more complex systems, with devices that have vastly
+.SS Complex Syntax
+This mode is suitable for more complex systems, with devices that have
 different temperature ratings.
 For example, many modern CPUs and GPUs can deal with temperatures above
 80\[char176]C on a daily basis, whereas a hard disk will die quickly if it
