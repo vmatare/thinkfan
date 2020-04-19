@@ -25,7 +25,7 @@ static const string kw_levels("levels");
 static const string kw_tpacpi("tpacpi");
 static const string kw_hwmon("hwmon");
 #ifdef USE_NVML
-static const string kw_nvidia("nvidia");
+static const string kw_nvidia("nvml");
 #endif
 #ifdef USE_ATASMART
 static const string kw_atasmart("atasmart");
