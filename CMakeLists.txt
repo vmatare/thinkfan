@@ -131,9 +131,8 @@ if(SYSTEMD_FOUND)
 	configure_file(rcscripts/systemd/thinkfan.service.cmake
 		rcscripts/systemd/thinkfan.service)
 	install(FILES
-		rcscripts/systemd/thinkfan-suspend.service
-		rcscripts/systemd/thinkfan-hibernate.service
-		rcscripts/systemd/thinkfan-hybrid-suspend.service
+		rcscripts/systemd/thinkfan-sleep.service
+		rcscripts/systemd/thinkfan-wakeup.service
 		"${CMAKE_BINARY_DIR}/rcscripts/systemd/thinkfan.service"
 		DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/systemd/system")
 	if(NOT EXISTS "/etc/systemd/system/thinkfan.service.d/override.conf")
