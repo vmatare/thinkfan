@@ -6,7 +6,7 @@ Before=sleep.target
 Type=oneshot
 ExecStart=/usr/bin/pkill -winch thinkfan
 # Hack: Since the signal handler races with the sleep, we need to delay a bit
-ExecStart=sleep 1
+ExecStart=/usr/bin/sleep 1
 
 [Install]
 WantedBy=sleep.target
