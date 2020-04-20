@@ -106,6 +106,10 @@ if(USE_YAML)
 	target_link_libraries(thinkfan PRIVATE ${YAML_CPP_LIBRARIES})
 endif(USE_YAML)
 
+if(SYSTEMD_FOUND)
+	target_compile_definitions(thinkfan PRIVATE -DHAVE_SYSTEMD)
+endif()
+
 if(DISABLE_BUGGER)
 	target_compile_definitions(thinkfan PRIVATE -DDISABLE_BUGGER)
 endif(DISABLE_BUGGER)
@@ -127,9 +131,8 @@ if(SYSTEMD_FOUND)
 	configure_file(rcscripts/systemd/thinkfan.service.cmake
 		rcscripts/systemd/thinkfan.service)
 	install(FILES
-		rcscripts/systemd/thinkfan-suspend.service
-		rcscripts/systemd/thinkfan-hibernate.service
-		rcscripts/systemd/thinkfan-hybrid-suspend.service
+		rcscripts/systemd/thinkfan-sleep.service
+		rcscripts/systemd/thinkfan-wakeup.service
 		"${CMAKE_BINARY_DIR}/rcscripts/systemd/thinkfan.service"
 		DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/systemd/system")
 	if(NOT EXISTS "/etc/systemd/system/thinkfan.service.d/override.conf")
