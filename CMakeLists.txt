@@ -106,6 +106,10 @@ if(USE_YAML)
 	target_link_libraries(thinkfan PRIVATE ${YAML_CPP_LIBRARIES})
 endif(USE_YAML)
 
+if(SYSTEMD_FOUND)
+	target_compile_definitions(thinkfan PRIVATE -DHAVE_SYSTEMD)
+endif()
+
 if(DISABLE_BUGGER)
 	target_compile_definitions(thinkfan PRIVATE -DDISABLE_BUGGER)
 endif(DISABLE_BUGGER)
