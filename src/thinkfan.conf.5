@@ -97,16 +97,20 @@ entry.
 .BI "    name: " hwmon-name
 .BI "    indices: " index-list
 .BI "    correction: " correction-list
+.BI "    optional: " bool-allow-errors
 
 .B  "  \- tpacpi: /proc/acpi/ibm/thermal"
 .BI "    indices: " index-list
 .BI "    correction: " correction-list
+.BI "    optional: " bool-allow-errors
 
 .BI "  \- nvml: " nvml-bus-id
 .BI "    correction: " correction-list
+.BI "    optional: " bool-allow-errors
 
 .BI "  \- atasmart: " disk-device-file
 .BI "    correction: " correction-list
+.BI "    optional: " bool-allow-errors
 
 .BR "  \- " ...
 .fi
@@ -224,6 +228,17 @@ given driver. Use this if you want to use the \*(lqsimple\*(rq level syntax,
 but need to compensate for devices with a lower heat tolerance.
 Note however that the complex level syntax is usually the better (i.e. more
 fine-grained) choice.
+
+.TP
+.IR bool-allow-errors " (always optional, \fBfalse\fR by default)"
+A truth value
+.RB ( yes / no / true / false )
+that specifies whether thinkfan should accept errors when reading from this
+sensor.
+Normally, thinkfan will exit with an error message if reading the temperature
+from any configured sensor fails.
+Marking a sensor as optional may be useful for removable hardware or devices
+that may get switched off entirely to save power.
 
 
 
