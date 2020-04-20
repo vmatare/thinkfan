@@ -222,7 +222,14 @@ void HwmonFanDriver::set_speed(const Level &level)
 			// In that case, we need to re-initialize and try once more.
 			init();
 			FanDriver::set_speed(std::to_string(level.num()));
-			log(TF_DBG) << "It seems we woke up from suspend. PWM fan driver had to be re-initialized." << flush;
+			log(TF_WRN) << path_ << ": WARNING: Userspace fan control had to be automatically re-initialized." << flush;
+#if defined(HAVE_SYSTEMD)
+			log(TF_WRN) << "This should have been taken care of when enabling the thinkfan systemd service." << flush
+			            << "If thinkfan.service is enabled, the following services should also have be enabled as a dependency:" << flush
+			            << "thinkfan-hibernate.service, thinkfan-hybrid-suspend.service and thinkfan-suspend.service" << flush;
+#else
+			log(TF_WRN) << "Please arrange for a SIGUSR2 to be sent to thinkfan after resuming from suspend." << flush;
+#endif
 		} else {
 			throw;
 		}

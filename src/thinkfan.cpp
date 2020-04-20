@@ -52,6 +52,7 @@ seconds tmp_sleeptime = sleeptime;
 float bias_level(1.5);
 float depulse = 0;
 TemperatureState temp_state(0);
+std::atomic<unsigned char> tolerate_errors(0);
 
 std::condition_variable sleep_cond;
 std::mutex sleep_mutex;
@@ -93,13 +94,16 @@ void sig_handler(int signum) {
 		sleep_cond.notify_all();
 		log(TF_INF) << "Received SIGUSR2: Re-initializing fan control." << flush;
 		break;
+	case SIGWINCH:
+		log(TF_INF) << "Going to sleep: Will allow sensor read errors for the next 2 loops." << flush;
+		tolerate_errors = 2;
 	}
 }
 
 
 
 static inline void sensor_lost(const SensorDriver &s, const ExpectedError &e) {
-	if (!s.optional())
+	if (!s.optional() || tolerate_errors)
 		error<SensorLost>(e);
 	else
 		log(TF_INF) << SensorLost(e).what();
@@ -148,6 +152,9 @@ void run(const Config &config)
 			break;
 
 		read_temps_safe(config.sensors());
+
+		if (unlikely(tolerate_errors) > 0)
+			tolerate_errors--;
 
 		if (unlikely(!temp_state.complete()))
 			throw SystemError(MSG_SENSOR_LOST);
@@ -431,6 +438,7 @@ int main(int argc, char **argv) {
 	 || sigaction(SIGINT, &handler, nullptr)
 	 || sigaction(SIGTERM, &handler, nullptr)
 	 || sigaction(SIGUSR1, &handler, nullptr)
+	 || sigaction(SIGWINCH, &handler, nullptr)
 #if not defined(DISABLE_BUGGER)
 	 || sigaction(SIGSEGV, &handler, nullptr)
 #endif

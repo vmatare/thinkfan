@@ -123,6 +123,7 @@ extern std::atomic<int> interrupted;
 extern TemperatureState temp_state;
 extern std::vector<string> config_files;
 extern float depulse;
+extern std::atomic<unsigned char> tolerate_errors;
 
 extern std::condition_variable sleep_cond;
 extern std::mutex sleep_mutex;
