@@ -209,26 +209,34 @@ of the driver modules.
 
 .TP
 .I index-list
-A YAML list that specifies which sensors, resp. which fan to use from a given
+A YAML list
+.BI "[ "  X1  ", "  X2  ", " "\fR...\fB ]"
+that specifies which sensors, resp. which fan to use from a given
 interface.
 Both
 .B /proc/acpi/ibm/thermal
 and also many hwmon interfaces contain multiple sensors, and not
 all of them may be relevant for fan control.
 
+.TP
+\h'9m'\(bu
 For
 .B hwmon
 entries, this is required if
 .I hwmon-path
-does not refer directly to a single \*(lqtemp*_input\*(rq file, but to a folder
+does not refer directly to a single \*(lqtemp\fIXi\fR_input\*(rq file, but to a folder
 that contains one or more of them.
-A hwmon interface may also contain multiple PWM controls for fans, so if the
+In this case,
+.I index-list
+specifies the
+.I Xi
+for the \*(lqtemp\fIXi\fR_input\*(rq files that should be used.
+A hwmon interface may also contain multiple PWM controls for fans, so in that case,
 .I hwmon-path
-of a particular hwmon fan does not refer directly to the \*(lqpwm\fIX\fR\*(rq file, a
-list with a single entry
-.I X
-must be given.
+must be a list with a single entry.
 
+.TP
+\h'9m'\(bu
 For
 .B tpacpi
 sensors, this entry is optional.
