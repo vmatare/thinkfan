@@ -147,18 +147,42 @@ fan:
 
 .TP 12m
 .I hwmon-path
-Either the full path of a \*(lqtemp*_input\*(rq or \*(lqpwm*\*(rq file (for
-sensors and fans respectively), or a base path.
-If there exists only one hwmon interface under the base path (e.g.
-/sys/class/graphics/fb0/device/hwmon), it is sufficient to specify an
-.I index-list
-(see below).
-If
-.I hwmon-path
-contains multiple hwmon interfaces (like e.g. /sys/class/hwmon, which contains all
-of them), a
-.I hwmon-name
-must be specified to select one (see below).
+There are three ways of specifying hwmon fans or sensors:
+
+.TP
+\h'8m'1)
+A full path of a \*(lqtemp*_input\*(rq or \*(lqpwm*\*(rq file, like
+\*(lq/sys/class/hwmon/hwmon0/pwm1\*(rq or
+\*(lq/sys/class/hwmon/hwmon0/temp1_input\*(rq.
+In this case, the \*(lq\c
+.BI indices: " index-list"\c
+\*(rq and \*(lq\c
+.BI name: " hwmon-name"\c
+\*(rq entries are unncessary since the path uniquely identifies a specific fan or
+sensor.
+
+.TP
+\h'8m'2)
+A directory that contains a specific hwmon driver, for example
+\*(lq/sys/devices/platform/nct6775.2592\*(rq.
+Here, the path uniquely identifies a particular driver/interface, but does not
+tell thinkfan which specific sensors to use from that interface.
+So in this case, the \*(lq\c
+.BI indices: " index-list"\c
+\*(rq entry needs to be specified, while the \*(lq\c
+.BI name: " hwmon-name"\c
+\*(rq entry is unnecessary.
+
+.TP
+\h'8m'3)
+A directory that contains multiple or all of the hwmon drivers, for example
+\*(lq/sys/class/hwmon\*(rq.
+Here, both the \*(lq\c
+.BI name: " hwmon-name"\c
+\*(rq and \*(lq\c
+.BI indices: " index-list"\c
+\*(rq entries are required to tell thinkfan which interface to select below that
+path, and which sensors or which fan to use from that interface.
 
 .TP
 .I hwmon-name
@@ -169,28 +193,6 @@ is a base path that contains multiple hwmons.
 This method of specifying sensors is particularly useful if the full path to a
 particular hwmon keeps changing between bootups, e.g. due to changing load order
 of the driver modules.
-
-.TP
-.I nvml-bus-id
-NOTE: only available if thinkfan was compiled with USE_NVML enabled.
-
-The PCI bus ID of an nVidia graphics card that is run with the proprietary
-nVidia driver. Can be obtained with e.g. \*(lqlspci | grep \-i vga\*(rq.
-Usually, nVidia cards will use the open source
-.B nouveau
-driver, which should support hwmon sensors instead.
-
-.TP
-.I disk-device-file
-NOTE: only available if thinkfan was compiled with USE_ATASMART enabled.
-
-Full path to a device file for a hard disk that supports S.M.A.R.T.
-See also the
-.B \-d
-option in
-.BR thinkfan (1)
-that prevents thinkfan from waking up sleeping (mechanical) disks to read their
-temperature.
 
 .TP
 .I index-list
@@ -220,6 +222,28 @@ sensors, this entry is optional.
 If it is omitted, all temperatures found in
 .I tpacpi-path
 will be used.
+
+.TP
+.I nvml-bus-id
+NOTE: only available if thinkfan was compiled with USE_NVML enabled.
+
+The PCI bus ID of an nVidia graphics card that is run with the proprietary
+nVidia driver. Can be obtained with e.g. \*(lqlspci | grep \-i vga\*(rq.
+Usually, nVidia cards will use the open source
+.B nouveau
+driver, which should support hwmon sensors instead.
+
+.TP
+.I disk-device-file
+NOTE: only available if thinkfan was compiled with USE_ATASMART enabled.
+
+Full path to a device file for a hard disk that supports S.M.A.R.T.
+See also the
+.B \-d
+option in
+.BR thinkfan (1)
+that prevents thinkfan from waking up sleeping (mechanical) disks to read their
+temperature.
 
 .TP
 .IR correction-list " (always optional)"
