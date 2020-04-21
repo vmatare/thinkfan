@@ -161,17 +161,30 @@ In this case, the \*(lq\c
 \*(rq entries are unncessary since the path uniquely identifies a specific fan or
 sensor.
 
+Note that this method may lead to problems when the load order of the drivers
+changes across bootups, because in the \*(lqhwmon\fIX\fR\*(rq folder name, the
+.I X
+actually corresponds to the load order.
+Use method 2) or 3) to avoid this problem.
+
 .TP
 \h'8m'2)
 A directory that contains a specific hwmon driver, for example
 \*(lq/sys/devices/platform/nct6775.2592\*(rq.
-Here, the path uniquely identifies a particular driver/interface, but does not
-tell thinkfan which specific sensors to use from that interface.
-So in this case, the \*(lq\c
+Note that this path does not contain the load-order dependent
+\*(lqhwmon\fIX\fR\*(rq folder.
+As long as it contains only a single hwmon driver/interface it is sufficient to
+specify the
+\*(lq\c
 .BI indices: " index-list"\c
-\*(rq entry needs to be specified, while the \*(lq\c
+\*(rq
+entry to tell thinkfan which specific sensors to use from that interface.
+The
+\*(lq\c
 .BI name: " hwmon-name"\c
-\*(rq entry is unnecessary.
+\*(rq
+entry is unnecessary.
+
 
 .TP
 \h'8m'3)
