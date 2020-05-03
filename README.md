@@ -82,5 +82,7 @@ To compile thinkfan, you will need to have the following things installed:
 # Documentation
 - Run `thinkfan -h`
 - Manpages: `thinkfan(1)`, `thinkfan.conf(5)`
-- Example configs in examples/ subfolder
+- Example configs: https://github.com/vmatare/thinkfan/tree/master/examples
+- Linux kernel hwmon doc: https://www.kernel.org/doc/html/latest/hwmon/sysfs-interface.html
+- Linux kernel thinkpad_acpi doc: https://www.kernel.org/doc/html/latest/admin-guide/laptops/thinkpad-acpi.html
 - If all fails: https://github.com/vmatare/thinkfan/issues
