@@ -122,8 +122,7 @@ endif(DISABLE_EXCEPTION_CATCHING)
 
 
 install(TARGETS thinkfan DESTINATION "${CMAKE_INSTALL_SBINDIR}")
-install(FILES COPYING README.md examples/thinkfan.conf.complex
-	examples/thinkfan.conf.simple examples/thinkfan.conf.yaml DESTINATION "${CMAKE_INSTALL_DOCDIR}")
+install(FILES COPYING README.md examples/thinkfan.yaml DESTINATION "${CMAKE_INSTALL_DOCDIR}")
 install(FILES src/thinkfan.1 DESTINATION "${CMAKE_INSTALL_MANDIR}/man1")
 install(FILES src/thinkfan.conf.5 DESTINATION "${CMAKE_INSTALL_MANDIR}/man5")
 
