@@ -1,0 +1,182 @@
+##############################################################################
+# thinkfan Example Config File
+# ============================
+#
+# Please read the config manpage thinkfan.conf(5) before playing around with
+# this.
+#
+# This is NOT a working config file that can just be copied. It is only meant
+# to give a rough idea what can be done. In particular, don't copy & paste the
+# fan speed config! Think about what you're doing.
+#
+# If you don't know what temperatures are right for your system, you should
+# not be using thinkfan!
+##############################################################################
+
+
+##############################################################################
+# Sensor Drivers and Temperature Inputs
+# =====================================
+#
+# ATTENTION: The order in which sensors are specified here is significant when
+# specifying the fan speeds further below!
+#
+# There are multiple ways in which a temperature input can be specified. An
+# example for each is given below.
+#
+# The "correction:" and "optional:" keywords may be specified on any type of
+# sensor.
+
+sensors:
+  # hwmon: Full path to a temperature file (single sensor).
+  # =======================================================
+  # Disadvantage is that the index in "hwmon0" depends on the load order of
+  # the driver modules, which may change across bootups on some systems.
+  - hwmon: /sys/class/hwmon/hwmon0/temp1_input
+
+  # hwmon: Path to a complete driver folder
+  # =======================================
+  # Individual sensors need to be picked out with the "indices:" keyword.
+  # This can be used with a stable path that does not depend on driver load
+  # order. However certain drivers may not appear under such a stable path.
+  - hwmon: /sys/devices/pci0000:00/0000:00:03.1/0000:27:00.0/hwmon
+    indices: [1, 2, 5, 6] # adds 4 temperature sensors
+    correction: [0, 0, 0, -5] # add -5 °C to temp6_input
+
+  # hwmon: Base path with name-based search
+  # =======================================
+  # Thinkfan will search under the given path for a hwmon driver that has a
+  # file called "name" which contains the given name. This method should work
+  # with all hwmon drivers and is robust against driver load order.
+  - hwmon: /sys/class/hwmon
+    name: k10temp
+    indices: [1]
+
+  # Sensors can also be optional, e.g. in case of removable hardware
+  - hwmon: /sys/class/block/sdc/device/hwmon
+    indices: [1]
+    optional: true # don't exit if the sensor can't be read
+
+  # atasmart: Read the temperature from a hard disk via S.M.A.R.T
+  # =============================================================
+  # Note that this is unreasonably CPU-intensive. Since Linux 5.6, the kernel
+  # can report the temperatures of hard disks via the hwmon interface (see the
+  # example above), which should be preferred if available.
+  #
+  # This is only available if thinkfan was compiled with USE_ATASMART enabled.
+  - atasmart: /dev/sda
+
+  # tpacpi: Legacy interface to the thinkpad_acpi driver
+  # ====================================================
+  # Particularly on older Thinkpad laptops, this interface may give access to
+  # 8-16 temperature sensors, but it may be hard to tell where/what exactly
+  # they measure.
+  # Some documentation for older models may be found at the thinkpad wiki:
+  # https://www.thinkwiki.org/wiki/Thermal_Sensors
+  #
+  # Note that the hwmon interface is to be preferred nowadays.
+  - tpacpi: /proc/acpi/ibm/thermal
+    # Some of the temperature entries in /proc/acpi/ibm/thermal may be
+    # irrelevant or unused, so individual ones can be selected:
+    indices: [1, 2, 3, 4]
+
+  # nvml: The proprietary nVidia driver
+  # ===================================
+  # Temperatures can be read directly from nVidia GPUs that run with the
+  # proprietary driver. The "nvml:" entry must specify the PCI bus ID of the
+  # GPU (can be found with lspci)
+  #
+  # Note that this does not work with the open-source "nouveau" driver. Open
+  # source drivers should support the hwmon interface instead (see above).
+  - nvml: 27:00.0
+
+##############################################################################
+
+
+##############################################################################
+# Fan Drivers
+# ===========
+#
+# Currently, thinkfan supports only one fan, but support for multiple fans is
+# in development and will be released soon. For the time being, the examples
+# given below are mutually exclusive.
+#
+fans:
+  # hwmon: Full path to a PWM file
+  # ==============================
+  # Also subject to the potential problem with driver load order (see above)
+  - hwmon: /sys/class/hwmon/hwmon0/pwm1
+
+  # hwmon: Path to a complete driver folder
+  # =======================================
+  - hwmon: /sys/class/graphics/fb0/device/hwmon
+    indices: [1] # Use pwm1
+
+  # hwmon: Base path with name-based search
+  # =======================================
+  - hwmon: /sys/class/hwmon
+    name: amdgpu
+    indices: [1]
+
+  # tpacpi: Thinkpad-specific fan interface
+  # =======================================
+  # Currently, this is the only way to use disengaged and automatic mode on
+  # thinkpads.
+  - tpacpi: /proc/acpi/ibm/fan
+
+##############################################################################
+
+
+##############################################################################
+# Fan Speeds (simple mode)
+# ========================
+# 
+# In simple mode, each entry is a [FANSPEED, LOWER_LIMIT, UPPER_LIMIT] tuple.
+# This is a quick way to configure a small system like a laptop, where the
+# temperature ratings for all monitored devices are similar. Only the highest
+# temperature found across all sensors will be compared agains these limits.
+# All other temperatures are ignored.
+#
+# Correction values on individual sensors (see above) may be used to equalize
+# small discrepancies in temperature ratings.
+#
+# The FANSPEED values in this example are valid for the thinkpad_acpi fan
+# driver only (see above)
+#
+levels:
+  - [0, 0, 50]
+  - ["level auto", 45, 75]
+  - ["level disengaged", 70, 255]
+
+##############################################################################
+
+
+##############################################################################
+# Fan Speeds (detailed mode)
+# ==========================
+#
+# It is generally advisable to configure the temperature limits for each
+# sensor individually.
+#
+# The speed values used here range from 0 to 255, which is valid for the PWM
+# control files used by hwmon-based drivers.
+#
+# The temperatures specified in upper_limit and lower_limit apply to the
+# sensors in the same order in which they were specified in the "sensors:"
+# section above, and their length must match the total number of sensors that
+# have been configured.
+#
+levels:
+  - speed: 0
+    upper_limit: [50, 50, 50]
+
+  - speed: 100
+    lower_limit: [45, 45, 45]
+    upper_limit: [65, 65, 65]
+
+  - speed: 255
+    lower_limit: [60, 60, 60]
+
+##############################################################################
+
+
