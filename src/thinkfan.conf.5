@@ -46,7 +46,7 @@ can be used.
 Maps temperatures to fan speeds.
 A \*(lqsimple mapping\*(rq just specifies one temperature as the lower and
 upper bound (respectively) for a given fan speed.
-In a \*(lqcomplex mapping\*(rq, the upper and lower bounds are specified for
+In a \*(lqdetailed mapping\*(rq, the upper and lower bounds are specified for
 each driver/sensor configured under
 .BR sensors: .
 This mode should be used when thinkfan is monitoring multiple devices that can
@@ -270,7 +270,7 @@ temperature.
 A YAML list that specifies temperature offsets for each sensor in use by the
 given driver. Use this if you want to use the \*(lqsimple\*(rq level syntax,
 but need to compensate for devices with a lower heat tolerance.
-Note however that the complex level syntax is usually the better (i.e. more
+Note however that the detailed level syntax is usually the better (i.e. more
 fine-grained) choice.
 
 .TP
@@ -315,13 +315,13 @@ required fan behaviour is similar enough for all heat-generating devices.
 .fi
 
 
-.SS Complex Syntax
+.SS Detailed Syntax
 This mode is suitable for more complex systems, with devices that have
 different temperature ratings.
 For example, many modern CPUs and GPUs can deal with temperatures above
 80\[char176]C on a daily basis, whereas a hard disk will die quickly if it
 reaches such temperatures.
-In complex mode, upper and lower temperature limits are specified for each
+In detailed mode, upper and lower temperature limits are specified for each
 sensor individually:
 
 .nf
