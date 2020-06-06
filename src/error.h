@@ -112,6 +112,8 @@ public:
 class ConfigError : public ExpectedError {
 public:
 	ConfigError(const string &reason);
+	void set_filename(const string &filename);
+	virtual const char* what() const _GLIBCXX_USE_NOEXCEPT override;
 #ifdef USE_YAML
 	ConfigError(const string &filename, const YAML::Mark &mark, const string &input, const string &msg);
 #endif

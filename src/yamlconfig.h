@@ -63,6 +63,11 @@ struct convert<wtf_ptr<thinkfan::Config>> {
 };
 
 
+struct LevelEntry {
+	vector<pair<string, int>> fan_levels;
+	vector<int> lower_limit;
+	vector<int> upper_limit;
+};
 
 }
 

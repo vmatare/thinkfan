@@ -48,7 +48,6 @@ FanDriver::FanDriver(const std::string &path, const unsigned int watchdog_timeou
   depulse_(0)
 {}
 
-
 void FanDriver::set_speed(const string &level)
 {
 	std::ofstream f_out(path_);
@@ -59,6 +58,7 @@ void FanDriver::set_speed(const string &level)
 		else
 			throw IOerror(MSG_FAN_CTRL(level, path_), err);
 	}
+	current_speed_ = level;
 }
 
 
@@ -69,6 +69,9 @@ bool FanDriver::operator == (const FanDriver &other) const
 			&& this->depulse_ == other.depulse_
 			&& this->watchdog_ == other.watchdog_;
 }
+
+const string &FanDriver::current_speed() const
+{ return current_speed_; }
 
 
 /*----------------------------------------------------------------------------
@@ -105,14 +108,14 @@ void TpFanDriver::set_depulse(float duration)
 { depulse_ = std::chrono::duration<float>(duration); }
 
 
-void TpFanDriver::set_speed(const Level *level)
+void TpFanDriver::set_speed(const Level &level)
 {
-	FanDriver::set_speed(level->str());
+	FanDriver::set_speed(level.str());
 	last_watchdog_ping_ = std::chrono::system_clock::now();
 }
 
 
-void TpFanDriver::ping_watchdog_and_depulse(const Level *level)
+void TpFanDriver::ping_watchdog_and_depulse(const Level &level)
 {
 	if (depulse_ > std::chrono::milliseconds(0)) {
 		FanDriver::set_speed("level disengaged");
@@ -208,17 +211,17 @@ void HwmonFanDriver::init()
 }
 
 
-void HwmonFanDriver::set_speed(const Level *level)
+void HwmonFanDriver::set_speed(const Level &level)
 {
 	try {
-		FanDriver::set_speed(std::to_string(level->num()));
+		FanDriver::set_speed(std::to_string(level.num()));
 	} catch (IOerror &e) {
 		if (e.code() == EINVAL) {
 			// This happens when the hwmon kernel driver is reset to automatic control
 			// e.g. after the system has woken up from suspend.
 			// In that case, we need to re-initialize and try once more.
 			init();
-			FanDriver::set_speed(std::to_string(level->num()));
+			FanDriver::set_speed(std::to_string(level.num()));
 			log(TF_WRN) << path_ << ": WARNING: Userspace fan control had to be automatically re-initialized." << flush;
 #if defined(HAVE_SYSTEMD)
 			log(TF_WRN) << "This should have been taken care of when enabling the thinkfan systemd service." << flush
@@ -363,9 +366,11 @@ TpSensorDriver::TpSensorDriver(std::string path, bool optional, const std::vecto
 
 	if (temp_indices.size() > 0) {
 		if (temp_indices.size() > count)
-			throw ConfigError("Config specifies " + std::to_string(temp_indices.size())
-		                      + " temperature inputs in " + path
-		                      + ", but there are only " + std::to_string(count) + ".");
+			throw ConfigError(
+				"Config specifies " + std::to_string(temp_indices.size())
+				+ " temperature inputs in " + path
+				+ ", but there are only " + std::to_string(count) + "."
+			);
 
 		set_num_temps(static_cast<unsigned int>(temp_indices.size()));
 

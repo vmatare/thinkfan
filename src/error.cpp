@@ -163,12 +163,18 @@ ConfigError::ConfigError(const string &reason)
 : ExpectedError(reason)
 {}
 
+void ConfigError::set_filename(const string &filename)
+{ msg_ = filename + ":\n" + msg_; }
+
+const char* ConfigError::what() const _GLIBCXX_USE_NOEXCEPT
+{ return msg_.c_str(); }
+
+
 #ifdef USE_YAML
 
 ConfigError::ConfigError(const string &filename, const YAML::Mark &mark, const string &input, const string &msg)
 {
-	msg_ += filename + ":";
-
+	msg_ = filename + ":";
 	// Another workaround for Ubuntu's libyaml-cpp0.5v5
 	if (mark.pos == -1 && mark.line == -1 && mark.column == -1) {
 		msg_ += string(" ") + msg + ".";
