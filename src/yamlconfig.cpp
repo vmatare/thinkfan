@@ -534,16 +534,16 @@ struct convert<vector<wtf_ptr<FanConfig>>> {
 
 vector<int> get_limit(const Node &n) {
 	vector<int> rv;
-	for (const Node &n : n.as<vector<Node>>()) {
+	for (const Node &m : n.as<vector<Node>>()) {
 		try {
-			int i = n.as<int>();
+			int i = m.as<int>();
 			if (i == numeric_limits<int>::min())
-				throw YamlError(get_mark_compat(n), to_string(i) + " is not a valid temperature limit");
+				throw YamlError(get_mark_compat(m), to_string(i) + " is not a valid temperature limit");
 			rv.push_back(i);
 		} catch (BadConversion &) {
-			string s = n.as<string>();
+			string s = m.as<string>();
 			if (s != "_")
-				throw YamlError(get_mark_compat(n), s + " is not a valid temperature limit");
+				throw YamlError(get_mark_compat(m), s + " is not a valid temperature limit");
 			rv.push_back(std::numeric_limits<int>::max());
 		}
 	}
