@@ -474,8 +474,11 @@ void assign_fan_levels(vector<unique_ptr<StepwiseMapping>> &fan_configs, const N
 			++fan_idx;
 		}
 	} catch (YAML::BadConversion &) {
-		for (unique_ptr<StepwiseMapping> &fan_cfg : fan_configs)
-			fan_cfg->add_level(unique_ptr<Level>(entry.as<wtf_ptr<SimpleLevel>>().release()));
+		for (unique_ptr<StepwiseMapping> &fan_cfg : fan_configs) {
+			// Have to copy the wtf_ptr first because frickin Ubuntu still haven't updated their libyaml-cpp
+			wtf_ptr<SimpleLevel> l = entry.as<wtf_ptr<SimpleLevel>>();
+			fan_cfg->add_level(unique_ptr<Level>(l.release()));
+		}
 	}
 }
 
@@ -494,11 +497,9 @@ struct convert<vector<wtf_ptr<FanConfig>>> {
 				for (auto f : fans_it->as<vector<wtf_ptr<HwmonFanDriver>>>())
 					fan_drivers.push_back(unique_ptr<FanDriver>(f.release()));
 			} catch (BadConversion &) {
-				fan_drivers.push_back(
-					unique_ptr<FanDriver>(
-						fans_it->as<wtf_ptr<TpFanDriver>>().release()
-					)
-				);
+				// Have to copy the wtf_ptr first because frickin Ubuntu still haven't updated their libyaml-cpp
+				wtf_ptr<TpFanDriver> f { fans_it->as<wtf_ptr<TpFanDriver>>() };
+				fan_drivers.push_back(unique_ptr<FanDriver>(f.release()));
 			}
 
 			const Node levels_node = (*fans_it)[kw_levels];
@@ -518,11 +519,12 @@ struct convert<vector<wtf_ptr<FanConfig>>> {
 				}
 				fan_drivers.clear();
 
-				for (const Node &lvl : levels_node.as<vector<Node>>())
+				for (const Node &lvl : levels_node)
 					assign_fan_levels(stepwise_mappings, lvl);
 
 				for (unique_ptr<StepwiseMapping> &mapping : stepwise_mappings)
-					fan_configs.push_back(wtf_ptr<FanConfig>(mapping.release()));
+					// Jump through ALL the Ubuntu hoops    (.............................................)
+					fan_configs.push_back(wtf_ptr<FanConfig>(new unique_ptr<FanConfig>(std::move(mapping))));
 			}
 		}
 
@@ -534,7 +536,7 @@ struct convert<vector<wtf_ptr<FanConfig>>> {
 
 vector<int> get_limit(const Node &n) {
 	vector<int> rv;
-	for (const Node &m : n.as<vector<Node>>()) {
+	for (const Node &m : n) {
 		try {
 			int i = m.as<int>();
 			if (i == numeric_limits<int>::min())
@@ -579,7 +581,7 @@ struct convert<LevelEntry> {
 			return false;
 
 		if (node[kw_speed].IsSequence()) {
-			for (const Node &n_lvl : node[kw_speed].as<vector<Node>>())
+			for (const Node &n_lvl : node[kw_speed])
 				rv.fan_levels.push_back(get_fan_level(n_lvl));
 		}
 		else
@@ -666,17 +668,29 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 			}
 		} else if (key == kw_fans) {
 			try {
-				for (wtf_ptr<FanConfig> &fan_cfg : entry.as<vector<wtf_ptr<FanConfig>>>())
-					config->add_fan_config(unique_ptr<FanConfig>(fan_cfg.release()));
+				// Each fan with its own levels section (supports multiple fans)
+				for (auto &fan_cfg : entry.as<vector<wtf_ptr<FanConfig>>>()) {
+					// Have to copy the wtf_ptr first because frickin Ubuntu still haven't updated their libyaml-cpp
+					wtf_ptr<FanConfig> fu { fan_cfg }; // It's const on feckin Ubuntu
+					config->add_fan_config(unique_ptr<FanConfig>(fu.release()));
+				}
 			} catch (BadConversion &) {
+				// Single fan entry with separate levels section below.
+				if (entry.size() > 1)
+					throw YamlError(get_mark_compat(entry), "When multiple fans are configured, each must have its own 'levels:' section");
 				try {
-					fans.push_back(unique_ptr<FanDriver>(entry.as<wtf_ptr<TpFanDriver>>().release()));
+					wtf_ptr<TpFanDriver> fu { entry[0].as<wtf_ptr<TpFanDriver>>() };
+					fans.push_back(unique_ptr<FanDriver>(fu.release()));
 				} catch (BadConversion &) {
-					for (wtf_ptr<HwmonFanDriver> &fan_drv : entry.as<vector<wtf_ptr<HwmonFanDriver>>>())
-						fans.push_back(unique_ptr<FanDriver>(fan_drv.release()));
+					for (auto &fan_drv : entry[0].as<vector<wtf_ptr<HwmonFanDriver>>>()) {
+						wtf_ptr<HwmonFanDriver> fu { fan_drv };
+						fans.push_back(unique_ptr<FanDriver>(fu.release()));
+					}
 				}
 			}
 		} else if (key == kw_levels) {
+			if (config->fan_configs().size())
+				throw YamlError(get_mark_compat(node), "Cannot have a separate 'levels:' section when some fan already has specific levels assigned");
 			if (!entry.IsSequence())
 				throw YamlError(get_mark_compat(node), "Level entries must be a sequence. Forgot the dashes?");
 
@@ -686,7 +700,7 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 				fan_configs.push_back(std::make_unique<StepwiseMapping>(std::move(fan)));
 			fans.clear();
 
-			for (const Node &n_lvl : entry.as<vector<Node>>())
+			for (const Node &n_lvl : entry)
 				assign_fan_levels(fan_configs, n_lvl);
 
 			for (unique_ptr<StepwiseMapping> &fan_cfg : fan_configs)
