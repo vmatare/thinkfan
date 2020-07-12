@@ -536,7 +536,7 @@ struct convert<vector<wtf_ptr<FanConfig>>> {
 
 vector<int> get_limit(const Node &n) {
 	vector<int> rv;
-	for (const Node &m : n.as<vector<Node>>()) {
+	for (const Node &m : n) {
 		try {
 			int i = m.as<int>();
 			if (i == numeric_limits<int>::min())
@@ -581,7 +581,7 @@ struct convert<LevelEntry> {
 			return false;
 
 		if (node[kw_speed].IsSequence()) {
-			for (const Node &n_lvl : node[kw_speed].as<vector<Node>>())
+			for (const Node &n_lvl : node[kw_speed])
 				rv.fan_levels.push_back(get_fan_level(n_lvl));
 		}
 		else
@@ -700,7 +700,7 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 				fan_configs.push_back(std::make_unique<StepwiseMapping>(std::move(fan)));
 			fans.clear();
 
-			for (const Node &n_lvl : entry.as<vector<Node>>())
+			for (const Node &n_lvl : entry)
 				assign_fan_levels(fan_configs, n_lvl);
 
 			for (unique_ptr<StepwiseMapping> &fan_cfg : fan_configs)
