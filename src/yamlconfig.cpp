@@ -474,8 +474,11 @@ void assign_fan_levels(vector<unique_ptr<StepwiseMapping>> &fan_configs, const N
 			++fan_idx;
 		}
 	} catch (YAML::BadConversion &) {
-		for (unique_ptr<StepwiseMapping> &fan_cfg : fan_configs)
-			fan_cfg->add_level(unique_ptr<Level>(entry.as<wtf_ptr<SimpleLevel>>().release()));
+		for (unique_ptr<StepwiseMapping> &fan_cfg : fan_configs) {
+			// Have to copy the wtf_ptr first because frickin Ubuntu still haven't updated their libyaml-cpp
+			wtf_ptr<SimpleLevel> l = entry.as<wtf_ptr<SimpleLevel>>();
+			fan_cfg->add_level(unique_ptr<Level>(l.release()));
+		}
 	}
 }
 
@@ -494,11 +497,9 @@ struct convert<vector<wtf_ptr<FanConfig>>> {
 				for (auto f : fans_it->as<vector<wtf_ptr<HwmonFanDriver>>>())
 					fan_drivers.push_back(unique_ptr<FanDriver>(f.release()));
 			} catch (BadConversion &) {
-				fan_drivers.push_back(
-					unique_ptr<FanDriver>(
-						fans_it->as<wtf_ptr<TpFanDriver>>().release()
-					)
-				);
+				// Have to copy the wtf_ptr first because frickin Ubuntu still haven't updated their libyaml-cpp
+				wtf_ptr<TpFanDriver> f { fans_it->as<wtf_ptr<TpFanDriver>>() };
+				fan_drivers.push_back(unique_ptr<FanDriver>(f.release()));
 			}
 
 			const Node levels_node = (*fans_it)[kw_levels];
@@ -518,11 +519,12 @@ struct convert<vector<wtf_ptr<FanConfig>>> {
 				}
 				fan_drivers.clear();
 
-				for (const Node &lvl : levels_node.as<vector<Node>>())
+				for (const Node &lvl : levels_node)
 					assign_fan_levels(stepwise_mappings, lvl);
 
 				for (unique_ptr<StepwiseMapping> &mapping : stepwise_mappings)
-					fan_configs.push_back(wtf_ptr<FanConfig>(mapping.release()));
+					// Jump through ALL the Ubuntu hoops    (.............................................)
+					fan_configs.push_back(wtf_ptr<FanConfig>(new unique_ptr<FanConfig>(std::move(mapping))));
 			}
 		}
 
@@ -666,14 +668,20 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 			}
 		} else if (key == kw_fans) {
 			try {
-				for (wtf_ptr<FanConfig> &fan_cfg : entry.as<vector<wtf_ptr<FanConfig>>>())
-					config->add_fan_config(unique_ptr<FanConfig>(fan_cfg.release()));
+				for (auto &fan_cfg : entry.as<vector<wtf_ptr<FanConfig>>>()) {
+					// Have to copy the wtf_ptr first because frickin Ubuntu still haven't updated their libyaml-cpp
+					wtf_ptr<FanConfig> fu { fan_cfg }; // It's const on feckin Ubuntu
+					config->add_fan_config(unique_ptr<FanConfig>(fu.release()));
+				}
 			} catch (BadConversion &) {
 				try {
-					fans.push_back(unique_ptr<FanDriver>(entry.as<wtf_ptr<TpFanDriver>>().release()));
+					wtf_ptr<TpFanDriver> fu { entry.as<wtf_ptr<TpFanDriver>>() };
+					fans.push_back(unique_ptr<FanDriver>(fu.release()));
 				} catch (BadConversion &) {
-					for (wtf_ptr<HwmonFanDriver> &fan_drv : entry.as<vector<wtf_ptr<HwmonFanDriver>>>())
-						fans.push_back(unique_ptr<FanDriver>(fan_drv.release()));
+					for (auto &fan_drv : entry.as<vector<wtf_ptr<HwmonFanDriver>>>()) {
+						wtf_ptr<HwmonFanDriver> fu { fan_drv };
+						fans.push_back(unique_ptr<FanDriver>(fu.release()));
+					}
 				}
 			}
 		} else if (key == kw_levels) {
