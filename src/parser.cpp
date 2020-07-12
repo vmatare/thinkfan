@@ -360,14 +360,30 @@ Config *ConfigParser::_parse(const char *&input)
 	unique_ptr<Config> rv(new Config());
 	unique_ptr<StepwiseMapping> fan_cfg(new StepwiseMapping());
 
-	bool some_match;
+	bool some_match = false;
 	do {
 		some_match = comment_parser.match(input)
-				|| space_parser.match(input)
-				|| fan_cfg->set_fan(unique_ptr<FanDriver>(parser_fan.parse(input)))
-				|| rv->add_sensor(unique_ptr<SensorDriver>(parser_sensor.parse(input)))
-				|| fan_cfg->add_level(unique_ptr<SimpleLevel>(parser_simple_lvl.parse(input)))
-				|| fan_cfg->add_level(unique_ptr<ComplexLevel>(parser_complex_lvl.parse(input)));
+		             || space_parser.match(input);
+		unique_ptr<FanDriver> fan { parser_fan.parse(input) };
+		if (fan) {
+			fan_cfg->set_fan(std::move(fan));
+			some_match = true;
+		}
+		unique_ptr<SensorDriver> sensor { parser_sensor.parse(input) };
+		if (sensor) {
+			rv->add_sensor(std::move(sensor));
+			some_match = true;
+		}
+		unique_ptr<SimpleLevel> simple_lvl { parser_simple_lvl.parse(input) };
+		if (simple_lvl) {
+			fan_cfg->add_level(std::move(simple_lvl));
+			some_match = true;
+		}
+		unique_ptr<ComplexLevel> complex_lvl { parser_complex_lvl.parse(input) };
+		if (complex_lvl) {
+			fan_cfg->add_level(std::move(complex_lvl));
+			some_match = true;
+		}
 	} while(*input != 0 && some_match);
 
 	rv->add_fan_config(std::move(fan_cfg));

@@ -43,11 +43,8 @@ FanConfig::FanConfig(std::unique_ptr<FanDriver> &&fan_drv)
 const unique_ptr<FanDriver> &FanConfig::fan() const
 { return fan_; }
 
-bool FanConfig::set_fan(unique_ptr<FanDriver> &&fan)
-{
-	fan_ = std::move(fan);
-	return static_cast<bool>(fan_);
-}
+void FanConfig::set_fan(unique_ptr<FanDriver> &&fan)
+{ fan_ = std::move(fan); }
 
 
 
@@ -108,10 +105,8 @@ void StepwiseMapping::ensure_consistency()
 }
 
 
-bool StepwiseMapping::add_level(std::unique_ptr<Level> &&level)
+void StepwiseMapping::add_level(std::unique_ptr<Level> &&level)
 {
-	if (!level)
-		return false;
 	if (levels_.size() > 0) {
 		const unique_ptr<Level> &last_lvl = levels_.back();
 		if (level->num() != std::numeric_limits<int>::max()
@@ -131,7 +126,6 @@ bool StepwiseMapping::add_level(std::unique_ptr<Level> &&level)
 	}
 
 	levels_.push_back(std::move(level));
-	return true;
 }
 
 
@@ -247,13 +241,10 @@ void Config::ensure_consistency() const
 
 
 
-bool Config::add_sensor(std::unique_ptr<SensorDriver> &&sensor)
+void Config::add_sensor(std::unique_ptr<SensorDriver> &&sensor)
 {
-	if (!sensor)
-		return false;
 	num_temps_ += sensor->num_temps();
 	sensors_.push_back(std::move(sensor));
-	return true;
 }
 
 unsigned int Config::num_temps() const
@@ -265,14 +256,9 @@ const std::vector<unique_ptr<SensorDriver>> &Config::sensors() const
 const std::vector<std::unique_ptr<FanConfig>> &Config::fan_configs() const
 { return temp_mappings_; }
 
-bool Config::add_fan_config(std::unique_ptr<FanConfig> &&fan_cfg)
-{
-	if (!fan_cfg)
-		return false;
+void Config::add_fan_config(std::unique_ptr<FanConfig> &&fan_cfg)
+{ temp_mappings_.push_back(std::move(fan_cfg)); }
 
-	temp_mappings_.push_back(std::move(fan_cfg));
-	return true;
-}
 
 void Config::init_fans() const
 {

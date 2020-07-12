@@ -43,7 +43,7 @@ public:
 	virtual void init_fanspeed(const TemperatureState &) = 0;
 	virtual bool set_fanspeed(const TemperatureState &) = 0;
 	virtual void ensure_consistency() = 0;
-	bool set_fan(std::unique_ptr<FanDriver> &&);
+	void set_fan(std::unique_ptr<FanDriver> &&);
 	const std::unique_ptr<FanDriver> &fan() const;
 
 private:
@@ -58,7 +58,7 @@ public:
 	virtual void init_fanspeed(const TemperatureState &) override;
 	virtual bool set_fanspeed(const TemperatureState &) override;
 	virtual void ensure_consistency() override;
-	bool add_level(std::unique_ptr<Level> &&level);
+	void add_level(std::unique_ptr<Level> &&level);
 	const std::vector<std::unique_ptr<Level>> &levels() const;
 
 private:
@@ -120,8 +120,8 @@ public:
 	Config(const Config &) = delete;
 	~Config() = default;
 	static const Config *read_config(const std::vector<string> &filenames);
-	bool add_sensor(std::unique_ptr<SensorDriver> &&sensor);
-	bool add_fan_config(std::unique_ptr<FanConfig> &&fan_cfg);
+	void add_sensor(std::unique_ptr<SensorDriver> &&sensor);
+	void add_fan_config(std::unique_ptr<FanConfig> &&fan_cfg);
 	void ensure_consistency() const;
 	void init_fans() const;
 
