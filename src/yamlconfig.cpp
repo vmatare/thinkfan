@@ -668,23 +668,29 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 			}
 		} else if (key == kw_fans) {
 			try {
+				// Each fan with its own levels section (supports multiple fans)
 				for (auto &fan_cfg : entry.as<vector<wtf_ptr<FanConfig>>>()) {
 					// Have to copy the wtf_ptr first because frickin Ubuntu still haven't updated their libyaml-cpp
 					wtf_ptr<FanConfig> fu { fan_cfg }; // It's const on feckin Ubuntu
 					config->add_fan_config(unique_ptr<FanConfig>(fu.release()));
 				}
 			} catch (BadConversion &) {
+				// Single fan entry with separate levels section below.
+				if (entry.size() > 1)
+					throw YamlError(get_mark_compat(entry), "When multiple fans are configured, each must have its own 'levels:' section");
 				try {
-					wtf_ptr<TpFanDriver> fu { entry.as<wtf_ptr<TpFanDriver>>() };
+					wtf_ptr<TpFanDriver> fu { entry[0].as<wtf_ptr<TpFanDriver>>() };
 					fans.push_back(unique_ptr<FanDriver>(fu.release()));
 				} catch (BadConversion &) {
-					for (auto &fan_drv : entry.as<vector<wtf_ptr<HwmonFanDriver>>>()) {
+					for (auto &fan_drv : entry[0].as<vector<wtf_ptr<HwmonFanDriver>>>()) {
 						wtf_ptr<HwmonFanDriver> fu { fan_drv };
 						fans.push_back(unique_ptr<FanDriver>(fu.release()));
 					}
 				}
 			}
 		} else if (key == kw_levels) {
+			if (config->fan_configs().size())
+				throw YamlError(get_mark_compat(node), "Cannot have a separate 'levels:' section when some fan already has specific levels assigned");
 			if (!entry.IsSequence())
 				throw YamlError(get_mark_compat(node), "Level entries must be a sequence. Forgot the dashes?");
 
