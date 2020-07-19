@@ -1,7 +1,10 @@
 [Unit]
 Description=Reload thinkfan after waking up from suspend
 After=sysinit.target
-After=sleep.target
+After=suspend.target
+After=suspend-then-hibernate.target
+After=hybrid-sleep.target
+After=hibernate.target
 
 [Service]
 Type=oneshot
