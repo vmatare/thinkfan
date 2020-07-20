@@ -134,7 +134,7 @@ fans:
 # In simple mode, each entry is a [FANSPEED, LOWER_LIMIT, UPPER_LIMIT] tuple.
 # This is a quick way to configure a small system like a laptop, where the
 # temperature ratings for all monitored devices are similar. Only the highest
-# temperature found across all sensors will be compared agains these limits.
+# temperature found across all sensors will be compared against these limits.
 # All other temperatures are ignored.
 #
 # Correction values on individual sensors (see above) may be used to equalize
