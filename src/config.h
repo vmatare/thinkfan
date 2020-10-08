@@ -27,12 +27,44 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <map>
 
 #include "drivers.h"
 #include "thinkfan.h"
 
 namespace thinkfan {
 
+
+
+class FanConfig {
+public:
+	FanConfig(std::unique_ptr<FanDriver> && = nullptr);
+	virtual ~FanConfig() = default;
+	virtual void init_fanspeed(const TemperatureState &) = 0;
+	virtual bool set_fanspeed(const TemperatureState &) = 0;
+	virtual void ensure_consistency() = 0;
+	void set_fan(std::unique_ptr<FanDriver> &&);
+	const std::unique_ptr<FanDriver> &fan() const;
+
+private:
+	std::unique_ptr<FanDriver> fan_;
+};
+
+
+class StepwiseMapping : public FanConfig {
+public:
+	StepwiseMapping(std::unique_ptr<FanDriver> && = nullptr);
+	virtual ~StepwiseMapping() override = default;
+	virtual void init_fanspeed(const TemperatureState &) override;
+	virtual bool set_fanspeed(const TemperatureState &) override;
+	virtual void ensure_consistency() override;
+	void add_level(std::unique_ptr<Level> &&level);
+	const std::vector<std::unique_ptr<Level>> &levels() const;
+
+private:
+	std::vector<std::unique_ptr<Level>> levels_;
+	std::vector<std::unique_ptr<Level>>::const_iterator cur_lvl_;
+};
 
 
 class Level {
@@ -57,7 +89,10 @@ public:
 
 	const string &str() const;
 	int num() const;
+
+	static int string_to_int(string &level);
 };
+
 
 
 class SimpleLevel : public Level {
@@ -83,26 +118,26 @@ public:
 	Config();
 	// Not trivially copyable since it holds raw pointers to levels, drivers and fans.
 	Config(const Config &) = delete;
-	~Config();
+	~Config() = default;
 	static const Config *read_config(const std::vector<string> &filenames);
-	bool add_fan(std::unique_ptr<FanDriver> &&fan);
-	bool add_sensor(std::unique_ptr<SensorDriver> &&sensor);
-	bool add_level(std::unique_ptr<Level> &&level);
+	void add_sensor(std::unique_ptr<SensorDriver> &&sensor);
+	void add_fan_config(std::unique_ptr<FanConfig> &&fan_cfg);
+	void ensure_consistency() const;
+	void init_fans() const;
 
 	unsigned int num_temps() const;
-	FanDriver *fan() const;
-	const std::vector<Level *> &levels() const;
-	const std::vector<SensorDriver *> &sensors() const;
+	const std::vector<std::unique_ptr<SensorDriver>> &sensors() const;
+	const std::vector<std::unique_ptr<FanConfig>> &fan_configs() const;
 
 	// No copy assignment operator either (not required).
 	Config &operator = (const Config &) = delete;
 
+	string src_file;
 private:
 	static const Config *try_read_config(const string &data);
-	std::vector<SensorDriver *> sensors_;
-	std::vector<Level *> levels_;
+	std::vector<std::unique_ptr<SensorDriver>> sensors_;
+	std::vector<std::unique_ptr<FanConfig>> temp_mappings_;
 	unsigned int num_temps_;
-	FanDriver *fan_;
 };
 
 

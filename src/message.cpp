@@ -22,6 +22,7 @@
 #include "error.h"
 #include "thinkfan.h"
 #include "message.h"
+#include "config.h"
 #include <syslog.h>
 #include <iostream>
 
@@ -158,6 +159,10 @@ Logger &Logger::operator<< (const float &i)
 Logger &Logger::operator<< (const char *msg)
 { msg_pfx_ += msg; return *this; }
 
+Logger &Logger::operator<< (char *msg)
+{ msg_pfx_ += msg; return *this; }
+
+
 Logger &Logger::operator<< (Logger & (*pf_flush)(Logger &))
 { return pf_flush(*this); }
 
@@ -177,6 +182,18 @@ Logger &Logger::operator<< (const TemperatureState &ts)
 	msg_pfx_.pop_back(); msg_pfx_.pop_back();
 	return *this;
 }
+
+
+Logger &Logger::operator<< (const std::vector<std::unique_ptr<FanConfig>> &fan_configs)
+{
+	msg_pfx_ += "Fans: ";
+	for (const std::unique_ptr<FanConfig> &fan_cf : fan_configs)
+		msg_pfx_ += fan_cf->fan()->current_speed() + ", ";
+
+	msg_pfx_.pop_back(); msg_pfx_.pop_back();
+	return *this;
+}
+
 
 
 }

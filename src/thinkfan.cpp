@@ -32,7 +32,6 @@
 #include <string>
 #include <iostream>
 #include <memory>
-#include <thread>
 #include <cmath>
 
 #include <unistd.h>
@@ -40,6 +39,7 @@
 #include "thinkfan.h"
 #include "config.h"
 #include "message.h"
+#include "error.h"
 
 
 namespace thinkfan {
@@ -52,14 +52,19 @@ seconds tmp_sleeptime = sleeptime;
 float bias_level(1.5);
 float depulse = 0;
 TemperatureState temp_state(0);
+std::atomic<unsigned char> tolerate_errors(0);
+
+std::condition_variable sleep_cond;
+std::mutex sleep_mutex;
+
 
 #ifdef USE_YAML
-std::vector<string> config_files({DEFAULT_YAML_CONFIG, DEFAULT_CONFIG});
+std::vector<string> config_files { DEFAULT_YAML_CONFIG, DEFAULT_CONFIG };
 #else
-std::vector<std::string> config_files({DEFAULT_CONFIG});
+std::vector<std::string> config_files { DEFAULT_CONFIG };
 #endif
 
-volatile int interrupted(0);
+std::atomic<int> interrupted(0);
 
 #ifdef USE_ATASMART
 /** Do Not Disturb disk, i.e. don't get temperature from a sleeping disk */
@@ -74,6 +79,7 @@ void sig_handler(int signum) {
 	case SIGINT:
 	case SIGTERM:
 		interrupted = signum;
+		sleep_cond.notify_all();
 		break;
 	case SIGUSR1:
 		log(TF_INF) << temp_state << flush;
@@ -82,67 +88,84 @@ void sig_handler(int signum) {
 	case SIGSEGV:
 		// Let's hope memory isn't too fucked up to get through with this ;)
 		throw Bug("Segmentation fault.");
-		break;
 #endif
 	case SIGUSR2:
 		interrupted = signum;
+		sleep_cond.notify_all();
 		log(TF_INF) << "Received SIGUSR2: Re-initializing fan control." << flush;
 		break;
+	case SIGWINCH:
+		log(TF_INF) << "Going to sleep: Will allow sensor read errors for the next 2 loops." << flush;
+		tolerate_errors = 2;
 	}
 }
 
+
+
+static inline void sensor_lost(const SensorDriver &s, const ExpectedError &e) {
+	if (!s.optional() || tolerate_errors)
+		error<SensorLost>(e);
+	else
+		log(TF_INF) << SensorLost(e).what();
+	temp_state.add_temp(-128);
+}
+
+
+static inline void read_temps_safe(const std::vector<std::unique_ptr<SensorDriver>> &sensors)
+{
+	temp_state.restart();
+	for (const std::unique_ptr<SensorDriver> &sensor : sensors) {
+		try {
+			sensor->read_temps();
+		} catch (SystemError &e) {
+			sensor_lost(*sensor, e);
+		} catch (IOerror &e) {
+			sensor_lost(*sensor, e);
+		} catch (std::ios_base::failure &e) {
+			sensor_lost(*sensor, IOerror(e.what(), THINKFAN_IO_ERROR_CODE(e)));
+		}
+	}
+}
 
 
 void run(const Config &config)
 {
 	tmp_sleeptime = sleeptime;
 
-	temp_state.restart();
-	for (const SensorDriver *sensor : config.sensors())
-		sensor->read_temps();
-	temp_state.first_run();
+	read_temps_safe(config.sensors());
+	temp_state.init();
 
 	// Set initial fan level
-	std::vector<Level *>::const_iterator cur_lvl = config.levels().begin();
-	config.fan()->init();
-	while (cur_lvl != --config.levels().end() && (*cur_lvl)->up())
-		cur_lvl++;
-	log(TF_NFY) << temp_state << " -> " <<
-			(*cur_lvl)->str() << flush;
-	config.fan()->set_speed(*cur_lvl);
+	for (auto &fan_config : config.fan_configs())
+		fan_config->init_fanspeed(temp_state);
+	log(TF_NFY) << temp_state << " -> " << config.fan_configs() << flush;
 
+	bool did_something = false;
 	while (likely(!interrupted)) {
-		std::this_thread::sleep_for(sleeptime);
+		auto until = std::chrono::steady_clock::now() + tmp_sleeptime;
 
-		temp_state.restart();
+		std::unique_lock<std::mutex> sleep_locked(sleep_mutex);
+		sleep_cond.wait_until(sleep_locked, until, [] () {
+			return interrupted != 0;
+		} );
+		if (unlikely(interrupted))
+			break;
 
-		for (const SensorDriver *sensor : config.sensors())
-			sensor->read_temps();
+		read_temps_safe(config.sensors());
+
+		if (unlikely(tolerate_errors) > 0)
+			tolerate_errors--;
+
 		if (unlikely(!temp_state.complete()))
 			throw SystemError(MSG_SENSOR_LOST);
 
-		if (unlikely(cur_lvl != --config.levels().end() && (*cur_lvl)->up())) {
-			while (cur_lvl != --config.levels().end() && (*cur_lvl)->up())
-				cur_lvl++;
-			log(TF_INF) << temp_state << " -> " <<
-					(*cur_lvl)->str() << flush;
-			config.fan()->set_speed(*cur_lvl);
-		}
-		else if (unlikely(cur_lvl != config.levels().begin() && (*cur_lvl)->down())) {
-			while (cur_lvl != config.levels().begin() && (*cur_lvl)->down())
-				cur_lvl--;
-			log(TF_INF) << temp_state << " -> " <<
-					(*cur_lvl)->str() << flush;
-			config.fan()->set_speed(*cur_lvl);
-			tmp_sleeptime = sleeptime;
-		}
-		else {
-			config.fan()->ping_watchdog_and_depulse(*cur_lvl);
-#ifdef DEBUG
-			log(TF_DBG) << temp_state << flush;
-#endif
-		}
+		for (auto &fan_config : config.fan_configs())
+			did_something |= fan_config->set_fanspeed(temp_state);
 
+		if (unlikely(did_something))
+			log(TF_INF) << temp_state << " -> " << config.fan_configs() << flush;
+
+		did_something = false;
 	}
 }
 
@@ -191,7 +214,7 @@ int set_options(int argc, char **argv)
 					size_t invalid;
 					int s;
 					string arg(optarg);
-					s = std::stoul(arg, &invalid);
+					s = int(std::stoul(arg, &invalid));
 					if (invalid < arg.length())
 						throw InvocationError(MSG_OPT_S_INVAL(optarg));
 					if (s > 15)
@@ -232,11 +255,10 @@ int set_options(int argc, char **argv)
 		case 'p':
 			if (optarg) {
 				size_t invalid;
-				depulse = std::stof(optarg, &invalid);
-				if (invalid != 0 || depulse > 10 )
+				string arg(optarg);
+				depulse = std::stof(arg, &invalid);
+				if (invalid < arg.length() || depulse > 10 || depulse < 0)
 					error<InvocationError>(MSG_OPT_P(optarg));
-				else if (depulse < 0)
-					throw InvocationError(MSG_OPT_P(optarg));
 			}
 			else depulse = 0.5f;
 			break;
@@ -251,28 +273,54 @@ int set_options(int argc, char **argv)
 }
 
 
+
+#if defined(PID_FILE)
+
+PidFileHolder *PidFileHolder::instance_ = nullptr;
+
 PidFileHolder::PidFileHolder(::pid_t pid)
 : pid_file_(PID_FILE, std::ios_base::in)
 {
 	if (!pid_file_.fail())
 		error<SystemError>(MSG_RUNNING);
+	if (instance_)
+		throw Bug("Attempt to initialize PID file twice");
 	pid_file_.close();
 	pid_file_.open(PID_FILE, std::ios_base::out | std::ios_base::trunc);
 	if (!(pid_file_ << pid << std::flush))
 		error<IOerror>("Writing to " PID_FILE ": ", errno);
+	instance_ = this;
 }
-
 
 PidFileHolder::~PidFileHolder()
-{
-	pid_file_.close();
-	if (::unlink(PID_FILE) == -1)
-		log(TF_ERR) << "Deleting " PID_FILE ": " << errno << "." << flush;
-}
-
+{ remove_file(); }
 
 bool PidFileHolder::file_exists()
 { return !ifstream(PID_FILE).fail(); }
+
+
+void PidFileHolder::remove_file()
+{
+	if (pid_file_.is_open()) {
+		pid_file_.close();
+		if (::unlink(PID_FILE) == -1)
+			log(TF_ERR) << "Deleting " PID_FILE ": " << errno << "." << flush;
+	}
+}
+
+
+void PidFileHolder::cleanup()
+{
+	if (instance_)
+		instance_->remove_file();
+}
+
+#else
+
+void PidFileHolder::cleanup()
+{}
+
+#endif // defined(PID_FILE)
 
 
 TemperatureState::TemperatureState(unsigned int num_temps)
@@ -302,7 +350,7 @@ void TemperatureState::add_temp(int t)
 
 	if (unlikely(diff > 2)) {
 		// Apply bias_ if temperature changed quickly
-		float tmp_bias = (float)diff * bias_level;
+		float tmp_bias = float(diff) * bias_level;
 
 		*bias_ = int(tmp_bias);
 		if (tmp_sleeptime > seconds(2))
@@ -318,10 +366,10 @@ void TemperatureState::add_temp(int t)
 			// Slowly return to normal sleeptime
 			if (unlikely(tmp_sleeptime < sleeptime)) tmp_sleeptime++;
 			// slowly reduce the bias_
-#pragma GCC push
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wfloat-equal" // bias is set to 0 explicitly
 			if (unlikely(*bias_ != 0)) {
-#pragma GCC pop
+#pragma GCC diagnostic pop
 				if (std::abs(*bias_) < 0.5f)
 					*bias_ = 0;
 				else
@@ -357,7 +405,7 @@ const std::vector<float> & TemperatureState::biases() const
 { return biases_; }
 
 
-void TemperatureState::first_run()
+void TemperatureState::init()
 {
 	biases_.clear();
 	biases_.resize(temps_.size(), 0);
@@ -371,7 +419,9 @@ int main(int argc, char **argv) {
 	using namespace thinkfan;
 
 	struct sigaction handler;
+#if defined(PID_FILE)
 	std::unique_ptr<PidFileHolder> pid_file;
+#endif
 
 	if (!isatty(fileno(stdout))) {
 		Logger::instance().enable_syslog();
@@ -388,6 +438,7 @@ int main(int argc, char **argv) {
 	 || sigaction(SIGINT, &handler, nullptr)
 	 || sigaction(SIGTERM, &handler, nullptr)
 	 || sigaction(SIGUSR1, &handler, nullptr)
+	 || sigaction(SIGWINCH, &handler, nullptr)
 #if not defined(DISABLE_BUGGER)
 	 || sigaction(SIGSEGV, &handler, nullptr)
 #endif
@@ -409,16 +460,26 @@ int main(int argc, char **argv) {
 			return 3;
 		}
 
+#if defined(PID_FILE)
 		if (PidFileHolder::file_exists())
 			error<SystemError>(MSG_RUNNING);
-
-		// Load the config temporarily once so we may fail before forking
-		LogLevel old_lvl = Logger::instance().log_lvl();
-		Logger::instance().log_lvl() = TF_ERR;
-		delete Config::read_config(config_files);
-		Logger::instance().log_lvl() = old_lvl;
+#endif
 
 		if (daemonize) {
+			{
+				// Test the config before forking
+				LogLevel old_lvl = Logger::instance().log_lvl();
+				Logger::instance().log_lvl() = TF_ERR;
+				std::unique_ptr<const Config> test_cfg(Config::read_config(config_files));
+				temp_state = TemperatureState(test_cfg->num_temps());
+				temp_state.init();
+				test_cfg->init_fans();
+				for (auto &sensor : test_cfg->sensors())
+					sensor->read_temps();
+				Logger::instance().log_lvl() = old_lvl;
+				// Own scope so the config gets destroyed before forking
+			}
+
 			pid_t child_pid = ::fork();
 			if (child_pid < 0) {
 				string msg(strerror(errno));
@@ -430,20 +491,26 @@ int main(int argc, char **argv) {
 			}
 			else {
 				Logger::instance().enable_syslog();
+#if defined(PID_FILE)
 				// Own PID file only in the child...
 				pid_file.reset(new PidFileHolder(::getpid()));
+#endif
 			}
 		}
+#if defined(PID_FILE)
 		else {
 			// ... or when we're not forking at all
 			pid_file.reset(new PidFileHolder(::getpid()));
 		}
+#endif
 
 		// Load the config for real after forking & enabling syslog
 		std::unique_ptr<const Config> config(Config::read_config(config_files));
+
 		temp_state = TemperatureState(config->num_temps());
 
 		do {
+			config->init_fans();
 			run(*config);
 
 			if (interrupted == SIGHUP) {
@@ -460,7 +527,7 @@ int main(int argc, char **argv) {
 				interrupted = 0;
 			}
 			else if (interrupted == SIGUSR2) {
-				config->fan()->init();
+				config->init_fans();
 				interrupted = 0;
 			}
 		} while (!interrupted);

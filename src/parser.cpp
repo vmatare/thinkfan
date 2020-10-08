@@ -141,19 +141,19 @@ SensorDriver *SensorParser::_parse(const char *&input)
 	if ((path = unique_ptr<string>(KeywordParser("sensor").parse(input))))
 		throw ConfigError(MSG_CONF_SENSOR_DEPRECATED);
 	else if ((path = unique_ptr<string>(KeywordParser("tp_thermal").parse(input))))
-		sensor = new TpSensorDriver(*path);
+		sensor = new TpSensorDriver(*path, false);
 	else if ((path = unique_ptr<string>(KeywordParser("hwmon").parse(input))))
-		sensor = new HwmonSensorDriver(*path);
+		sensor = new HwmonSensorDriver(*path, false);
 	else if ((path = unique_ptr<string>(KeywordParser("atasmart").parse(input)))) {
 #ifdef USE_ATASMART
-		sensor = new AtasmartSensorDriver(*path);
+		sensor = new AtasmartSensorDriver(*path, false);
 #else
 		error<SystemError>(MSG_CONF_ATASMART_UNSUPP);
 #endif /* USE_ATASMART */
 	}
 	else if ((path = unique_ptr<string>(KeywordParser("nv_thermal").parse(input)))) {
 #ifdef USE_NVML
-		sensor = new NvmlSensorDriver(*path);
+		sensor = new NvmlSensorDriver(*path, false);
 #else
 		error<SystemError>(MSG_CONF_NVML_UNSUPP);
 #endif /* USE_NVML */
@@ -190,7 +190,7 @@ vector<int> *IntListParser::_parse(const char *&input)
 		else if (allow_dot_ && ( (void)dot.reset(dot_parser_.parse(input)), dot))
 			rv->push_back(numeric_limits<int>::max());
 		else
-			return nullptr;
+			break;
 		if (!(separator_parser.match(input) || comment_parser.match(input)))
 			break;
 
@@ -358,16 +358,35 @@ Config *ConfigParser::_parse(const char *&input)
 {
 	// Use smart pointers here since we may cause an exception (rv->add_*()...)
 	unique_ptr<Config> rv(new Config());
+	unique_ptr<StepwiseMapping> fan_cfg(new StepwiseMapping());
 
-	bool some_match;
+	bool some_match = false;
 	do {
 		some_match = comment_parser.match(input)
-				|| space_parser.match(input)
-				|| rv->add_fan(unique_ptr<FanDriver>(parser_fan.parse(input)))
-				|| rv->add_sensor(unique_ptr<SensorDriver>(parser_sensor.parse(input)))
-				|| rv->add_level(unique_ptr<SimpleLevel>(parser_simple_lvl.parse(input)))
-				|| rv->add_level(unique_ptr<ComplexLevel>(parser_complex_lvl.parse(input)));
+		             || space_parser.match(input);
+		unique_ptr<FanDriver> fan { parser_fan.parse(input) };
+		if (fan) {
+			fan_cfg->set_fan(std::move(fan));
+			some_match = true;
+		}
+		unique_ptr<SensorDriver> sensor { parser_sensor.parse(input) };
+		if (sensor) {
+			rv->add_sensor(std::move(sensor));
+			some_match = true;
+		}
+		unique_ptr<SimpleLevel> simple_lvl { parser_simple_lvl.parse(input) };
+		if (simple_lvl) {
+			fan_cfg->add_level(std::move(simple_lvl));
+			some_match = true;
+		}
+		unique_ptr<ComplexLevel> complex_lvl { parser_complex_lvl.parse(input) };
+		if (complex_lvl) {
+			fan_cfg->add_level(std::move(complex_lvl));
+			some_match = true;
+		}
 	} while(*input != 0 && some_match);
+
+	rv->add_fan_config(std::move(fan_cfg));
 
 	if (*input != 0 && !some_match) return nullptr;
 

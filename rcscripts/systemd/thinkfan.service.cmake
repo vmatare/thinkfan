@@ -1,5 +1,6 @@
 [Unit]
 Description=Thinkfan, the minimalist fan control program
+After=sysinit.target
 
 [Service]
 Type=forking
@@ -9,4 +10,5 @@ ExecReload=/bin/kill -HUP $MAINPID
 
 [Install]
 WantedBy=multi-user.target
+Also=thinkfan-sleep.service
 Also=thinkfan-wakeup.service

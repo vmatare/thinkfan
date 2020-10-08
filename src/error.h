@@ -27,6 +27,7 @@
 
 #include "message.h"
 #include "thinkfan.h"
+#include "drivers.h"
 
 #ifdef USE_YAML
 #include <yaml-cpp/exceptions.h>
@@ -73,8 +74,16 @@ private:
 	const int code_;
 public:
 	IOerror(const string &message, const int error_code);
-
 	int code();
+};
+
+
+class SensorLost : public ExpectedError {
+public:
+	template<class CauseT>
+	SensorLost(const CauseT &cause) {
+		msg_ = string("Lost sensor ") + cause.what();
+	}
 };
 
 
@@ -103,6 +112,8 @@ public:
 class ConfigError : public ExpectedError {
 public:
 	ConfigError(const string &reason);
+	void set_filename(const string &filename);
+	virtual const char* what() const _GLIBCXX_USE_NOEXCEPT override;
 #ifdef USE_YAML
 	ConfigError(const string &filename, const YAML::Mark &mark, const string &input, const string &msg);
 #endif

@@ -20,7 +20,12 @@
  * ******************************************************************/
 
 #include "error.h"
+
+#include <features.h>
+#if defined(__GLIBC__)
 #include <execinfo.h>
+#endif
+
 #include <cstring>
 #include <sstream>
 
@@ -35,6 +40,7 @@ namespace thinkfan {
 
 static string make_backtrace()
 {
+#if defined(__GLIBC__)
 	string backtrace_;
 	void *bt_buffer[MAX_BACKTRACE_DEPTH];
 	int stack_depth = ::backtrace(bt_buffer, MAX_BACKTRACE_DEPTH);
@@ -54,6 +60,9 @@ static string make_backtrace()
 	}
 	free(bt_pretty);
 	return backtrace_;
+#else
+	return "[not supported by C library]";
+#endif
 }
 
 
@@ -64,7 +73,7 @@ std::string demangle(const char* name) {
 	int status = -4; // some arbitrary value to eliminate the compiler warning
 
 	std::unique_ptr<char, void(*)(void*)> res {
-		abi::__cxa_demangle(name, NULL, NULL, &status),
+		abi::__cxa_demangle(name, nullptr, nullptr, &status),
 		std::free
 	};
 
@@ -116,14 +125,18 @@ void handle_uncaught()
 	try {
 		std::rethrow_exception(std::current_exception());
 	} catch (const std::exception &e) {
-		log(TF_ERR) << "Unhandled " << demangle(typeid(e).name()) << ": " <<
-		        e.what() << "." << flush <<
-				"errno = " << err << "." << flush <<
-				flush << "Backtrace:" << flush <<
-		        make_backtrace() << flush <<
-				MSG_BUG << flush;
+		log(TF_ERR) << "Unhandled " << demangle(typeid(e).name()) << ": "
+		               << e.what() << "." << flush
+		               << "errno = " << err << "." << flush
+		               << flush << "Backtrace:" << flush
+		               << make_backtrace() << flush
+#if not defined(DISABLE_EXCEPTION_CATCHING)
+		               << MSG_BUG << flush
+#endif
+		               ;
 	}
 	// We can expect to be killed by SIGABRT after this function returns.
+	PidFileHolder::cleanup();
 }
 
 
@@ -150,15 +163,25 @@ ConfigError::ConfigError(const string &reason)
 : ExpectedError(reason)
 {}
 
+void ConfigError::set_filename(const string &filename)
+{ msg_ = filename + ":\n" + msg_; }
+
+const char* ConfigError::what() const _GLIBCXX_USE_NOEXCEPT
+{ return msg_.c_str(); }
+
+
 #ifdef USE_YAML
 
 ConfigError::ConfigError(const string &filename, const YAML::Mark &mark, const string &input, const string &msg)
 {
-	msg_ += filename + ":";
-
+	msg_ = filename + ":";
 	// Another workaround for Ubuntu's libyaml-cpp0.5v5
-	if (mark.pos == -1 && mark.line == -1 && mark.column == -1)
-		msg_ += string(" ") + msg;
+	if (mark.pos == -1 && mark.line == -1 && mark.column == -1) {
+		msg_ += string(" ") + msg + ".";
+#ifdef HAVE_OLD_YAMLCPP
+		msg_+= "\nYou have an ancient libyaml-cpp which can't give line numbers on errors. Please complain to your Linux distribution.";
+#endif
+	}
 	else {
 		msg_ += std::to_string(mark.line + 1) + ":\n";
 		std::stringstream s(input);
@@ -168,8 +191,8 @@ ConfigError::ConfigError(const string &filename, const YAML::Mark &mark, const s
 
 		msg_ += line.data() + string("\n");
 		msg_ += string(static_cast<size_t>(mark.column), ' ') + "^\n";
+		msg_ +=  msg + ".";
 	}
-	msg_ +=  msg + ".";
 }
 
 YamlError::YamlError(const YAML::Mark &mark, const string &msg)

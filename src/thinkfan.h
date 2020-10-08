@@ -25,11 +25,9 @@
 #include <vector>
 #include <chrono>
 #include <fstream>
-
-#define VERSION "0.99.0"
-#if not defined(PID_FILE)
-#define PID_FILE "/var/run/thinkfan.pid"
-#endif
+#include <atomic>
+#include <mutex>
+#include <condition_variable>
 
 #define DEFAULT_CONFIG "/etc/thinkfan.conf"
 #define DEFAULT_YAML_CONFIG "/etc/thinkfan.yaml"
@@ -47,6 +45,12 @@
 #define likely(x)       __builtin_expect((x),1)
 #define unlikely(x)     __builtin_expect((x),0)
 
+#if defined(__GNUC__) && __GNUC__ < 5
+#define THINKFAN_IO_ERROR_CODE(e) errno
+#else
+#define THINKFAN_IO_ERROR_CODE(e) e.code().value()
+#endif
+
 namespace thinkfan {
 
 typedef std::string string;
@@ -54,7 +58,7 @@ typedef std::ifstream ifstream;
 typedef std::ofstream ofstream;
 typedef std::fstream fstream;
 typedef std::chrono::duration<unsigned int> seconds;
-typedef std::chrono::duration<float> secondsf;
+typedef std::chrono::duration<double> secondsf;
 
 
 class TemperatureState {
@@ -67,7 +71,7 @@ public:
 	const std::vector<int> &temps() const;
 	const std::vector<float> &biases() const;
 	bool complete() const;
-	void first_run();
+	void init();
 private:
 	std::vector<int> temps_;
 	std::vector<float> biases_;
@@ -80,16 +84,32 @@ public:
 };
 
 
+#if defined(PID_FILE)
+
 class PidFileHolder {
 public:
 	PidFileHolder(::pid_t pid);
 	~PidFileHolder();
 	static bool file_exists();
+	static void cleanup();
 private:
+	void remove_file();
+
 	std::fstream pid_file_;
+	static PidFileHolder *instance_;
 };
 
+#else
 
+class PidFileHolder {
+public:
+	static void cleanup();
+};
+
+#endif // defined(PID_FILE)
+
+
+// Command line options
 extern bool chk_sanity;
 extern bool resume_is_safe;
 extern bool quiet;
@@ -99,10 +119,15 @@ extern bool dnd_disk;
 #endif /* USE_ATASMART */
 extern seconds sleeptime, tmp_sleeptime;
 extern float bias_level;
-extern volatile int interrupted;
+extern std::atomic<int> interrupted;
 extern TemperatureState temp_state;
 extern std::vector<string> config_files;
 extern float depulse;
+extern std::atomic<unsigned char> tolerate_errors;
+
+extern std::condition_variable sleep_cond;
+extern std::mutex sleep_mutex;
+
 
 
 }

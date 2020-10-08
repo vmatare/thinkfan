@@ -42,6 +42,7 @@ class FanDriver {
 protected:
 	string path_;
 	string initial_state_;
+	string current_speed_;
 	seconds watchdog_;
 	secondsf depulse_;
 	std::chrono::system_clock::time_point last_watchdog_ping_;
@@ -50,10 +51,11 @@ public:
 	FanDriver() : watchdog_(0) {}
 	bool is_default() { return path_.length() == 0; }
 	virtual ~FanDriver() noexcept(false) {}
-	virtual void init() const {}
+	virtual void init() {}
 	virtual void set_speed(const string &level);
-	virtual void set_speed(const Level *level) = 0;
-	virtual void ping_watchdog_and_depulse(const Level *) {}
+	virtual void set_speed(const Level &level) = 0;
+	const string &current_speed() const;
+	virtual void ping_watchdog_and_depulse(const Level &) {}
 	bool operator == (const FanDriver &other) const;
 };
 
@@ -64,9 +66,9 @@ public:
 	virtual ~TpFanDriver() noexcept(false) override;
 	void set_watchdog(const unsigned int timeout);
 	void set_depulse(float duration);
-	virtual void init() const override;
-	virtual void set_speed(const Level *const level) override;
-	virtual void ping_watchdog_and_depulse(const Level *level) override;
+	virtual void init() override;
+	virtual void set_speed(const Level &level) override;
+	virtual void ping_watchdog_and_depulse(const Level &level) override;
 };
 
 
@@ -74,15 +76,15 @@ class HwmonFanDriver : public FanDriver {
 public:
 	HwmonFanDriver(const string &path);
 	virtual ~HwmonFanDriver() noexcept(false) override;
-	virtual void init() const override;
-	virtual void set_speed(const Level *level) override;
+	virtual void init() override;
+	virtual void set_speed(const Level &level) override;
 };
 
 
 class SensorDriver {
 protected:
-	SensorDriver(string path, std::vector<int> correction = {});
-	SensorDriver();
+	SensorDriver(string path, bool optional, std::vector<int> correction = {});
+	SensorDriver(bool optional);
 public:
 	virtual ~SensorDriver() noexcept(false);
 	virtual void read_temps() const = 0;
@@ -90,19 +92,23 @@ public:
 	void set_correction(const std::vector<int> &correction);
 	void set_num_temps(unsigned int n);
 	bool operator == (const SensorDriver &other) const;
+	void set_optional(bool);
+	bool optional() const;
+	const string &path() const;
 protected:
 	string path_;
 	std::vector<int> correction_;
 private:
 	unsigned int num_temps_;
+	bool optional_;
 	void check_correction_length();
 };
 
 
 class TpSensorDriver : public SensorDriver {
 public:
-	TpSensorDriver(string path, std::vector<int> correction = {});
-	TpSensorDriver(string path, const std::vector<unsigned int> &temp_indices, std::vector<int> correction = {});
+	TpSensorDriver(string path, bool optional, std::vector<int> correction = {});
+	TpSensorDriver(string path, bool optional, const std::vector<unsigned int> &temp_indices, std::vector<int> correction = {});
 	virtual void read_temps() const override;
 private:
 	std::char_traits<char>::off_type skip_bytes_;
@@ -113,7 +119,7 @@ private:
 
 class HwmonSensorDriver : public SensorDriver {
 public:
-	HwmonSensorDriver(string path, std::vector<int> correction = {});
+	HwmonSensorDriver(string path, bool optional, std::vector<int> correction = {});
 	virtual void read_temps() const override;
 };
 
@@ -121,7 +127,7 @@ public:
 #ifdef USE_ATASMART
 class AtasmartSensorDriver : public SensorDriver {
 public:
-	AtasmartSensorDriver(string device_path, std::vector<int> correction = {});
+	AtasmartSensorDriver(string device_path, bool optional, std::vector<int> correction = {});
 	virtual ~AtasmartSensorDriver();
 	virtual void read_temps() const override;
 private:
@@ -133,7 +139,7 @@ private:
 #ifdef USE_NVML
 class NvmlSensorDriver : public SensorDriver {
 public:
-	NvmlSensorDriver(string bus_id, std::vector<int> correction = {});
+	NvmlSensorDriver(string bus_id, bool optional, std::vector<int> correction = {});
 	virtual ~NvmlSensorDriver() noexcept(false) override;
 	virtual void read_temps() const override;
 private:

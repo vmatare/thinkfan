@@ -1,4 +1,4 @@
-.TH THINKFAN "1" "February 2016" "thinkfan 1.0_beta1" "thinkfan"
+.TH THINKFAN "1" "April 2020" "thinkfan 1.2" "thinkfan"
 .SH NAME
 thinkfan \- A simple fan control program
 .SH SYNOPSIS
@@ -7,22 +7,33 @@ thinkfan \- A simple fan control program
 .OP \-b BIAS
 .OP \-c CONFIG
 .OP \-s SECONDS
-.OP \-p [DELAY]
+.OP \-p \fR[\fIDELAY\fR]\fI
 .YS
+
+
+
 .SH DESCRIPTION
-Thinkfan sets the fan speed according to temperature limits preconfigured in
-\fI/etc/thinkfan.conf\fR. It can read temperatures from a number of sources:
+
+Thinkfan sets the fan speed according to temperature limits set in the config
+file.
+It can read temperatures from a number of sources:
+
 .IP "/proc/acpi/ibm/thermal"
 Which is provided by the thinkpad_acpi kernel module on older Thinkpads,
+
 .IP "temp*_input files in sysfs"
 Which may be provided by any hwmon drivers, including thinkpad_acpi on modern
 Thinkpads,
-.IP "S.M.A.R.T., e.g. /dev/sda,"
-Which reads the temperature directly from the hard disk using libatasmart, and
-.IP "directly from nVidia GPUs,"
-In case the proprietary nVidia driver is used, no hwmon for the card will be
+
+.IP "Hard disks with S.M.A.R.T. support"
+With the help of libatasmart, if thinkfan was compiled with
+.B \-DUSE_ATASMART=ON
+
+.IP "From the proprietary nVidia driver"
+When the proprietary nVidia driver is used, no hwmon for the card will be
 available. In this situation, thinkfan can use the proprietary NVML API to get
 temperatures.
+
 .P
 The fan can be /proc/acpi/ibm/fan or some PWM file in 
 /sys/class/hwmon. See
@@ -35,6 +46,8 @@ configuration. That means that you can set your temperature limits as insane
 as you like.
 .P
 There are two general modes of operation:
+
+
 .SS COMPLEX MODE
 In complex mode, temperature limits are defined for each sensor thinkfan knows
 about. Setting suitable limits for each sensor in your system will probably
@@ -44,66 +57,100 @@ range. See http://www.thinkwiki.org/wiki/Thermal_Sensors for details on
 which sensor measures what temperature in a Thinkpad. On other systems you'll
 have to find out on your own. See the example configs to learn about the
 syntax.
+
+
 .SS SIMPLE MODE
 In simple mode, Thinkfan uses only the highest temperature found in the
 system. That may be dangerous, e.g. for hard disks.  That's why you should
 provide a correction value (i.e. add 10\-15 \[char176]C) for the sensor that has the
 temperature of your hard disk (or battery...). See the example config files
 for details about that.
+
+
+
 .SH CONFIGURATION
-Some example configurations are provided with the source package. For detailed
-explanations please read the README file. If you installed thinkfan from a
-distribution package, you may find them under \fI/usr/share/doc\fR or wherever
-your package manager puts documentation.
+Some example configurations are provided with the source package. For a detailed
+see the config man page
+.BR thinkfan.conf (5).
+
+
+
 .SH OPTIONS
+
 .TP
-\fB\-h\fR
+.B \-h
 Show a short help message
+
 .TP
-\fB\-s\fR SECONDS
+.BI \-s " SECONDS"
 Maximum seconds between temperature updates (default: 5)
+
 .TP
-\fB\-b\fR BIAS
+.BI \-b " BIAS"
 Floating point number (\-10 to 30) to control rising temperature exaggeration.
 If the temperature increases by more than 2 \[char176]C during one cycle, this number
 is used to calculate a bias, which is added to the current highest temperature
 seen in the system:
 
- current_tmax = current_tmax + delta_t * BIAS / 10
+ current_tmax = current_tmax + delta_t * \fIBIAS\fR / 10
 
 This means that negative numbers can be used to even out short and sudden
 temperature spikes like those seen on some on\-DIE sensors. Use DANGEROUS mode
 to remove the \-10 to +30 limit. Note that you can't have a space between \-b
 and a negative argument, because otherwise getopt will interpret things like
-\-10 as an option and fail (i.e. write "\-b\-10" instead of "\-b \-10").
+\-10 as an option and fail (i.e. write
+.B \-b\-10
+instead of
+.BR "\-b \-10" ).
 
 Default is 15.0
+
 .TP
-\fB\-c\fR FILE
-Load a different configuration file (default: /etc/thinkfan.conf)
+.BI \-c " FILE"
+Load a different configuration file.
+By default, thinkfan first tries to load /etc/thinkfan.yaml, and
+/etc/thinkfan.conf after that.
+The former must be in YAML format, while the latter can be either YAML or the
+old legacy syntax.
+
+If this option is specified, thinkfan attempts to load the config only from
+.IR FILE .
+If its name ends in \*(lq.yaml\*(rq, it must be in YAML format.
+Otherwise, it can be either YAML or legacy syntax.
+See
+.BR thinkfan.conf (5)
+and
+.BR thinkfan.conf.legacy (5)
+for details.
+
 .TP
-\fB\-n\fR
+.B \-n
 Do not become a daemon and log to terminal instead of syslog
+
 .TP
-\fB\-q\fR
+.B \-q
 Be quiet, i.e. reduce logging level from the default. Can be specified
 multiple times until only errors are displayed/logged.
+
 .TP
-\fB\-v\fR
+.B \-v
 Be more verbose. Can be specified multiple times until every message is
 displayed/logged.
+
 .TP
-\fB\-p\fR [SECONDS]
+.BR "\-p " [\fISECONDS\fR]
 Use the pulsing\-fan workaround (for older Thinkpads). Takes an optional
 floating\-point argument (0\-10s) as depulsing duration. Default 0.5s.
+
 .TP
-\fB\-d\fR
+.B \-d
 Do not read temperature from sleeping disks. Instead, 0 \[char176]C is used as that
 disk's temperature. This is needed if reading the temperature causes your
 disk to wake up unnecessarily.
-\fBNote\fR: This option is only available if thinkfan was built with \-D USE_ATASMART.
+NOTE: This option is only available if thinkfan was built with \-D USE_ATASMART.
+
 .TP
-\fB\-D\fR
+.B \-D
 DANGEROUS mode: Disable all sanity checks. May damage your hardware!!
 .SH SIGNALS
 SIGINT and SIGTERM simply interrupt operation and should cause thinkfan to
@@ -115,24 +162,46 @@ config, we keep the old one.
 SIGUSR1 causes thinkfan to dump all currently known temperatures either to
 syslog, or to the console (if running with the \-n option).
 .SH RETURN VALUE
+
 .TP
-\fB0\fR
+.B 0
 Normal exit
+
 .TP
-\fB1\fR
+.B 1
 Runtime error
+
 .TP
-\fB2\fR
+.B 2
 Unexpected runtime error
+
 .TP
-\fB3\fR
+.B 3
 Invalid commandline option
+
+
+
 .SH SEE ALSO
-.BR thinkfan.conf (5),
-The thinkfan Github page (https://github.com/vmatare/thinkfan)
+.nf
+The thinkfan config manpage:
+.BR thinkfan.conf (5)
+
+Example configs shipped with the source distribution, also available at:
+.hy 0
+https://github.com/vmatare/thinkfan/tree/master/examples
+
+The Linux hwmon user interface documentation:
+https://www.kernel.org/doc/html/latest/hwmon/sysfs\-interface.html
+
+The thinkpad_acpi interface documenation:
+https://www.kernel.org/doc/html/latest/admin\-guide/laptops/thinkpad\-acpi.html
+
+
 
 .SH BUGS
 If thinkfan tells you to, or if you feel like it, report issues at the Github
 issue tracker:
-https://github.com/vmatare/thinkfan/issues.
+
+.hy 0
+https://github.com/vmatare/thinkfan/issues
 

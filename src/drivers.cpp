@@ -48,7 +48,6 @@ FanDriver::FanDriver(const std::string &path, const unsigned int watchdog_timeou
   depulse_(0)
 {}
 
-
 void FanDriver::set_speed(const string &level)
 {
 	std::ofstream f_out(path_);
@@ -59,6 +58,7 @@ void FanDriver::set_speed(const string &level)
 		else
 			throw IOerror(MSG_FAN_CTRL(level, path_), err);
 	}
+	current_speed_ = level;
 }
 
 
@@ -70,6 +70,9 @@ bool FanDriver::operator == (const FanDriver &other) const
 			&& this->watchdog_ == other.watchdog_;
 }
 
+const string &FanDriver::current_speed() const
+{ return current_speed_; }
+
 
 /*----------------------------------------------------------------------------
 | TpFanDriver: Driver for fan control via thinkpad_acpi, typically in        |
@@ -79,46 +82,21 @@ bool FanDriver::operator == (const FanDriver &other) const
 
 TpFanDriver::TpFanDriver(const std::string &path)
 : FanDriver(path, 120)
-{
-	bool ctrl_supported = false;
-	std::fstream f(path_);
-	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_FAN_INIT(path_), errno);
-
-	std::string line;
-	line.resize(256);
-
-	while (f.getline(&*line.begin(), 255)) {
-		if (f.fail())
-			throw IOerror(MSG_FAN_INIT(path_), errno);
-		if (line.rfind("level:") != string::npos) {
-			// remember initial level, restore it in d'tor
-			string::size_type offs = line.find_last_of(" \t") + 1;
-			if (offs != string::npos) {
-				// Cut of at bogus \000 char that may occur before EOL
-				initial_state_ = line.substr(offs, line.find_first_of('\000') - offs);
-			}
-		}
-		else if (line.rfind("commands:") != std::string::npos && line.rfind("level <level>") != std::string::npos) {
-			ctrl_supported = true;
-		}
-	}
-
-	if (!ctrl_supported)
-		throw SystemError(MSG_FAN_MODOPTS);
-	log(TF_DBG) << path_ << ": Saved initial state: " << initial_state_ << "." << flush;
-}
-
+{}
 
 TpFanDriver::~TpFanDriver() noexcept(false)
 {
 	std::ofstream f(path_);
-	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_FAN_RESET(path_), errno);
+	if (!(f.is_open() && f.good())) {
+		log(TF_ERR) << MSG_FAN_RESET(path_) << strerror(errno) << flush;
+		return;
+	}
 
-	log(TF_DBG) << path_ << ": Restoring initial state: " << initial_state_ << "." << flush;
-	if (!(f << "level " << initial_state_ << std::flush))
-		throw IOerror(MSG_FAN_RESET(path_), errno);
+	if (!initial_state_.empty()) {
+		log(TF_DBG) << path_ << ": Restoring initial state: " << initial_state_ << "." << flush;
+		if (!(f << "level " << initial_state_ << std::flush))
+			log(TF_ERR) << MSG_FAN_RESET(path_) << strerror(errno) << flush;
+	}
 }
 
 
@@ -130,14 +108,14 @@ void TpFanDriver::set_depulse(float duration)
 { depulse_ = std::chrono::duration<float>(duration); }
 
 
-void TpFanDriver::set_speed(const Level *level)
+void TpFanDriver::set_speed(const Level &level)
 {
-	FanDriver::set_speed(level->str());
+	FanDriver::set_speed(level.str());
 	last_watchdog_ping_ = std::chrono::system_clock::now();
 }
 
 
-void TpFanDriver::ping_watchdog_and_depulse(const Level *level)
+void TpFanDriver::ping_watchdog_and_depulse(const Level &level)
 {
 	if (depulse_ > std::chrono::milliseconds(0)) {
 		FanDriver::set_speed("level disengaged");
@@ -149,11 +127,39 @@ void TpFanDriver::ping_watchdog_and_depulse(const Level *level)
 }
 
 
-void TpFanDriver::init() const
+void TpFanDriver::init()
 {
+	bool ctrl_supported = false;
 	std::fstream f(path_);
 	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_FAN_INIT(path_), errno);
+
+	std::string line;
+	line.resize(256);
+
+	while (f.getline(&*line.begin(), 255)) {
+		if (initial_state_.empty() && line.rfind("level:") != string::npos) {
+			// remember initial level, restore it in d'tor
+			string::size_type offs = line.find_last_of(" \t") + 1;
+			if (offs != string::npos) {
+				// Cut of at bogus \000 char that may occur before EOL
+				initial_state_ = line.substr(offs, line.find_first_of('\000') - offs);
+			}
+			log(TF_DBG) << path_ << ": Saved initial state: " << initial_state_ << "." << flush;
+		}
+		else if (line.rfind("commands:") != std::string::npos && line.rfind("level <level>") != std::string::npos) {
+			ctrl_supported = true;
+		}
+	}
+
+	if (!ctrl_supported)
+		throw SystemError(MSG_FAN_MODOPTS);
+
+	if (initial_state_.empty())
+		throw SystemError(MSG_FAN_INIT(path_) + "Failed to read initial state.");
+
+	f.close();
+	f.open(path_);
 
 	if (!(f << "watchdog " << watchdog_.count() << std::flush))
 		throw IOerror(MSG_FAN_INIT(path_), errno);
@@ -166,53 +172,64 @@ void TpFanDriver::init() const
 
 HwmonFanDriver::HwmonFanDriver(const std::string &path)
 : FanDriver(path, 0)
-{
-	std::ifstream f(path_ + "_enable");
-	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_FAN_INIT(path_), errno);
-
-	std::string line;
-	line.resize(64);
-	if (!f.getline(&*line.begin(), 63))
-		throw IOerror(MSG_FAN_INIT(path_), errno);
-	initial_state_ = line;
-	log(TF_DBG) << path_ << ": Saved initial state: " << initial_state_ << "." << flush;
-}
+{}
 
 
 HwmonFanDriver::~HwmonFanDriver() noexcept(false)
 {
 	std::ofstream f(path_ + "_enable");
-	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_FAN_RESET(path_), errno);
-	log(TF_DBG) << path_ << ": Restoring initial state: " << initial_state_ << "." << flush;
-	if (!(f << initial_state_ << std::flush))
-		throw IOerror(MSG_FAN_RESET(path_), errno);
+	if (!(f.is_open() && f.good())) {
+		log(TF_ERR) << MSG_FAN_RESET(path_) << strerror(errno) << flush;
+		return;
+	}
+
+	if (!initial_state_.empty()) {
+		log(TF_DBG) << path_ << ": Restoring initial state: " << initial_state_ << "." << flush;
+		if (!(f << initial_state_ << std::flush))
+			log(TF_ERR) << MSG_FAN_RESET(path_) << strerror(errno) << flush;
+	}
 }
 
 
-void HwmonFanDriver::init() const
+void HwmonFanDriver::init()
 {
-	std::ofstream f(path_ + "_enable");
+	std::fstream f(path_ + "_enable");
 	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_FAN_INIT(path_), errno);
+
+	if (initial_state_.empty()) {
+		std::string line;
+		line.resize(64);
+		if (!f.getline(&*line.begin(), 63))
+			throw IOerror(MSG_FAN_INIT(path_), errno);
+		initial_state_ = line;
+		log(TF_DBG) << path_ << ": Saved initial state: " << initial_state_ << "." << flush;
+	}
+
 	if (!(f << "1" << std::flush))
 		throw IOerror(MSG_FAN_INIT(path_), errno);
 }
 
 
-void HwmonFanDriver::set_speed(const Level *level)
+void HwmonFanDriver::set_speed(const Level &level)
 {
 	try {
-		FanDriver::set_speed(std::to_string(level->num()));
+		FanDriver::set_speed(std::to_string(level.num()));
 	} catch (IOerror &e) {
 		if (e.code() == EINVAL) {
 			// This happens when the hwmon kernel driver is reset to automatic control
 			// e.g. after the system has woken up from suspend.
 			// In that case, we need to re-initialize and try once more.
 			init();
-			FanDriver::set_speed(std::to_string(level->num()));
-			log(TF_DBG) << "It seems we woke up from suspend. PWM fan driver had to be re-initialized." << flush;
+			FanDriver::set_speed(std::to_string(level.num()));
+			log(TF_WRN) << path_ << ": WARNING: Userspace fan control had to be automatically re-initialized." << flush;
+#if defined(HAVE_SYSTEMD)
+			log(TF_WRN) << "This should have been taken care of when enabling the thinkfan systemd service." << flush
+			            << "If thinkfan.service is enabled, the following services should also have be enabled as a dependency:" << flush
+			            << "thinkfan-hibernate.service, thinkfan-hybrid-suspend.service and thinkfan-suspend.service" << flush;
+#else
+			log(TF_WRN) << "Please arrange for a SIGUSR2 to be sent to thinkfan after resuming from suspend." << flush;
+#endif
 		} else {
 			throw;
 		}
@@ -224,19 +241,21 @@ void HwmonFanDriver::set_speed(const Level *level)
 | SensorDriver: The superclass of all hardware-specific sensor drivers       |
 ----------------------------------------------------------------------------*/
 
-SensorDriver::SensorDriver(std::string path, std::vector<int> correction)
+SensorDriver::SensorDriver(std::string path, bool optional, std::vector<int> correction)
 : path_(path),
   correction_(correction),
-  num_temps_(0)
+  num_temps_(0),
+  optional_(optional)
 {
 	std::ifstream f(path_);
 	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_FAN_INIT(path_), errno);
+		throw IOerror(path_ + ": ", errno);
 }
 
 
-SensorDriver::SensorDriver()
-: num_temps_(0)
+SensorDriver::SensorDriver(bool optional)
+: num_temps_(0),
+  optional_(optional)
 {}
 
 
@@ -278,13 +297,22 @@ void SensorDriver::check_correction_length()
 }
 
 
+void SensorDriver::set_optional(bool o)
+{ optional_ = o; }
+
+bool SensorDriver::optional() const
+{ return optional_; }
+
+const string &SensorDriver::path() const
+{ return path_; }
+
 /*----------------------------------------------------------------------------
 | HwmonSensorDriver: A driver for sensors provided by other kernel drivers,  |
 | typically somewhere in sysfs.                                              |
 ----------------------------------------------------------------------------*/
 
-HwmonSensorDriver::HwmonSensorDriver(std::string path, std::vector<int> correction)
-: SensorDriver(path, correction)
+HwmonSensorDriver::HwmonSensorDriver(std::string path, bool optional, std::vector<int> correction)
+: SensorDriver(path, optional, correction)
 { set_num_temps(1); }
 
 
@@ -307,8 +335,8 @@ void HwmonSensorDriver::read_temps() const
 
 const string TpSensorDriver::skip_prefix_("temperatures:");
 
-TpSensorDriver::TpSensorDriver(std::string path, const std::vector<unsigned int> &temp_indices, std::vector<int> correction)
-: SensorDriver(path, correction)
+TpSensorDriver::TpSensorDriver(std::string path, bool optional, const std::vector<unsigned int> &temp_indices, std::vector<int> correction)
+: SensorDriver(path, optional, correction)
 {
 	std::ifstream f(path_);
 	if (!(f.is_open() && f.good()))
@@ -338,9 +366,11 @@ TpSensorDriver::TpSensorDriver(std::string path, const std::vector<unsigned int>
 
 	if (temp_indices.size() > 0) {
 		if (temp_indices.size() > count)
-			throw ConfigError("Config specifies " + std::to_string(temp_indices.size())
-		                      + " temperature inputs in " + path
-		                      + ", but there are only " + std::to_string(count) + ".");
+			throw ConfigError(
+				"Config specifies " + std::to_string(temp_indices.size())
+				+ " temperature inputs in " + path
+				+ ", but there are only " + std::to_string(count) + "."
+			);
 
 		set_num_temps(static_cast<unsigned int>(temp_indices.size()));
 
@@ -355,8 +385,8 @@ TpSensorDriver::TpSensorDriver(std::string path, const std::vector<unsigned int>
 }
 
 
-TpSensorDriver::TpSensorDriver(std::string path, std::vector<int> correction)
-	: TpSensorDriver(path, {}, correction)
+TpSensorDriver::TpSensorDriver(std::string path, bool optional, std::vector<int> correction)
+	: TpSensorDriver(path, optional, {}, correction)
 {}
 
 
@@ -377,7 +407,8 @@ void TpSensorDriver::read_temps() const
 		if (f.bad())
 			throw IOerror(MSG_T_GET(path_), errno);
 		if (!f.fail() && in_use_[tidx])
-			temp_state.add_temp(tmp + correction_[tidx++]);
+			temp_state.add_temp(tmp + correction_[tidx]);
+		tidx++;
 	}
 }
 
@@ -388,8 +419,8 @@ void TpSensorDriver::read_temps() const
 | via device files like /dev/sda.                                            |
 ----------------------------------------------------------------------------*/
 
-AtasmartSensorDriver::AtasmartSensorDriver(string device_path, std::vector<int> correction)
-: SensorDriver(device_path, correction)
+AtasmartSensorDriver::AtasmartSensorDriver(string device_path, bool optional, std::vector<int> correction)
+: SensorDriver(device_path, optional, correction)
 {
 	if (sk_disk_open(device_path.c_str(), &disk_) < 0) {
 		string msg = std::strerror(errno);
@@ -447,8 +478,9 @@ void AtasmartSensorDriver::read_temps() const
 | nVidia Management Library that is included with the proprietary driver.    |
 ----------------------------------------------------------------------------*/
 
-NvmlSensorDriver::NvmlSensorDriver(string bus_id, std::vector<int> correction)
-: dl_nvmlInit_v2(nullptr),
+NvmlSensorDriver::NvmlSensorDriver(string bus_id, bool optional, std::vector<int> correction)
+: SensorDriver(optional),
+  dl_nvmlInit_v2(nullptr),
   dl_nvmlDeviceGetHandleByPciBusId_v2(nullptr),
   dl_nvmlDeviceGetName(nullptr),
   dl_nvmlDeviceGetTemperature(nullptr),
@@ -495,7 +527,7 @@ NvmlSensorDriver::~NvmlSensorDriver() noexcept(false)
 {
 	nvmlReturn_t ret;
 	if ((ret = dl_nvmlShutdown()))
-		throw SystemError("Failed to shutdown NVML driver. Error code (cf. nvml.h): " + std::to_string(ret));
+		log(TF_ERR) << "Failed to shutdown NVML driver. Error code (cf. nvml.h): " << std::to_string(ret);
 	dlclose(nvml_so_handle_);
 }
 

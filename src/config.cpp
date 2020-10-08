@@ -35,7 +35,105 @@
 
 namespace thinkfan {
 
-Config::Config() : num_temps_(0), fan_(nullptr) {}
+
+FanConfig::FanConfig(std::unique_ptr<FanDriver> &&fan_drv)
+: fan_(std::move(fan_drv))
+{}
+
+const unique_ptr<FanDriver> &FanConfig::fan() const
+{ return fan_; }
+
+void FanConfig::set_fan(unique_ptr<FanDriver> &&fan)
+{ fan_ = std::move(fan); }
+
+
+
+StepwiseMapping::StepwiseMapping(std::unique_ptr<FanDriver> &&fan_drv)
+: FanConfig(std::move(fan_drv))
+{}
+
+const std::vector<unique_ptr<Level>> &StepwiseMapping::levels() const
+{ return levels_; }
+
+void StepwiseMapping::init_fanspeed(const TemperatureState &)
+{
+	cur_lvl_ = --levels().end();
+	while (cur_lvl_ != levels().begin() && (*cur_lvl_)->down())
+		cur_lvl_--;
+	fan()->set_speed(**cur_lvl_);
+}
+
+bool StepwiseMapping::set_fanspeed(const TemperatureState &temp_state)
+{
+	if (unlikely(cur_lvl_ != --levels().end() && (*cur_lvl_)->up())) {
+		while (cur_lvl_ != --levels().end() && (*cur_lvl_)->up())
+			cur_lvl_++;
+		fan()->set_speed(**cur_lvl_);
+		return true;
+	}
+	else if (unlikely(cur_lvl_ != levels().begin() && (*cur_lvl_)->down())) {
+		while (cur_lvl_ != levels().begin() && (*cur_lvl_)->down())
+			cur_lvl_--;
+		fan()->set_speed(**cur_lvl_);
+		tmp_sleeptime = sleeptime;
+		return true;
+	}
+	else {
+		fan()->ping_watchdog_and_depulse(**cur_lvl_);
+		return false;
+	}
+}
+
+
+void StepwiseMapping::ensure_consistency()
+{
+	if (levels().size() == 0)
+		throw ConfigError("No fan levels specified.");
+
+	if (!fan())
+		throw ConfigError("No fan specified in stepwise mapping.");
+
+	int maxlvl = (*levels_.rbegin())->num();
+	if (dynamic_cast<const HwmonFanDriver *>(fan().get()) && maxlvl < 128)
+		error<ConfigError>(MSG_CONF_MAXLVL((*levels_.rbegin())->num()));
+	else if (dynamic_cast<const TpFanDriver *>(fan().get())
+			 && maxlvl != std::numeric_limits<int>::max()
+			 && maxlvl > 7
+			 && maxlvl != 127)
+		error<ConfigError>(MSG_CONF_TP_LVL7(maxlvl, 7));
+
+}
+
+
+void StepwiseMapping::add_level(std::unique_ptr<Level> &&level)
+{
+	if (levels_.size() > 0) {
+		const unique_ptr<Level> &last_lvl = levels_.back();
+		if (level->num() != std::numeric_limits<int>::max()
+				&& level->num() != std::numeric_limits<int>::min()
+				&& last_lvl->num() > level->num())
+			error<ConfigError>(MSG_CONF_LVLORDER);
+
+		if (last_lvl->upper_limit().size() != level->upper_limit().size())
+			error<ConfigError>(MSG_CONF_LVLORDER);
+
+		for (std::vector<int>::const_iterator mit = last_lvl->upper_limit().begin(), oit = level->lower_limit().begin();
+				mit != last_lvl->upper_limit().end() && oit != level->lower_limit().end();
+				++mit, ++oit)
+		{
+			if (*mit < *oit) error<ConfigError>(MSG_CONF_OVERLAP);
+		}
+	}
+
+	levels_.push_back(std::move(level));
+}
+
+
+
+
+Config::Config()
+: num_temps_(0)
+{}
 
 
 const Config *Config::read_config(const std::vector<string> &filenames)
@@ -73,18 +171,23 @@ const Config *Config::try_read_config(const string &filename)
 		throw IOerror(filename + ": ", errno);
 
 #ifdef USE_YAML
-	try
-	{
+	try	{
 		YAML::Node root = YAML::Load(f_data);
 
 		// Copy the return value first. Workaround for https://github.com/vmatare/thinkfan/issues/42
 		// due to bug in ancient yaml-cpp: https://github.com/jbeder/yaml-cpp/commit/97d56c3f3608331baaee26e17d2f116d799a7edc
-		YAML::wtf_ptr<Config> rv_tmp = root.as<YAML::wtf_ptr<Config>>();
-		rv = rv_tmp.release();
+		try {
+			YAML::wtf_ptr<Config> rv_tmp = root.as<YAML::wtf_ptr<Config>>();
+			rv = rv_tmp.release();
+		} catch (IOerror &e) {
+			// An IOerror while processing the config means that an invalid sensor or fan path was specified.
+			// That's a user error, wrap it and let it escalate.
+			throw ConfigError(e.what());
+		}
 #if not defined(DISABLE_EXCEPTION_CATCHING)
 	} catch(YamlError &e) {
 		throw ConfigError(filename, e.mark, f_data, e.what());
-	} catch(YAML::BadConversion &e) {
+	} catch(YAML::RepresentationException &e) {
 		throw ConfigError(filename, e.mark, f_data, "Invalid entry");
 #endif
 	} catch(YAML::ParserException &e) {
@@ -113,101 +216,55 @@ const Config *Config::try_read_config(const string &filename)
 	}
 #endif //USE_YAML
 
-	// Consistency checks which require the complete config
-
-	if (rv->levels().size() == 0)
-		throw ConfigError(filename + ": No fan levels specified.");
-
-	if (!rv->fan()) {
-		log(TF_WRN) << MSG_CONF_DEFAULT_FAN << flush;
-		rv->add_fan(unique_ptr<TpFanDriver>(new TpFanDriver(DEFAULT_FAN)));
-	}
-
-	if (rv->sensors().size() < 1) {
-		log(TF_WRN) << MSG_SENSOR_DEFAULT << flush;
-		rv->add_sensor(unique_ptr<TpSensorDriver>(new TpSensorDriver(DEFAULT_SENSOR)));
-	}
-
-	int maxlvl = (*rv->levels_.rbegin())->num();
-	if (dynamic_cast<HwmonFanDriver *>(rv->fan()) && maxlvl < 128)
-		error<ConfigError>(MSG_CONF_MAXLVL((*rv->levels_.rbegin())->num()));
-	else if (dynamic_cast<TpFanDriver *>(rv->fan())
-			 && maxlvl != std::numeric_limits<int>::max()
-			 && maxlvl > 7
-			 && maxlvl != 127)
-		error<ConfigError>(MSG_CONF_TP_LVL7(maxlvl, 7));
+	rv->src_file = filename;
+	rv->ensure_consistency();
 
 	return rv;
 }
 
 
-Config::~Config()
+void Config::ensure_consistency() const
 {
-	delete fan_;
-	for (const SensorDriver *sensor : sensors_) delete sensor;
-	for (const Level *level : levels_) delete level;
-}
+	// Consistency checks which require the complete config
 
-
-bool Config::add_fan(std::unique_ptr<FanDriver> &&fan)
-{
-	if (!fan) return false;
-
-	if (fan_)
-		error<ConfigError>(MSG_CONF_FAN);
-	this->fan_ = fan.release();
-	return true;
-}
-
-
-bool Config::add_sensor(std::unique_ptr<SensorDriver> &&sensor)
-{
-	if (!sensor) return false;
-
-	num_temps_ += sensor->num_temps();
-	sensors_.push_back(sensor.release());
-	return true;
-}
-
-
-bool Config::add_level(std::unique_ptr<Level> &&level)
-{
-	if (!level) return false;
-
-	if (levels_.size() > 0) {
-		const Level *last_lvl = levels_.back();
-		if (level->num() != std::numeric_limits<int>::max()
-				&& level->num() != std::numeric_limits<int>::min()
-				&& last_lvl->num() >= level->num())
-			error<ConfigError>(MSG_CONF_LVLORDER);
-
-		if (last_lvl->upper_limit().size() != level->upper_limit().size())
-			error<ConfigError>(MSG_CONF_LVLORDER);
-
-		for (std::vector<int>::const_iterator mit = last_lvl->upper_limit().begin(), oit = level->lower_limit().begin();
-				mit != last_lvl->upper_limit().end() && oit != level->lower_limit().end();
-				++mit, ++oit)
-		{
-			if (*mit < *oit) error<ConfigError>(MSG_CONF_OVERLAP);
+	for (const std::unique_ptr<FanConfig> &fan_cfg : fan_configs())
+		try {
+			fan_cfg->ensure_consistency();
+		} catch (ConfigError &err) {
+			err.set_filename(src_file);
+			throw;
 		}
-	}
 
-	levels_.push_back(level.release());
-	return true;
+	if (sensors().size() < 1)
+		throw ConfigError(src_file + ": " + MSG_NO_SENSOR);
 }
 
 
-FanDriver *Config::fan() const
-{ return fan_; }
+
+void Config::add_sensor(std::unique_ptr<SensorDriver> &&sensor)
+{
+	num_temps_ += sensor->num_temps();
+	sensors_.push_back(std::move(sensor));
+}
 
 unsigned int Config::num_temps() const
 { return num_temps_; }
 
-const std::vector<Level *> &Config::levels() const
-{ return levels_; }
-
-const std::vector<SensorDriver *> &Config::sensors() const
+const std::vector<unique_ptr<SensorDriver>> &Config::sensors() const
 { return sensors_; }
+
+const std::vector<std::unique_ptr<FanConfig>> &Config::fan_configs() const
+{ return temp_mappings_; }
+
+void Config::add_fan_config(std::unique_ptr<FanConfig> &&fan_cfg)
+{ temp_mappings_.push_back(std::move(fan_cfg)); }
+
+
+void Config::init_fans() const
+{
+	for (const std::unique_ptr<FanConfig> &fan_cfg : fan_configs())
+		fan_cfg->fan()->init();
+}
 
 
 
@@ -228,7 +285,7 @@ Level::Level(int level, const std::vector<int> &lower_limit, const std::vector<i
 
 Level::Level(string level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit)
 : level_s_(level),
-  level_n_(std::numeric_limits<int>::max()),
+  level_n_(string_to_int(level_s_)),
   lower_limit_(lower_limit),
   upper_limit_(upper_limit)
 {
@@ -241,21 +298,24 @@ Level::Level(string level, const std::vector<int> &lower_limit, const std::vecto
 		if (*l_it != numeric_limits<int>::max() && *l_it >= *u_it)
 			error<ConfigError>(MSG_CONF_LOWHIGH);
 	}
+}
 
+int Level::string_to_int(string &level) {
+	int rv;
 	if (level == "level auto" || level == "level disengaged" || level == "level full-speed")
-		level_n_ = std::numeric_limits<int>::min();
-	else if (sscanf(level.c_str(), "level %d", &level_n_) == 1)
-		return;
+		return std::numeric_limits<int>::min();
+	else if (sscanf(level.c_str(), "level %d", &rv) == 1)
+		return rv;
 	else try {
-		level_n_ = std::stoi(level);
-		level_s_ = "level " + level;
+		rv = std::stoi(level);
+		level = "level " + level;
 	} catch (std::out_of_range &) {
 		error<ConfigError>(MSG_CONF_LVLFORMAT(level));
 	} catch (std::invalid_argument &) {
 		error<ConfigError>(MSG_CONF_LVLFORMAT(level));
 	}
+	return rv;
 }
-
 
 const std::vector<int> &Level::lower_limit() const
 { return lower_limit_; }

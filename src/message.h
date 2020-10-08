@@ -49,6 +49,7 @@ LogLevel &operator--(LogLevel &l);
 LogLevel &operator++(LogLevel &l);
 
 class ExpectedError;
+class FanConfig;
 
 class Logger {
 private:
@@ -68,8 +69,10 @@ public:
 	Logger &operator<< (const float &d);
 	Logger &operator<< (Logger & (*pf_flush)(Logger &));
 	Logger &operator<< (const char *msg);
+	Logger &operator<< (char *msg);
 
 	Logger &operator<< (const TemperatureState &);
+	Logger &operator<< (const std::vector<std::unique_ptr<FanConfig>> &);
 
 	template<class ListT>
 	Logger &operator<< (const ListT &l) {
@@ -93,7 +96,7 @@ private:
 Logger &flush(Logger &l);
 Logger &log(LogLevel lvl);
 
-template<class ErrT, class... ArgTs> void error(ArgTs... args) {
+template<class ErrT, class... ArgTs> void error(const ArgTs &... args) {
 	if (chk_sanity)
 		throw ErrT(args...);
 	else
@@ -148,10 +151,12 @@ template<class ErrT, class... ArgTs> void error(ArgTs... args) {
 #define MSG_BUG "This is probably a bug. Please consider reporting this at " TRACKER_URL ". Thanks."
 
 
-#define MSG_SENSOR_DEFAULT "Using default temperature inputs in " DEFAULT_SENSOR "."
+#define MSG_NO_SENSOR "No sensors in config file."
 #define MSG_T_GET(file) string(__func__) + ": Failed to read temperature(s) from " + file + ": "
 #define MSG_T_INVALID(s, d) s + ": Invalid temperature: " + std::to_string(d)
 #define MSG_SENSOR_INIT(file) string(__func__) + ": Initializing sensor in " + file + ": "
+#define MSG_HWMON_NOT_FOUND "Could not find a hwmon with this name"
+#define MSG_MULTIPLE_HWMONS_FOUND "Found multiple hwmons with this name: "
 
 
 #define MSG_FAN_MODOPTS \
@@ -185,16 +190,14 @@ template<class ErrT, class... ArgTs> void error(ArgTs... args) {
 	"Please use the `hwmon' or `tp_thermal' keywords instead!"
 #define MSG_CONF_FAN_DEPRECATED "Guessing the fan type from the path" \
 	" is deprecated. Please use `tp_fan' or `pwm_fan' to make things clear."
-#define MSG_CONF_NOFILE "Refusing to run without usable config file!"
 #define MSG_CONF_RELOAD_ERR "Error reloading config. Keeping old one."
 #define MSG_CONF_NOFAN "Could not find any fan speed settings in" \
 	" the config file. Please read AND UNDERSTAND the documentation!"
 #define MSG_CONF_LOWHIGH "Your LOWER limit is not lesser than your " \
 	"UPPER limit. That doesn't make sense."
-#define MSG_CONF_OVERLAP "LOWER limit doesn't overlap with previous UPPER" \
-	" limit."
-#define MSG_CONF_FAN "Thinkfan can't use more than one fan."
-#define MSG_CONF_LVLORDER "Fan levels are not ordered correctly."
+#define MSG_CONF_OVERLAP "LOWER limit doesn't overlap with previous UPPER limit"
+#define MSG_CONF_FAN "Thinkfan can't use more than one fan"
+#define MSG_CONF_LVLORDER "Fan levels are not ordered correctly"
 #define MSG_CONF_PARSE "Syntax error"
 #define MSG_CONF_LVL0 "The LOWER limit of the first fan level cannot con" \
 	"tain any values greater than 0!"
@@ -214,12 +217,12 @@ template<class ErrT, class... ArgTs> void error(ArgTs... args) {
 #define MSG_TEMP_COUNT(t_conf, t_found) "Your config requires at least " << t_conf << " temperatures, " \
 	"but only " << t_found << " temperatures were found."
 #define MSG_CONF_MAXLVL(n) "You're using a PWM fan, but your highest fan level is only " + std::to_string(n) \
-		+ ". Enable DANGEROUS mode if you're really sure you never need to max out your fan."
+		+ ". Enable DANGEROUS mode if you're really sure you never need to max out your fan"
 #define MSG_CONF_TP_LVL7(n, max) "Your highest fan level is " + std::to_string(n) + \
-	", but fan levels greater than " + std::to_string(max) + " are not supported by thinkpad_acpi."
+	", but fan levels greater than " + std::to_string(max) + " are not supported by thinkpad_acpi"
 
-#define MSG_CONF_MISSING_LOWER_LIMIT "You must specify a lower limit on all but the first fan level."
-#define MSG_CONF_MISSING_UPPER_LIMIT "You must specify an upper limit on all but the last fan level."
+#define MSG_CONF_MISSING_LOWER_LIMIT "You must specify a lower limit on all but the first fan level"
+#define MSG_CONF_MISSING_UPPER_LIMIT "You must specify an upper limit on all but the last fan level"
 
 
 #endif

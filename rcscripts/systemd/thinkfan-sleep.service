@@ -1,0 +1,12 @@
+[Unit]
+Description=Notify thinkfan of imminent sleep
+Before=sleep.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/pkill -x -winch thinkfan
+# Hack: Since the signal handler races with the sleep, we need to delay a bit
+ExecStart=/usr/bin/sleep 1
+
+[Install]
+WantedBy=sleep.target
