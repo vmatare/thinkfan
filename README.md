@@ -77,6 +77,15 @@ To compile thinkfan, you will need to have the following things installed:
    With OpenRC, we install only a plain initscript (edit `/etc/init.d/thinkfan`
    to change options).
 
+# Stopping thinkfan
+In case you want to stop running thinfan, you can run
+`ps ax | grep thinkfan`
+and you will get something like:
+```console
+   8074 pts/0    S      0:00 thinkfan
+```
+next, you type
+`sudo kill 8074`, where you replace the number with your actual thinkfan job number.
 
 
 # Documentation
