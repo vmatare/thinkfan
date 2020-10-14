@@ -78,7 +78,7 @@ add_executable(thinkfan ${SRC_FILES})
 if (PID_FILE)
 	target_compile_definitions(thinkfan PRIVATE -DPID_FILE=\"${PID_FILE}\")
 endif()
-target_compile_definitions(thinkfan PRIVATE -DVERSION="1.2")
+target_compile_definitions(thinkfan PRIVATE -DVERSION="1.2.2")
 
 # std::condition_variable::wait_for doesn't block if not explicitly linked against libpthread
 # https://stackoverflow.com/questions/41394670/c-condition-variable-wait-for-returns-instantly
