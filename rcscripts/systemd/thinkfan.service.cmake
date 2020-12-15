@@ -1,6 +1,7 @@
 [Unit]
 Description=Thinkfan, the minimalist fan control program
 After=sysinit.target
+After=systemd-modules-load.service
 
 [Service]
 Type=forking
