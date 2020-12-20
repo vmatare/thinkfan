@@ -474,8 +474,7 @@ int main(int argc, char **argv) {
 				temp_state = TemperatureState(test_cfg->num_temps());
 				temp_state.init();
 				test_cfg->init_fans();
-				for (auto &sensor : test_cfg->sensors())
-					sensor->read_temps();
+				read_temps_safe(test_cfg->sensors());
 				Logger::instance().log_lvl() = old_lvl;
 				// Own scope so the config gets destroyed before forking
 			}
