@@ -96,17 +96,17 @@ void sig_handler(int signum) {
 		break;
 	case SIGWINCH:
 		log(TF_INF) << "Going to sleep: Will allow sensor read errors for the next 2 loops." << flush;
-		tolerate_errors = 2;
+		tolerate_errors = 3;
 	}
 }
 
 
 
 static inline void sensor_lost(const SensorDriver &s, const ExpectedError &e) {
-	if (!s.optional() || tolerate_errors)
-		error<SensorLost>(e);
-	else
+	if (s.optional() || tolerate_errors)
 		log(TF_INF) << SensorLost(e).what();
+	else
+		error<SensorLost>(e);
 	temp_state.add_temp(-128);
 }
 
