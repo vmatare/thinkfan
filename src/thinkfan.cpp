@@ -95,7 +95,7 @@ void sig_handler(int signum) {
 		log(TF_INF) << "Received SIGUSR2: Re-initializing fan control." << flush;
 		break;
 	case SIGWINCH:
-		tolerate_errors = 3;
+		tolerate_errors = 4;
 		log(TF_INF) << "Going to sleep: Will allow sensor read errors for the next "
 			<< std::to_string(tolerate_errors) << " loops." << flush;
 	}
