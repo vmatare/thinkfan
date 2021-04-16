@@ -346,7 +346,9 @@ void TemperatureState::restart()
 
 void TemperatureState::add_temp(int t)
 {
-	int diff = t - *temp_;
+	int diff = *temp_ >= 0 ?
+		t - *temp_
+		: 0;
 	*temp_ = t;
 
 	if (unlikely(diff > 2)) {
