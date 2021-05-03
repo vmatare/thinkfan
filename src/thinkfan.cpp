@@ -41,6 +41,7 @@
 #include "message.h"
 #include "error.h"
 
+const int NOISE_MEASUREMENT = 10;
 
 namespace thinkfan {
 
@@ -331,6 +332,8 @@ TemperatureState::TemperatureState(unsigned int num_temps)
   temp_(temps_.begin()),
   bias_(biases_.begin()),
   biased_temp_(biased_temps_.begin()),
+  noise_counters(num_temps, 0),
+  noise_counter(noise_counters.begin()),
   tmax(biased_temps_.begin())
 {}
 
@@ -341,6 +344,7 @@ void TemperatureState::restart()
 	bias_ = biases_.begin();
 	biased_temp_ = biased_temps_.begin();
 	tmax = biased_temps_.begin();
+	noise_counter = noise_counters.begin();
 }
 
 
@@ -350,6 +354,20 @@ void TemperatureState::add_temp(int t)
 		t - *temp_
 		: 0;
 	*temp_ = t;
+
+	if (diff == 0) {
+		if (*noise_counter < NOISE_MEASUREMENT) {
+			(*noise_counter)++;
+		}
+		else {
+			//log it
+			log(TF_NFY) << "No change on sensor readings. Are you using correct sensor?" << flush;
+		}
+	}
+	else {
+		*noise_counter = 0;
+	}
+	++noise_counter;
 
 	if (unlikely(diff > 2)) {
 		// Apply bias_ if temperature changed quickly
