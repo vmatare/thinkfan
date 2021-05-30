@@ -1,6 +1,24 @@
-.TH THINKFAN "1" "April 2020" "thinkfan 1.2" "thinkfan"
+.\" thinkfan.1: thinkfan man page (user manual).
+.\" (C) 2015-2020, Victor Mataré
+.\" 
+.\" this file is part of thinkfan. See thinkfan.c for further information.
+.\" 
+.\" thinkfan is free software: you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation, either version 3 of the License, or
+.\" (at your option) any later version.
+.\" 
+.\" thinkfan is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\" 
+.\" You should have received a copy of the GNU General Public License
+.\" along with thinkfan.  If not, see <http://www.gnu.org/licenses/>.
+
+.TH THINKFAN "1" "April 2020" "thinkfan 1.2" "User Commands"
 .SH NAME
-thinkfan \- A simple fan control program
+thinkfan \- a simple fan control program
 .SH SYNOPSIS
 .SY thinkfan
 .OP \-hnqzDd
@@ -14,7 +32,7 @@ thinkfan \- A simple fan control program
 
 .SH DESCRIPTION
 
-Thinkfan sets the fan speed according to temperature limits set in the config
+\fBthinkfan\fR sets the fan speed according to temperature limits set in the config
 file.
 It can read temperatures from a number of sources:
 
@@ -26,17 +44,17 @@ Which may be provided by any hwmon drivers, including thinkpad_acpi on modern
 Thinkpads,
 
 .IP "Hard disks with S.M.A.R.T. support"
-With the help of libatasmart, if thinkfan was compiled with
+With the help of libatasmart, if \fBthinkfan\fR was compiled with
 .B \-DUSE_ATASMART=ON
 
 .IP "From the proprietary nVidia driver"
 When the proprietary nVidia driver is used, no hwmon for the card will be
-available. In this situation, thinkfan can use the proprietary NVML API to get
+available. In this situation, \fBthinkfan\fR can use the proprietary NVML API to get
 temperatures.
 
 .P
 The fan can be /proc/acpi/ibm/fan or some PWM file in 
-/sys/class/hwmon. See
+\fI/sys/class/hwmon\fR. See
 .BR thinkfan.conf (5)
 for a detailed explanation of the config syntax.
 
@@ -60,7 +78,7 @@ syntax.
 
 
 .SS SIMPLE MODE
-In simple mode, Thinkfan uses only the highest temperature found in the
+In simple mode, \fBthinkfan\fR uses only the highest temperature found in the
 system. That may be dangerous, e.g. for hard disks.  That's why you should
 provide a correction value (i.e. add 10\-15 \[char176]C) for the sensor that has the
 temperature of your hard disk (or battery...). See the example config files
@@ -108,12 +126,12 @@ Default is 15.0
 .TP
 .BI \-c " FILE"
 Load a different configuration file.
-By default, thinkfan first tries to load /etc/thinkfan.yaml, and
-/etc/thinkfan.conf after that.
+By default, \fBthinkfan\fR first tries to load \fI/etc/thinkfan.yaml\fR, and
+\fI/etc/thinkfan.conf\fR after that.
 The former must be in YAML format, while the latter can be either YAML or the
 old legacy syntax.
 
-If this option is specified, thinkfan attempts to load the config only from
+If this option is specified, \fBthinkfan\fR attempts to load the config only from
 .IR FILE .
 If its name ends in \*(lq.yaml\*(rq, it must be in YAML format.
 Otherwise, it can be either YAML or legacy syntax.
@@ -147,19 +165,19 @@ floating\-point argument (0\-10s) as depulsing duration. Default 0.5s.
 Do not read temperature from sleeping disks. Instead, 0 \[char176]C is used as that
 disk's temperature. This is needed if reading the temperature causes your
 disk to wake up unnecessarily.
-NOTE: This option is only available if thinkfan was built with \-D USE_ATASMART.
+NOTE: This option is only available if \fBthinkfan\fR was built with \fB\-D USE_ATASMART\fR.
 
 .TP
 .B \-D
-DANGEROUS mode: Disable all sanity checks. May damage your hardware!!
+\fBDANGEROUS\fR mode: Disable all sanity checks. May damage your hardware!!
 .SH SIGNALS
-SIGINT and SIGTERM simply interrupt operation and should cause thinkfan to
+\fBSIGINT\fR and \fBSIGTERM\fR simply interrupt operation and should cause \fBthinkfan\fR to
 terminate cleanly.
 .P
-SIGHUP makes thinkfan reload its config. If there's any problem with the new
+\fBSIGHUP\fR makes \fBthinkfan\fR reload its config. If there's any problem with the new
 config, we keep the old one.
 .P
-SIGUSR1 causes thinkfan to dump all currently known temperatures either to
+SIGUSR1 causes \fBthinkfan\fR to dump all currently known temperatures either to
 syslog, or to the console (if running with the \-n option).
 .SH RETURN VALUE
 
@@ -183,7 +201,7 @@ Invalid commandline option
 
 .SH SEE ALSO
 .nf
-The thinkfan config manpage:
+The \fBthinkfan\fR config manpage:
 .BR thinkfan.conf (5)
 
 Example configs shipped with the source distribution, also available at:
@@ -199,7 +217,7 @@ https://www.kernel.org/doc/html/latest/admin\-guide/laptops/thinkpad\-acpi.html
 
 
 .SH BUGS
-If thinkfan tells you to, or if you feel like it, report issues at the Github
+If \fBthinkfan\fR tells you to, or if you feel like it, report issues at the Github
 issue tracker:
 
 .hy 0
