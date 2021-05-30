@@ -115,12 +115,13 @@ template<class ErrT, class... ArgTs> void error(const ArgTs &... args) {
 #define MSG_TITLE "thinkfan " VERSION ": A minimalist fan control program"
 
 #define MSG_USAGE \
- "Usage: thinkfan [-hnqzD [-b BIAS] [-c CONFIG] [-s SECONDS] [-p [SECONDS]]]" \
+ "Usage: thinkfan [-hnqDd [-b BIAS] [-c CONFIG] [-s SECONDS] [-p [SECONDS]]]" \
  "\n -h  This help message" \
  "\n -s  Maximum cycle time in seconds (Integer. Default: 5)" \
  "\n -b  Floating point number (-10 to 30) to control rising temperature" \
  "\n     exaggeration (see README). Default: 5.0" \
  "\n -c  Load different configuration file (default: /etc/thinkfan.conf)" \
+ "\n -n  Do not become a daemon and log to terminal instead of syslog" \
  "\n -q  Be more quiet. Can be specified up to three times so that only errors" \
  "\n     are logged." \
  "\n -v  Enable verbose logging (e.g. log temperatures continuously)." \
