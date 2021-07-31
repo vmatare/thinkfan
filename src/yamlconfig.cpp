@@ -167,6 +167,18 @@ static vector<string> find_hwmons_by_name(string path, string name, unsigned cha
 }
 
 
+template<class T>
+string hwmon_filename(int index);
+
+template<>
+string hwmon_filename<HwmonSensorDriver>(int index)
+{ return "temp" + std::to_string(index) + "_input"; }
+
+template<>
+string hwmon_filename<HwmonFanDriver>(int index)
+{ return "pwm" + std::to_string(index); }
+
+
 template<class T, class...ExtraArgTs>
 static vector<wtf_ptr<T>> find_hwmons_by_indices(string path, const vector<int> &indices, ExtraArgTs... extra_args, unsigned char depth = 0)
 {
@@ -197,6 +209,13 @@ static vector<wtf_ptr<T>> find_hwmons_by_indices(string path, const vector<int> 
 				filter_indices.erase(it);
 				// stop crawling at this level
 				depth = std::numeric_limits<unsigned char>::max();
+			}
+			if (!filter_indices.empty()) {
+				string list;
+				for (int i : filter_indices)
+					list += hwmon_filename<T>(i) + ", ";
+				list = list.substr(0, list.length() - 2);
+				throw ConfigError("Could not find the following files at " + path + ": " + list);
 			}
 		}
 
