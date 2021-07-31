@@ -241,9 +241,24 @@ static vector<wtf_ptr<T>> find_hwmons_by_indices(string path, const vector<int> 
 }
 
 
+template<class T>
+inline bool decode_wrapexcept(const Node &node, T &output)
+{
+	try {
+		return convert<T>::decode_inner(node, output);
+	} catch (ConfigError &e) {
+		throw YamlError(get_mark_compat(node), e.reason());
+	}
+}
+
+
 template<>
-struct convert<vector<wtf_ptr<HwmonSensorDriver>>> {
+struct convert<vector<wtf_ptr<HwmonSensorDriver>>>
+{
 	static bool decode(const Node &node, vector<wtf_ptr<HwmonSensorDriver>> &sensors)
+	{ return decode_wrapexcept(node, sensors); }
+
+	static bool decode_inner(const Node &node, vector<wtf_ptr<HwmonSensorDriver>> &sensors)
 	{
 		if (!node[kw_hwmon])
 			return false;
@@ -302,6 +317,7 @@ struct convert<vector<wtf_ptr<HwmonSensorDriver>>> {
 		return sensors.size() > initial_size;
 	}
 };
+
 
 
 template<>
@@ -427,8 +443,12 @@ struct convert<wtf_ptr<TpFanDriver>> {
 
 
 template<>
-struct convert<vector<wtf_ptr<HwmonFanDriver>>> {
+struct convert<vector<wtf_ptr<HwmonFanDriver>>>
+{
 	static bool decode(const Node &node, vector<wtf_ptr<HwmonFanDriver>> &fans)
+	{ return decode_wrapexcept(node, fans); }
+
+	static bool decode_inner(const Node &node, vector<wtf_ptr<HwmonFanDriver>> &fans)
 	{
 		if (!node[kw_hwmon])
 			return false;

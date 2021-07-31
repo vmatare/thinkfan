@@ -161,10 +161,17 @@ SyntaxError::SyntaxError(const string filename, const std::ptrdiff_t offset, con
 
 ConfigError::ConfigError(const string &reason)
 : ExpectedError(reason)
+, reason_(reason)
 {}
 
 void ConfigError::set_filename(const string &filename)
 { msg_ = filename + ":\n" + msg_; }
+
+const string &ConfigError::filename() const
+{ return filename_; }
+
+const string &ConfigError::reason() const
+{ return reason_; }
 
 const char* ConfigError::what() const _GLIBCXX_USE_NOEXCEPT
 { return msg_.c_str(); }
@@ -173,6 +180,8 @@ const char* ConfigError::what() const _GLIBCXX_USE_NOEXCEPT
 #ifdef USE_YAML
 
 ConfigError::ConfigError(const string &filename, const YAML::Mark &mark, const string &input, const string &msg)
+: reason_(msg)
+, filename_(filename)
 {
 	msg_ = filename + ":";
 	// Another workaround for Ubuntu's libyaml-cpp0.5v5
