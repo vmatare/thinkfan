@@ -55,7 +55,7 @@ protected:
 public:
 	Error(const string &message = "");
 
-	virtual const char* what() const _GLIBCXX_USE_NOEXCEPT override;
+	virtual const char* what() const noexcept override;
 	const string &backtrace() const;
 };
 
@@ -115,7 +115,7 @@ public:
 	void set_filename(const string &filename);
 	const string &filename() const;
 	const string &reason() const;
-	virtual const char* what() const _GLIBCXX_USE_NOEXCEPT override;
+	virtual const char* what() const noexcept override;
 #ifdef USE_YAML
 	ConfigError(const string &filename, const YAML::Mark &mark, const string &input, const string &msg);
 #endif
