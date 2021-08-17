@@ -26,6 +26,7 @@
 #include <execinfo.h>
 #endif
 
+#include <array>
 #include <cstring>
 #include <sstream>
 
@@ -100,7 +101,7 @@ const string &Error::backtrace() const
 { return backtrace_; }
 
 
-const char* Error::what() const _GLIBCXX_USE_NOEXCEPT
+const char* Error::what() const noexcept
 { return msg_.c_str(); }
 
 
@@ -173,7 +174,7 @@ const string &ConfigError::filename() const
 const string &ConfigError::reason() const
 { return reason_; }
 
-const char* ConfigError::what() const _GLIBCXX_USE_NOEXCEPT
+const char* ConfigError::what() const noexcept
 { return msg_.c_str(); }
 
 
