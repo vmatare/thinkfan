@@ -360,10 +360,10 @@ ComplexLevel::ComplexLevel(string level, const std::vector<int> &lower_limit, co
 bool ComplexLevel::up() const
 {
 	std::vector<int>::const_iterator temp_it = temp_state.biased_temps().begin();
-	const int *upper_idx = upper_limit().data();
+	auto upper_it = upper_limit().begin();
 
 	while (temp_it != temp_state.biased_temps().end())
-		if (*temp_it++ >= *upper_idx++) return true;
+		if (*temp_it++ >= *upper_it++) return true;
 
 	return false;
 }
@@ -371,12 +371,12 @@ bool ComplexLevel::up() const
 
 bool ComplexLevel::down() const
 {
-	std::vector<int>::const_iterator temp_it = temp_state.biased_temps().begin();
-	const int *lower_idx = lower_limit().data();
+	auto temp_it = temp_state.biased_temps().begin();
+	auto lower_it = lower_limit().begin();
 
-	while (temp_it != temp_state.biased_temps().end() && *temp_it < *lower_idx) {
+	while (temp_it != temp_state.biased_temps().end() && *temp_it < *lower_it) {
 		temp_it++;
-		lower_idx++;
+		lower_it++;
 	}
 
 	return temp_it == temp_state.biased_temps().end();
