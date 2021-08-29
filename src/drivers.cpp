@@ -403,14 +403,14 @@ void TpSensorDriver::read_temps() const
 		throw IOerror(MSG_T_GET(path_), errno);
 
 	unsigned int tidx = 0;
+	unsigned int cidx = 0;
 	int tmp;
 	while (!(f.eof() || f.fail())) {
 		f >> tmp;
 		if (f.bad())
 			throw IOerror(MSG_T_GET(path_), errno);
-		if (!f.fail() && in_use_[tidx])
-			temp_state.add_temp(tmp + correction_[tidx]);
-		tidx++;
+		if (!f.fail() && in_use_[tidx++])
+			temp_state.add_temp(tmp + correction_[cidx++]);
 	}
 }
 
