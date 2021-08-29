@@ -536,6 +536,8 @@ struct convert<vector<wtf_ptr<FanConfig>>> {
 
 vector<int> get_limit(const Node &n) {
 	vector<int> rv;
+	if (!n.IsSequence())
+		throw YamlError(get_mark_compat(n), "Temperature limit must be a sequence");
 	for (const Node &m : n) {
 		try {
 			int i = m.as<int>();
@@ -689,6 +691,7 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 				}
 			}
 		} else if (key == kw_levels) {
+			// Separate "levels:" section
 			if (config->fan_configs().size())
 				throw YamlError(get_mark_compat(node), "Cannot have a separate 'levels:' section when some fan already has specific levels assigned");
 			if (!entry.IsSequence())

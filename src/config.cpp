@@ -25,6 +25,7 @@
 #include <limits>
 #include <cstring>
 #include <cerrno>
+#include <numeric>
 #include "parser.h"
 #include "message.h"
 #include "thinkfan.h"
@@ -85,13 +86,16 @@ bool StepwiseMapping::set_fanspeed(const TemperatureState &temp_state)
 }
 
 
-void StepwiseMapping::ensure_consistency()
+void StepwiseMapping::ensure_consistency(const Config &config) const
 {
 	if (levels().size() == 0)
 		throw ConfigError("No fan levels specified.");
 
 	if (!fan())
 		throw ConfigError("No fan specified in stepwise mapping.");
+
+	for (auto &lvl : levels())
+		lvl->ensure_consistency(config);
 
 	int maxlvl = (*levels_.rbegin())->num();
 	if (dynamic_cast<const HwmonFanDriver *>(fan().get()) && maxlvl < 128)
@@ -101,7 +105,6 @@ void StepwiseMapping::ensure_consistency()
 			 && maxlvl > 7
 			 && maxlvl != 127)
 		error<ConfigError>(MSG_CONF_TP_LVL7(maxlvl, 7));
-
 }
 
 
@@ -232,7 +235,7 @@ void Config::ensure_consistency() const
 
 	for (const std::unique_ptr<FanConfig> &fan_cfg : fan_configs())
 		try {
-			fan_cfg->ensure_consistency();
+			fan_cfg->ensure_consistency(*this);
 		} catch (ConfigError &err) {
 			err.set_filename(src_file);
 			throw;
@@ -348,6 +351,9 @@ bool SimpleLevel::up() const
 bool SimpleLevel::down() const
 { return *temp_state.tmax < lower_limit().front(); }
 
+void SimpleLevel::ensure_consistency(const Config &) const
+{}
+
 
 
 ComplexLevel::ComplexLevel(int level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit)
@@ -383,6 +389,43 @@ bool ComplexLevel::down() const
 	}
 
 	return temp_it == temp_state.biased_temps().end();
+}
+
+
+void ComplexLevel::ensure_consistency(const Config &cfg) const
+{
+	string limitstr;
+
+	const string restmsg = " must have the length "
+		+ std::to_string(cfg.num_temps())
+		+ " (one entry for each configured sensor)"
+	;
+
+	if (lower_limit().size() != cfg.num_temps())
+		throw ConfigError(
+			"Lower limit "
+			+ format_limit(lower_limit())
+			+ restmsg
+		);
+
+	if (upper_limit().size() != cfg.num_temps())
+		throw ConfigError(
+			"Upper limit "
+			+ format_limit(upper_limit())
+			+ restmsg
+	);
+}
+
+string ComplexLevel::format_limit(const std::vector<int> &limit)
+{
+	return "[" + std::accumulate(
+		std::next(limit.begin()),
+		limit.end(),
+		std::to_string(limit.front()),
+		[] (string l, int r) -> string {
+			return std::move(l) + ", " + std::to_string(r);
+		}
+	) + "]";
 }
 
 
