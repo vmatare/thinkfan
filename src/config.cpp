@@ -227,6 +227,9 @@ void Config::ensure_consistency() const
 {
 	// Consistency checks which require the complete config
 
+	if (fan_configs().empty())
+		throw ConfigError("No fans are configured in " + src_file);
+
 	for (const std::unique_ptr<FanConfig> &fan_cfg : fan_configs())
 		try {
 			fan_cfg->ensure_consistency();
