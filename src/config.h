@@ -34,7 +34,7 @@
 
 namespace thinkfan {
 
-
+class Config;
 
 class FanConfig {
 public:
@@ -42,7 +42,7 @@ public:
 	virtual ~FanConfig() = default;
 	virtual void init_fanspeed(const TemperatureState &) = 0;
 	virtual bool set_fanspeed(const TemperatureState &) = 0;
-	virtual void ensure_consistency() = 0;
+	virtual void ensure_consistency(const Config &) const = 0;
 	void set_fan(std::unique_ptr<FanDriver> &&);
 	const std::unique_ptr<FanDriver> &fan() const;
 
@@ -57,7 +57,7 @@ public:
 	virtual ~StepwiseMapping() override = default;
 	virtual void init_fanspeed(const TemperatureState &) override;
 	virtual bool set_fanspeed(const TemperatureState &) override;
-	virtual void ensure_consistency() override;
+	virtual void ensure_consistency(const Config &) const override;
 	void add_level(std::unique_ptr<Level> &&level);
 	const std::vector<std::unique_ptr<Level>> &levels() const;
 
@@ -87,6 +87,8 @@ public:
 	virtual bool up() const = 0;
 	virtual bool down() const = 0;
 
+	virtual void ensure_consistency(const Config &) const = 0;
+
 	const string &str() const;
 	int num() const;
 
@@ -101,6 +103,7 @@ public:
 	SimpleLevel(string level, int lower_limit, int upper_limit);
 	virtual bool up() const override;
 	virtual bool down() const override;
+	virtual void ensure_consistency(const Config &) const override;
 };
 
 
@@ -110,6 +113,10 @@ public:
 	ComplexLevel(string level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit);
 	virtual bool up() const override;
 	virtual bool down() const override;
+	virtual void ensure_consistency(const Config &) const override;
+
+private:
+	static string format_limit(const std::vector<int> &limit);
 };
 
 

@@ -179,10 +179,10 @@ string hwmon_filename<HwmonFanDriver>(int index)
 { return "pwm" + std::to_string(index); }
 
 
-template<class T, class...ExtraArgTs>
-static vector<wtf_ptr<T>> find_hwmons_by_indices(string path, const vector<int> &indices, ExtraArgTs... extra_args, unsigned char depth = 0)
+template<class HwmonT, class...ExtraArgTs>
+static vector<wtf_ptr<HwmonT>> find_hwmons_by_indices(string path, const vector<int> &indices, ExtraArgTs... extra_args, unsigned char depth = 0)
 {
-	vector<wtf_ptr<T>> rv;
+	vector<wtf_ptr<HwmonT>> rv;
 
 	const unsigned char max_depth = 3;
 
@@ -190,7 +190,7 @@ static vector<wtf_ptr<T>> find_hwmons_by_indices(string path, const vector<int> 
 
 	while (filter_indices.size() > 0 && depth <= max_depth) {
 		struct dirent **entries;
-		int nentries = scandir<T>(path, &entries);
+		int nentries = scandir<HwmonT>(path, &entries);
 
 		if (nentries < 0)
 			throw IOerror("Error scanning " + path + ": ", errno);
@@ -199,13 +199,13 @@ static vector<wtf_ptr<T>> find_hwmons_by_indices(string path, const vector<int> 
 
 		if (nentries > 0) {
 			for (int i = 0; i < nentries; i++) {
-				temp_idx = get_index<T>(entries[i]->d_name);
+				temp_idx = get_index<HwmonT>(entries[i]->d_name);
 				if (temp_idx < 0)
 					break; // no index found in file name
 
 				auto it = std::find(filter_indices.begin(), filter_indices.end(), temp_idx);
 
-				rv.push_back(make_wtf<T>(path + "/" + entries[i]->d_name, extra_args...));
+				rv.push_back(make_wtf<HwmonT>(path + "/" + entries[i]->d_name, extra_args...));
 				filter_indices.erase(it);
 				// stop crawling at this level
 				depth = std::numeric_limits<unsigned char>::max();
@@ -213,7 +213,7 @@ static vector<wtf_ptr<T>> find_hwmons_by_indices(string path, const vector<int> 
 			if (!filter_indices.empty()) {
 				string list;
 				for (int i : filter_indices)
-					list += hwmon_filename<T>(i) + ", ";
+					list += hwmon_filename<HwmonT>(i) + ", ";
 				list = list.substr(0, list.length() - 2);
 				throw ConfigError("Could not find the following files at " + path + ": " + list);
 			}
@@ -226,7 +226,7 @@ static vector<wtf_ptr<T>> find_hwmons_by_indices(string path, const vector<int> 
 
 			if (nentries > 0 && depth <= max_depth) {
 				for (int i = 0; i < nentries && rv.empty(); i++)
-					rv = find_hwmons_by_indices<T, ExtraArgTs...>(path + "/" + entries[i]->d_name, indices, extra_args..., depth + 1);
+					rv = find_hwmons_by_indices<HwmonT, ExtraArgTs...>(path + "/" + entries[i]->d_name, indices, extra_args..., depth + 1);
 			}
 			else
 				throw ConfigError("Could not find an `hwmon*' directory or `temp*_input' file in " + path + ".");
@@ -575,6 +575,8 @@ struct convert<vector<wtf_ptr<FanConfig>>> {
 
 vector<int> get_limit(const Node &n) {
 	vector<int> rv;
+	if (!n.IsSequence())
+		throw YamlError(get_mark_compat(n), "Temperature limit must be a sequence");
 	for (const Node &m : n) {
 		try {
 			int i = m.as<int>();
@@ -728,6 +730,7 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 				}
 			}
 		} else if (key == kw_levels) {
+			// Separate "levels:" section
 			if (config->fan_configs().size())
 				throw YamlError(get_mark_compat(node), "Cannot have a separate 'levels:' section when some fan already has specific levels assigned");
 			if (!entry.IsSequence())
