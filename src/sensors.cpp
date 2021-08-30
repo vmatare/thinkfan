@@ -62,6 +62,30 @@ SensorDriver::~SensorDriver() noexcept(false)
 {}
 
 
+void SensorDriver::sensor_lost(const ExpectedError &e, TemperatureState &global_temps) const
+{
+	if (this->optional() || tolerate_errors)
+		log(TF_INF) << SensorLost(e).what();
+	else
+		error<SensorLost>(e);
+	global_temps.add_temp(-128);
+}
+
+
+void SensorDriver::read_temps(TemperatureState &global_temps) const
+{
+	try {
+		read_temps_(global_temps);
+	} catch (SystemError &e) {
+		sensor_lost(e, global_temps);
+	} catch (IOerror &e) {
+		sensor_lost(e, global_temps);
+	} catch (std::ios_base::failure &e) {
+		sensor_lost(IOerror(e.what(), THINKFAN_IO_ERROR_CODE(e)), global_temps);
+	}
+}
+
+
 void SensorDriver::set_correction(const std::vector<int> &correction)
 {
 	correction_ = correction;
@@ -115,7 +139,7 @@ HwmonSensorDriver::HwmonSensorDriver(std::string path, bool optional, std::vecto
 { set_num_temps(1); }
 
 
-void HwmonSensorDriver::read_temps() const
+void HwmonSensorDriver::read_temps_(TemperatureState &global_temps) const
 {
 	std::ifstream f(path_);
 	if (!(f.is_open() && f.good()))
@@ -123,7 +147,7 @@ void HwmonSensorDriver::read_temps() const
 	int tmp;
 	if (!(f >> tmp))
 		throw IOerror(MSG_T_GET(path_), errno);
-	temp_state.add_temp(tmp/1000 + correction_[0]);
+	global_temps.add_temp(tmp/1000 + correction_[0]);
 }
 
 
@@ -189,7 +213,7 @@ TpSensorDriver::TpSensorDriver(std::string path, bool optional, std::vector<int>
 {}
 
 
-void TpSensorDriver::read_temps() const
+void TpSensorDriver::read_temps_(TemperatureState &global_temps) const
 {
 	std::ifstream f(path_);
 	if (!(f.is_open() && f.good()))
@@ -207,7 +231,7 @@ void TpSensorDriver::read_temps() const
 		if (f.bad())
 			throw IOerror(MSG_T_GET(path_), errno);
 		if (!f.fail() && in_use_[tidx++])
-			temp_state.add_temp(tmp + correction_[cidx++]);
+			global_temps.add_temp(tmp + correction_[cidx++]);
 	}
 }
 
@@ -233,7 +257,7 @@ AtasmartSensorDriver::~AtasmartSensorDriver()
 { sk_disk_free(disk_); }
 
 
-void AtasmartSensorDriver::read_temps() const
+void AtasmartSensorDriver::read_temps_(TemperatureState &global_temps) const
 {
 	SkBool disk_sleeping = false;
 
@@ -243,7 +267,7 @@ void AtasmartSensorDriver::read_temps() const
 	}
 
 	if (unlikely(disk_sleeping)) {
-		temp_state.add_temp(0);
+		global_temps.add_temp(0);
 	}
 	else {
 		uint64_t mKelvin;
@@ -265,7 +289,7 @@ void AtasmartSensorDriver::read_temps() const
 			throw SystemError(MSG_T_GET(path_) + std::to_string(tmp) + " isn't a valid temperature.");
 		}
 
-		temp_state.add_temp(int(tmp) + correction_[0]);
+		global_temps.add_temp(int(tmp) + correction_[0]);
 	}
 }
 #endif /* USE_ATASMART */
@@ -330,13 +354,13 @@ NvmlSensorDriver::~NvmlSensorDriver() noexcept(false)
 	dlclose(nvml_so_handle_);
 }
 
-void NvmlSensorDriver::read_temps() const
+void NvmlSensorDriver::read_temps_(TemperatureState &global_temps) const
 {
 	nvmlReturn_t ret;
 	unsigned int tmp;
 	if ((ret = dl_nvmlDeviceGetTemperature(device_, NVML_TEMPERATURE_GPU, &tmp)))
 		throw SystemError(MSG_T_GET(path_) + "Error code (cf. nvml.h): " + std::to_string(ret));
-	temp_state.add_temp(int(tmp));
+	global_temps.add_temp(int(tmp));
 }
 #endif /* USE_NVML */
 

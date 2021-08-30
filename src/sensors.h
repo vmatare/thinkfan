@@ -33,13 +33,15 @@
 
 namespace thinkfan {
 
+class ExpectedError;
+
 class SensorDriver {
 protected:
 	SensorDriver(string path, bool optional, std::vector<int> correction = {});
 	SensorDriver(bool optional);
 public:
 	virtual ~SensorDriver() noexcept(false);
-	virtual void read_temps() const = 0;
+	inline void read_temps(TemperatureState &global_temps) const;
 	unsigned int num_temps() const { return num_temps_; }
 	void set_correction(const std::vector<int> &correction);
 	void set_num_temps(unsigned int n);
@@ -48,12 +50,15 @@ public:
 	bool optional() const;
 	const string &path() const;
 protected:
+	virtual void read_temps_(TemperatureState &global_temps) const = 0;
+
 	string path_;
 	std::vector<int> correction_;
 private:
 	unsigned int num_temps_;
 	bool optional_;
 	void check_correction_length();
+	inline void sensor_lost(const ExpectedError &e, TemperatureState &global_temps) const;
 };
 
 
@@ -61,7 +66,8 @@ class TpSensorDriver : public SensorDriver {
 public:
 	TpSensorDriver(string path, bool optional, std::vector<int> correction = {});
 	TpSensorDriver(string path, bool optional, const std::vector<unsigned int> &temp_indices, std::vector<int> correction = {});
-	virtual void read_temps() const override;
+protected:
+	virtual void read_temps_(TemperatureState &global_temps) const override;
 private:
 	std::char_traits<char>::off_type skip_bytes_;
 	static const string skip_prefix_;
@@ -72,7 +78,8 @@ private:
 class HwmonSensorDriver : public SensorDriver {
 public:
 	HwmonSensorDriver(string path, bool optional, std::vector<int> correction = {});
-	virtual void read_temps() const override;
+protected:
+	virtual void read_temps_(TemperatureState &global_temps) const override;
 };
 
 
@@ -81,7 +88,8 @@ class AtasmartSensorDriver : public SensorDriver {
 public:
 	AtasmartSensorDriver(string device_path, bool optional, std::vector<int> correction = {});
 	virtual ~AtasmartSensorDriver();
-	virtual void read_temps() const override;
+protected:
+	virtual void read_temps_(TemperatureState &global_temps) const override;
 private:
 	SkDisk *disk_;
 };
@@ -93,7 +101,8 @@ class NvmlSensorDriver : public SensorDriver {
 public:
 	NvmlSensorDriver(string bus_id, bool optional, std::vector<int> correction = {});
 	virtual ~NvmlSensorDriver() noexcept(false) override;
-	virtual void read_temps() const override;
+protected:
+	virtual void read_temps_(TemperatureState &global_temps) const override;
 private:
 	nvmlDevice_t device_;
 	void *nvml_so_handle_;
