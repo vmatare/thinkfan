@@ -27,7 +27,6 @@
 
 #include "message.h"
 #include "thinkfan.h"
-#include "drivers.h"
 
 #ifdef USE_YAML
 #include <yaml-cpp/exceptions.h>

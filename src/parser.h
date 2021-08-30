@@ -27,7 +27,8 @@
 #include <string>
 #include <initializer_list>
 
-#include "drivers.h"
+#include "sensors.h"
+#include "fans.h"
 
 namespace thinkfan {
 

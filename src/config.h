@@ -29,7 +29,8 @@
 #include <memory>
 #include <map>
 
-#include "drivers.h"
+#include "fans.h"
+#include "sensors.h"
 #include "thinkfan.h"
 
 namespace thinkfan {
