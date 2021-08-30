@@ -1,4 +1,22 @@
-.TH THINKFAN.CONF 5 "April 2020" "thinkfan 1.2"
+.\" thinkfan.conf.5: thinkfan man page (description of the configuration file).
+.\" (C) 2015-2020, Victor Mataré
+.\" 
+.\" this file is part of thinkfan. See thinkfan.c for further information.
+.\" 
+.\" thinkfan is free software: you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation, either version 3 of the License, or
+.\" (at your option) any later version.
+.\" 
+.\" thinkfan is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\" 
+.\" You should have received a copy of the GNU General Public License
+.\" along with thinkfan.  If not, see <http://www.gnu.org/licenses/>.
+
+.TH THINKFAN.CONF 5 "April 2020" "thinkfan 1.2" "File Formats"
 .SH NAME
 thinkfan.conf \- YAML-formatted config for
 .BR thinkfan (1)
@@ -8,26 +26,28 @@ thinkfan.conf \- YAML-formatted config for
 .SH DESCRIPTION
 
 YAML is a very powerful, yet concise notation for structured data.
-Its full specification is available at https://yaml.org/spec/1.2/spec.html.
-Thinkfan uses only a small subset of the full YAML syntax, so it may be helpful,
+Its full specification is available at
+.UR https://yaml.org/spec/1.2/spec.html
+.UE .
+\fBthinkfan\fR uses only a small subset of the full YAML syntax, so it may be helpful,
 but not strictly necessary for users to take a look at the spec.
 
 The most important thing to note is that indentation is syntactically relevant.
 In particular, tabs should not be mixed with spaces.
 We recommend using two spaces for indentation, like it is shown below.
 
-The thinkfan config has three main sections:
+The \fBthinkfan\fR config has three main sections:
 
 .TP 11m
 .B sensors:
 Where temperatures should be read from. All
-.BR hwmon -style
+.IR hwmon -style
 drivers are supported, as well as
-.BR /proc/acpi/ibm/thermal ,
+.IR /proc/acpi/ibm/thermal ,
 and, depending on the compile-time options,
-.B libatasmart
+.I libatasmart
 (to read temperatures directly from hard disks) and
-.B NVML
+.I NVML
 (via the proprietary nvidia driver).
 
 .TP
@@ -36,9 +56,9 @@ Which fans should be used (currently only one allowed).
 Support for multiple fans is currently in development and planned for a future
 release.
 Both
-.BR hwmon -style
+.IR hwmon -style
 PWM controls and
-.B /proc/acpi/ibm/fan
+.I /proc/acpi/ibm/fan
 can be used.
 
 .TP
@@ -47,9 +67,8 @@ Maps temperatures to fan speeds.
 A \*(lqsimple mapping\*(rq just specifies one temperature as the lower and
 upper bound (respectively) for a given fan speed.
 In a \*(lqdetailed mapping\*(rq, the upper and lower bounds are specified for
-each driver/sensor configured under
-.BR sensors: .
-This mode should be used when thinkfan is monitoring multiple devices that can
+each driver/sensor configured under \*(lq\fIsensors:\fR\*(rq.
+This mode should be used when \fBthinkfan\fR is monitoring multiple devices that can
 tolerate different amounts of heat.
 
 .PP
@@ -60,7 +79,7 @@ which configures a sensor driver, fan driver or fan speed mapping.
 
 .SH SENSOR & FAN DRIVERS
 
-For thinkfan to work, it first needs to know which temperature sensor drivers
+For \fBthinkfan\fR to work, it first needs to know which temperature sensor drivers
 and which fan drivers it should use.
 The mapping between temperature readings and fan speeds is specified in a
 separate config section (see the
@@ -70,24 +89,22 @@ section below).
 
 .SS Sensor Syntax
 
-The entries under the
-.B sensors:
-section can specify
-.BR hwmon,
-.BR thinkpad_acpi,
-.BR NVML
+The entries under the \*(lq\fIsensors:\fR\*(rq section can specify
+.IR hwmon ,
+.IR thinkpad_acpi ,
+.IR NVML
 or
-.BR atasmart
+.IR atasmart
 drivers, where the latter two must be enabled at compile-time.
 There can be any number (greater than zero) and combination of
-.BR hwmon ,
-.BR tpacpi ,
-.BR nvml
+.IR hwmon ,
+.IR tpacpi ,
+.IR nvml
 and
-.BR atasmart
+.IR atasmart
 entries.
 However there may be at most one instance of the
-.BR tpacpi
+.IR tpacpi
 entry.
 
 .nf
@@ -117,12 +134,12 @@ entry.
 
 .SS Fan Syntax
 
-Currently, thinkfan supports only one fan, so there can be only one entry in the
+Currently, \fBthinkfan\fR supports only one fan, so there can be only one entry in the
 list.
 Support for multiple fans is currently in development and planned for a future
 release.
-The fan is either an
-.B hwmon
+The fan is either a
+.I hwmon
 fan:
 
 .nf
@@ -133,12 +150,12 @@ fan:
 .fi
 
 or a
-.B tpacpi
+.I tpacpi
 fan:
 
 .nf
 .B  "fans:"
-.B "  \- tpacpi: /proc/acpi/ibm/fan"
+.BI "  \- tpacpi: /proc/acpi/ibm/fan"
 .fi
 
 
@@ -146,13 +163,14 @@ fan:
 
 .TP 12m
 .I hwmon-path
-There are three ways of specifying hwmon fans or sensors:
+There are three ways of specifying \fIhwmon\fR fans or sensors:
 
 .TP
 \h'8m'1)
 A full path of a \*(lqtemp*_input\*(rq or \*(lqpwm*\*(rq file, like
-\*(lq/sys/class/hwmon/hwmon0/pwm1\*(rq or
-\*(lq/sys/class/hwmon/hwmon0/temp1_input\*(rq.
+.IR /sys/class/hwmon/hwmon0/pwm1
+or
+.IR /sys/class/hwmon/hwmon0/temp1_input .
 In this case, the \*(lq\c
 .BI indices: " index-list"\c
 \*(rq and \*(lq\c
@@ -161,23 +179,23 @@ In this case, the \*(lq\c
 sensor.
 
 Note that this method may lead to problems when the load order of the drivers
-changes across bootups, because in the \*(lqhwmon\fIX\fR\*(rq folder name, the
+changes across bootups, because in the \*(lqhwmon\fIX\fR\*(rq directory name, the
 .I X
 actually corresponds to the load order.
 Use method 2) or 3) to avoid this problem.
 
 .TP
 \h'8m'2)
-A directory that contains a specific hwmon driver, for example
-\*(lq/sys/devices/platform/nct6775.2592\*(rq.
+A directory that contains a specific \fIhwmon\fR driver, for example
+.IR /sys/devices/platform/nct6775.2592 .
 Note that this path does not contain the load-order dependent
-\*(lqhwmon\fIX\fR\*(rq folder.
-As long as it contains only a single hwmon driver/interface it is sufficient to
+\*(lqhwmon\fIX\fR\*(rq directory.
+As long as it contains only a single \fIhwmon\fR driver/interface it is sufficient to
 specify the
 \*(lq\c
 .BI indices: " index-list"\c
 \*(rq
-entry to tell thinkfan which specific sensors to use from that interface.
+entry to tell \fBthinkfan\fR which specific sensors to use from that interface.
 The
 \*(lq\c
 .BI name: " hwmon-name"\c
@@ -187,23 +205,23 @@ entry is unnecessary.
 
 .TP
 \h'8m'3)
-A directory that contains multiple or all of the hwmon drivers, for example
+A directory that contains multiple or all of the \fIhwmon\fR drivers, for example
 \*(lq/sys/class/hwmon\*(rq.
 Here, both the \*(lq\c
 .BI name: " hwmon-name"\c
 \*(rq and \*(lq\c
 .BI indices: " index-list"\c
-\*(rq entries are required to tell thinkfan which interface to select below that
+\*(rq entries are required to tell \fBthinkfan\fR which interface to select below that
 path, and which sensors or which fan to use from that interface.
 
 .TP
 .I hwmon-name
-The name of a hwmon interface, typically found in a file called \*(lqname\*(rq.
+The name of a \fIhwmon\fR interface, typically found in a file called \*(lqname\*(rq.
 This has to be specified if
 .I hwmon-path
-is a base path that contains multiple hwmons.
+is a base path that contains multiple \fIhwmons\fR.
 This method of specifying sensors is particularly useful if the full path to a
-particular hwmon keeps changing between bootups, e.g. due to changing load order
+particular \fIhwmon\fR keeps changing between bootups, e.g. due to changing load order
 of the driver modules.
 
 .TP
@@ -213,14 +231,14 @@ A YAML list
 that specifies which sensors, resp. which fan to use from a given
 interface.
 Both
-.B /proc/acpi/ibm/thermal
-and also many hwmon interfaces contain multiple sensors, and not
+.I /proc/acpi/ibm/thermal
+and also many \fIhwmon\fR interfaces contain multiple sensors, and not
 all of them may be relevant for fan control.
 
 .TP
 \h'9m'\(bu
 For
-.B hwmon
+.I hwmon
 entries, this is required if
 .I hwmon-path
 does not refer directly to a single \*(lqtemp\fIXi\fR_input\*(rq file, but to a folder
@@ -230,39 +248,39 @@ In this case,
 specifies the
 .I Xi
 for the \*(lqtemp\fIXi\fR_input\*(rq files that should be used.
-A hwmon interface may also contain multiple PWM controls for fans, so in that case,
+A \fIhwmon\fR interface may also contain multiple PWM controls for fans, so in that case,
 .I index-list
 must contain exactly one entry.
 
 .TP
 \h'9m'\(bu
 For
-.B tpacpi
+.I tpacpi
 sensors, this entry is optional.
 If it is omitted, all temperatures found in
-.B /proc/acpi/ibm/thermal
+.I /proc/acpi/ibm/thermal
 will be used.
 
 .TP
 .I nvml-bus-id
-NOTE: only available if thinkfan was compiled with USE_NVML enabled.
+NOTE: only available if \fBthinkfan\fR was compiled with \fBUSE_NVML\fR enabled.
 
 The PCI bus ID of an nVidia graphics card that is run with the proprietary
 nVidia driver. Can be obtained with e.g. \*(lqlspci | grep \-i vga\*(rq.
 Usually, nVidia cards will use the open source
-.B nouveau
-driver, which should support hwmon sensors instead.
+.I nouveau
+driver, which should support \fIhwmon\fR sensors instead.
 
 .TP
 .I disk-device-file
-NOTE: only available if thinkfan was compiled with USE_ATASMART enabled.
+NOTE: only available if \fBthinkfan\fR was compiled with \fBUSE_ATASMART\fR enabled.
 
 Full path to a device file for a hard disk that supports S.M.A.R.T.
 See also the
 .B \-d
 option in
 .BR thinkfan (1)
-that prevents thinkfan from waking up sleeping (mechanical) disks to read their
+that prevents \fBthinkfan\fR from waking up sleeping (mechanical) disks to read their
 temperature.
 
 .TP
@@ -274,12 +292,12 @@ Note however that the detailed level syntax is usually the better (i.e. more
 fine-grained) choice.
 
 .TP
-.IR bool-allow-errors " (always optional, \fBfalse\fR by default)"
+.IR bool-allow-errors " (always optional, \fIfalse\fR by default)"
 A truth value
-.RB ( yes / no / true / false )
-that specifies whether thinkfan should accept errors when reading from this
+.RI ( yes / no / true / false )
+that specifies whether \fBthinkfan\fR should accept errors when reading from this
 sensor.
-Normally, thinkfan will exit with an error message if reading the temperature
+Normally, \fBthinkfan\fR will exit with an error message if reading the temperature
 from any configured sensor fails.
 Marking a sensor as optional may be useful for removable hardware or devices
 that may get switched off entirely to save power.
@@ -289,11 +307,11 @@ that may get switched off entirely to save power.
 .SH FAN SPEEDS
 
 The
-.B levels:
+.I levels:
 section specifies a list of fan speeds with associated lower and upper
 temperature bounds.
-If temperature(s) drop below the lower bound, thinkfan switches to the previous
-level, and if the upper bound is reached, thinkfan switches to the next level.
+If temperature(s) drop below the lower bound, \fBthinkfan\fR switches to the previous
+level, and if the upper bound is reached, \fBthinkfan\fR switches to the next level.
 
 .SS Simple Syntax
 In the simplified form, only one temperature is specified as an upper/lower
@@ -340,7 +358,7 @@ sensor individually:
 The possible speed values are different depending on which fan driver is used.
 
 For a
-.B hwmon
+.I hwmon
 fan,
 .I fan-speed
 is a numeric value ranging from
@@ -350,26 +368,26 @@ to
 corresponding to the PWM values accepted by the various kernel drivers.
 
 For a
-.B tpacpi
+.I tpacpi
 fan on Lenovo/IBM ThinkPads and some other Lenovo laptops (see \fBSENSORS & FAN
 DRIVERS\fR above), numeric values and strings can be used.
 The numeric values range from 0 to 7.
 The string values take the form \fB"level \fIlvl-id\fB"\fR, where
 .I lvl-id
 may be a value from
-.BR 0 " to " 7 ,
-.BR auto ,
-.B full-speed
+.IR 0 " to " 7 ,
+.IR auto ,
+.I full-speed
 or
-.BR disengaged .
+.IR disengaged .
 The numeric values
-.BR 0 " to " 7
+.IR 0 " to " 7
 correspond to the regular fan speeds used by the firmware, although many
-firmwares don't even use level \fB7\fR.
-The value \fB"level auto"\fR gives control back to the firmware, which may be
+firmwares don't even use level \fI7\fR.
+The value \fI"level auto"\fR gives control back to the firmware, which may be
 useful if the fan behavior only needs to be changed for certain specific
 temperature ranges (usually at the high and low end of the range).
-The values \fB"level full-speed"\fR and \fB"level disengaged"\fR take the fan
+The values \fI"level full-speed"\fR and \fI"level disengaged"\fR take the fan
 speed control away from the firmware, causing the fan to slowly ramp up to an
 absolute maximum that can be achieved within electrical limits.
 Note that this will run the fan out of specification and cause increased wear,
@@ -381,14 +399,14 @@ though it may be helpful to combat thermal throttling.
 .IB u1 ", " u2 ", " \fR...
 The lower and upper limits refer to the sensors in the same order in which they
 were found when processing the
-.B sensors:
+.I sensors:
 section (see
 .B SENSOR & FAN DRIVERS
 above).
 For the first level entry, the
-.B lower_limit
+.I lower_limit
 may be omitted, and for the last one, the
-.B upper_limit
+.I upper_limit
 may be omitted.
 For all levels in between, the lower limits must overlap with the upper limits
 of the previous level, to make sure the entire temperature range is covered and
@@ -397,19 +415,20 @@ that there is some hysteresis between speed levels.
 
 .SH SEE ALSO
 .nf
-The thinkfan manpage:
+The \fBthinkfan\fR manpage:
 .BR thinkfan (1)
 
 Example configs shipped with the source distribution, also available at:
 .hy 0
-https://github.com/vmatare/thinkfan/tree/master/examples
+.UR https://github.com/vmatare/thinkfan/tree/master/examples
+.UE
 
-The Linux hwmon user interface documentation:
-https://www.kernel.org/doc/html/latest/hwmon/sysfs\-interface.html
-
-The thinkpad_acpi interface documenation:
-https://www.kernel.org/doc/html/latest/admin\-guide/laptops/thinkpad\-acpi.html
-
+The Linux \fIhwmon\fR user interface documentation:
+.UR https://www.kernel.org/doc/html/latest/hwmon/sysfs\-interface.html
+.UE
+The \fIthinkpad_acpi\fR interface documentation:
+.UR https://www.kernel.org/doc/html/latest/admin\-guide/laptops/thinkpad\-acpi.html
+.UE
 
 .SH BUGS
 
