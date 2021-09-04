@@ -27,7 +27,6 @@
 
 #include "message.h"
 #include "thinkfan.h"
-#include "drivers.h"
 
 #ifdef USE_YAML
 #include <yaml-cpp/exceptions.h>
@@ -55,7 +54,7 @@ protected:
 public:
 	Error(const string &message = "");
 
-	virtual const char* what() const _GLIBCXX_USE_NOEXCEPT override;
+	virtual const char* what() const noexcept override;
 	const string &backtrace() const;
 };
 
@@ -113,10 +112,16 @@ class ConfigError : public ExpectedError {
 public:
 	ConfigError(const string &reason);
 	void set_filename(const string &filename);
-	virtual const char* what() const _GLIBCXX_USE_NOEXCEPT override;
+	const string &filename() const;
+	const string &reason() const;
+	virtual const char* what() const noexcept override;
 #ifdef USE_YAML
 	ConfigError(const string &filename, const YAML::Mark &mark, const string &input, const string &msg);
 #endif
+
+private:
+	const string reason_;
+	const string filename_;
 };
 
 

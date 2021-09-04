@@ -42,7 +42,7 @@ enum LogLevel {
 #ifdef DEBUG
 #define DEFAULT_LOG_LVL TF_DBG
 #else
-#define DEFAULT_LOG_LVL TF_INF
+#define DEFAULT_LOG_LVL TF_NFY
 #endif
 
 LogLevel &operator--(LogLevel &l);

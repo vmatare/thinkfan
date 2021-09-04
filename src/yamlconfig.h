@@ -63,6 +63,10 @@ struct convert<wtf_ptr<thinkfan::Config>> {
 };
 
 
+template<class T>
+inline bool decode_inner(const Node &node, T &output);
+
+
 struct LevelEntry {
 	vector<pair<string, int>> fan_levels;
 	vector<int> lower_limit;

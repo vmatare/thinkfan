@@ -50,7 +50,7 @@ option(DISABLE_SYSLOG "Disable logging to syslog, always log to stdout" OFF)
 option(DISABLE_EXCEPTION_CATCHING "Terminate with SIGABRT on all exceptions, causing a core dump on every error" OFF)
 
 
-set(SRC_FILES src/thinkfan.cpp src/config.cpp src/drivers.cpp
+set(SRC_FILES src/thinkfan.cpp src/config.cpp src/fans.cpp src/sensors.cpp
 	src/message.cpp src/parser.cpp src/error.cpp)
 
 if(USE_YAML)

@@ -82,7 +82,7 @@ void sig_handler(int signum) {
 		sleep_cond.notify_all();
 		break;
 	case SIGUSR1:
-		log(TF_INF) << temp_state << flush;
+		log(TF_NFY) << temp_state << flush;
 		break;
 #ifndef DISABLE_BUGGER
 	case SIGSEGV:
@@ -92,11 +92,11 @@ void sig_handler(int signum) {
 	case SIGUSR2:
 		interrupted = signum;
 		sleep_cond.notify_all();
-		log(TF_INF) << "Received SIGUSR2: Re-initializing fan control." << flush;
+		log(TF_NFY) << "Received SIGUSR2: Re-initializing fan control." << flush;
 		break;
 	case SIGWINCH:
 		tolerate_errors = 4;
-		log(TF_INF) << "Going to sleep: Will allow sensor read errors for the next "
+		log(TF_NFY) << "Going to sleep: Will allow sensor read errors for the next "
 			<< std::to_string(tolerate_errors) << " loops." << flush;
 	}
 }
@@ -164,7 +164,7 @@ void run(const Config &config)
 			did_something |= fan_config->set_fanspeed(temp_state);
 
 		if (unlikely(did_something))
-			log(TF_INF) << temp_state << " -> " << config.fan_configs() << flush;
+			log(TF_NFY) << temp_state << " -> " << config.fan_configs() << flush;
 
 		did_something = false;
 	}
@@ -184,7 +184,7 @@ int set_options(int argc, char **argv)
 	while ((opt = getopt(argc, argv, optstring)) != -1) {
 		switch(opt) {
 		case 'h':
-			log(TF_INF) << MSG_TITLE << flush << MSG_USAGE << flush;
+			log(TF_NFY) << MSG_TITLE << flush << MSG_USAGE << flush;
 			return 1;
 #ifdef USE_ATASMART
 		case 'd':
@@ -268,7 +268,7 @@ int set_options(int argc, char **argv)
 		}
 	}
 	if (depulse > 0)
-		log(TF_INF) << MSG_DEPULSE(depulse, sleeptime.count()) << flush;
+		log(TF_NFY) << MSG_DEPULSE(depulse, sleeptime.count()) << flush;
 
 	return 0;
 }
@@ -488,7 +488,7 @@ int main(int argc, char **argv) {
 				error<SystemError>("Can't fork(): " + msg);
 			}
 			else if (child_pid > 0) {
-				log(TF_INF) << "Daemon PID: " << child_pid << flush;
+				log(TF_NFY) << "Daemon PID: " << child_pid << flush;
 				return 0;
 			}
 			else {
@@ -516,7 +516,7 @@ int main(int argc, char **argv) {
 			run(*config);
 
 			if (interrupted == SIGHUP) {
-				log(TF_INF) << MSG_RELOAD_CONF << flush;
+				log(TF_NFY) << MSG_RELOAD_CONF << flush;
 				try {
 					std::unique_ptr<const Config> config_new(Config::read_config(config_files));
 					config.swap(config_new);
@@ -534,12 +534,12 @@ int main(int argc, char **argv) {
 			}
 		} while (!interrupted);
 
-		log(TF_INF) << MSG_TERM << flush;
+		log(TF_NFY) << MSG_TERM << flush;
 #if not defined(DISABLE_EXCEPTION_CATCHING)
 	}
 	catch (InvocationError &e) {
 		log(TF_ERR) << e.what() << flush;
-		log(TF_INF) << MSG_USAGE << flush;
+		log(TF_NFY) << MSG_USAGE << flush;
 	}
 	catch (ExpectedError &e) {
 		log(TF_ERR) << e.what() << flush;
