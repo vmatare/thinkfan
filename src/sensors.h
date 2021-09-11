@@ -22,6 +22,7 @@
  * ******************************************************************/
 
 #include "thinkfan.h"
+#include "error.h"
 
 #ifdef USE_ATASMART
 #include <atasmart.h>
@@ -41,7 +42,6 @@ protected:
 	SensorDriver(bool optional);
 public:
 	virtual ~SensorDriver() noexcept(false);
-	inline void read_temps(TemperatureState &global_temps) const;
 	unsigned int num_temps() const { return num_temps_; }
 	void set_correction(const std::vector<int> &correction);
 	void set_num_temps(unsigned int n);
@@ -49,16 +49,39 @@ public:
 	void set_optional(bool);
 	bool optional() const;
 	const string &path() const;
+
+	inline void read_temps(TemperatureState &global_temps) const
+	{
+		try {
+			read_temps_(global_temps);
+		} catch (SystemError &e) {
+			sensor_lost(e, global_temps);
+		} catch (IOerror &e) {
+			sensor_lost(e, global_temps);
+		} catch (std::ios_base::failure &e) {
+			sensor_lost(IOerror(e.what(), THINKFAN_IO_ERROR_CODE(e)), global_temps);
+		}
+	}
+
 protected:
 	virtual void read_temps_(TemperatureState &global_temps) const = 0;
 
 	string path_;
 	std::vector<int> correction_;
+
 private:
 	unsigned int num_temps_;
 	bool optional_;
 	void check_correction_length();
-	inline void sensor_lost(const ExpectedError &e, TemperatureState &global_temps) const;
+
+	inline void sensor_lost(const ExpectedError &e, TemperatureState &global_temps) const
+	{
+		if (this->optional() || tolerate_errors)
+			log(TF_INF) << SensorLost(e).what();
+		else
+			error<SensorLost>(e);
+		global_temps.add_temp(-128);
+	}
 };
 
 

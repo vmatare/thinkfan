@@ -101,7 +101,7 @@ void sig_handler(int signum) {
 }
 
 
-static inline void read_temps_safe(const std::vector<std::unique_ptr<SensorDriver>> &sensors)
+static inline void read_temps(const std::vector<std::unique_ptr<SensorDriver>> &sensors)
 {
 	temp_state.restart();
 	for (const std::unique_ptr<SensorDriver> &sensor : sensors)
@@ -113,7 +113,7 @@ void run(const Config &config)
 {
 	tmp_sleeptime = sleeptime;
 
-	read_temps_safe(config.sensors());
+	read_temps(config.sensors());
 	temp_state.init();
 
 	// Set initial fan level
@@ -132,7 +132,7 @@ void run(const Config &config)
 		if (unlikely(interrupted))
 			break;
 
-		read_temps_safe(config.sensors());
+		read_temps(config.sensors());
 
 		if (unlikely(tolerate_errors) > 0)
 			tolerate_errors--;
@@ -457,7 +457,7 @@ int main(int argc, char **argv) {
 				temp_state = TemperatureState(test_cfg->num_temps());
 				temp_state.init();
 				test_cfg->init_fans();
-				read_temps_safe(test_cfg->sensors());
+				read_temps(test_cfg->sensors());
 				Logger::instance().log_lvl() = old_lvl;
 				// Own scope so the config gets destroyed before forking
 			}
