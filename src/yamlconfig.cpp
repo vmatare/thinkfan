@@ -697,61 +697,69 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 		throw ParserException(get_mark_compat(node), "Invalid YAML syntax");
 
 	config = make_wtf<Config>();
-	vector<unique_ptr<FanDriver>> fans;
+	vector<unique_ptr<StepwiseMapping>> fan_configs;
 
 	for (YAML::const_iterator it = node.begin(); it != node.end(); ++it) {
-		const Node entry = it->second;
 		const string key = it->first.as<string>();
-		if (key == kw_sensors) {
-			auto sensors = entry.as<vector<wtf_ptr<SensorDriver>>>();
-			for (wtf_ptr<SensorDriver> &s : sensors) {
-				config->add_sensor(unique_ptr<SensorDriver>(s.release()));
-			}
-		} else if (key == kw_fans) {
-			try {
-				// Each fan with its own levels section (supports multiple fans)
-				for (auto &fan_cfg : entry.as<vector<wtf_ptr<FanConfig>>>()) {
-					// Have to copy the wtf_ptr first because frickin Ubuntu still haven't updated their libyaml-cpp
-					wtf_ptr<FanConfig> fu { fan_cfg }; // It's const on feckin Ubuntu
-					config->add_fan_config(unique_ptr<FanConfig>(fu.release()));
-				}
-			} catch (BadConversion &) {
-				// Single fan entry with separate levels section below.
-				if (entry.size() > 1)
-					throw YamlError(get_mark_compat(entry), "When multiple fans are configured, each must have its own 'levels:' section");
-				try {
-					wtf_ptr<TpFanDriver> fu { entry[0].as<wtf_ptr<TpFanDriver>>() };
-					fans.push_back(unique_ptr<FanDriver>(fu.release()));
-				} catch (BadConversion &) {
-					for (auto &fan_drv : entry[0].as<vector<wtf_ptr<HwmonFanDriver>>>()) {
-						wtf_ptr<HwmonFanDriver> fu { fan_drv };
-						fans.push_back(unique_ptr<FanDriver>(fu.release()));
-					}
-				}
-			}
-		} else if (key == kw_levels) {
-			// Separate "levels:" section
-			if (config->fan_configs().size())
-				throw YamlError(get_mark_compat(node), "Cannot have a separate 'levels:' section when some fan already has specific levels assigned");
-			if (!entry.IsSequence())
-				throw YamlError(get_mark_compat(node), "Level entries must be a sequence. Forgot the dashes?");
 
-			vector<unique_ptr<StepwiseMapping>> fan_configs;
-
-			for (unique_ptr<FanDriver> &fan : fans)
-				fan_configs.push_back(std::make_unique<StepwiseMapping>(std::move(fan)));
-			fans.clear();
-
-			for (const Node &n_lvl : entry)
-				assign_fan_levels(fan_configs, n_lvl);
-
-			for (unique_ptr<StepwiseMapping> &fan_cfg : fan_configs)
-				config->add_fan_config(std::move(fan_cfg));
-		}
-		else {
+		if (key != kw_sensors && key != kw_fans && key != kw_levels)
 			throw YamlError(get_mark_compat(it->first), "Unknown keyword");
-		}
 	}
+
+	if (node[kw_sensors]) {
+		for (wtf_ptr<SensorDriver> &s : node[kw_sensors].as<vector<wtf_ptr<SensorDriver>>>())
+			config->add_sensor(unique_ptr<SensorDriver>(s.release()));
+	}
+	else
+		throw YamlError(get_mark_compat(node), "Missing \"sensors:\" entry");
+
+	if (node[kw_fans]) {
+		vector<unique_ptr<FanDriver>> fans;
+		try {
+			// Each fan with its own levels section (supports multiple fans)
+			for (auto &fan_cfg : node[kw_fans].as<vector<wtf_ptr<FanConfig>>>()) {
+				// Have to copy the wtf_ptr first because frickin Ubuntu still haven't updated their libyaml-cpp
+				wtf_ptr<FanConfig> fu { fan_cfg }; // It's const on feckin Ubuntu
+				config->add_fan_config(unique_ptr<FanConfig>(fu.release()));
+			}
+		} catch (BadConversion &) {
+			// Single fan entry with separate levels section below.
+			if (node[kw_fans].size() > 1)
+				throw YamlError(get_mark_compat(node[kw_fans]), "When multiple fans are configured, each must have its own 'levels:' section");
+			try {
+				wtf_ptr<TpFanDriver> fu { node[kw_fans][0].as<wtf_ptr<TpFanDriver>>() };
+				fans.push_back(unique_ptr<FanDriver>(fu.release()));
+			} catch (BadConversion &) {
+				for (auto &fan_drv : node[kw_fans][0].as<vector<wtf_ptr<HwmonFanDriver>>>()) {
+					wtf_ptr<HwmonFanDriver> fu { fan_drv };
+					fans.push_back(unique_ptr<FanDriver>(fu.release()));
+				}
+			}
+		}
+
+		for (unique_ptr<FanDriver> &fan : fans)
+			fan_configs.push_back(std::make_unique<StepwiseMapping>(std::move(fan)));
+		fans.clear();
+	}
+	else
+		throw YamlError(get_mark_compat(node), "Missing \"fans:\" entry");
+
+	if (node[kw_levels]) {
+		// Separate "levels:" section
+		if (config->fan_configs().size())
+			throw YamlError(get_mark_compat(node), "Cannot have a separate 'levels:' section when some fan already has specific levels assigned");
+		if (!node[kw_levels].IsSequence())
+			throw YamlError(get_mark_compat(node), "Level entries must be a sequence. Forgot the dashes?");
+
+
+		for (const Node &n_lvl : node[kw_levels])
+			assign_fan_levels(fan_configs, n_lvl);
+
+		for (unique_ptr<StepwiseMapping> &fan_cfg : fan_configs)
+			config->add_fan_config(std::move(fan_cfg));
+	}
+	else
+		throw YamlError(get_mark_compat(node), "Missing \"levels:\" entry");
 
 	return true;
 }

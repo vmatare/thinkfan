@@ -56,24 +56,24 @@ StepwiseMapping::StepwiseMapping(std::unique_ptr<FanDriver> &&fan_drv)
 const std::vector<unique_ptr<Level>> &StepwiseMapping::levels() const
 { return levels_; }
 
-void StepwiseMapping::init_fanspeed(const TemperatureState &)
+void StepwiseMapping::init_fanspeed(const TemperatureState &ts)
 {
 	cur_lvl_ = --levels().end();
-	while (cur_lvl_ != levels().begin() && (*cur_lvl_)->down())
+	while (cur_lvl_ != levels().begin() && (*cur_lvl_)->down(ts))
 		cur_lvl_--;
 	fan()->set_speed(**cur_lvl_);
 }
 
-bool StepwiseMapping::set_fanspeed(const TemperatureState &temp_state)
+bool StepwiseMapping::set_fanspeed(const TemperatureState &ts)
 {
-	if (unlikely(cur_lvl_ != --levels().end() && (*cur_lvl_)->up())) {
-		while (cur_lvl_ != --levels().end() && (*cur_lvl_)->up())
+	if (unlikely(cur_lvl_ != --levels().end() && (*cur_lvl_)->up(ts))) {
+		while (cur_lvl_ != --levels().end() && (*cur_lvl_)->up(ts))
 			cur_lvl_++;
 		fan()->set_speed(**cur_lvl_);
 		return true;
 	}
-	else if (unlikely(cur_lvl_ != levels().begin() && (*cur_lvl_)->down())) {
-		while (cur_lvl_ != levels().begin() && (*cur_lvl_)->down())
+	else if (unlikely(cur_lvl_ != levels().begin() && (*cur_lvl_)->down(ts))) {
+		while (cur_lvl_ != levels().begin() && (*cur_lvl_)->down(ts))
 			cur_lvl_--;
 		fan()->set_speed(**cur_lvl_);
 		tmp_sleeptime = sleeptime;
@@ -345,10 +345,10 @@ SimpleLevel::SimpleLevel(string level, int lower_limit, int upper_limit)
 : Level(level, lower_limit, upper_limit)
 {}
 
-bool SimpleLevel::up() const
+bool SimpleLevel::up(const TemperatureState &temp_state) const
 { return *temp_state.tmax >= upper_limit().front(); }
 
-bool SimpleLevel::down() const
+bool SimpleLevel::down(const TemperatureState &temp_state) const
 { return *temp_state.tmax < lower_limit().front(); }
 
 void SimpleLevel::ensure_consistency(const Config &) const
@@ -366,7 +366,7 @@ ComplexLevel::ComplexLevel(string level, const std::vector<int> &lower_limit, co
 {}
 
 
-bool ComplexLevel::up() const
+bool ComplexLevel::up(const TemperatureState &temp_state) const
 {
 	std::vector<int>::const_iterator temp_it = temp_state.biased_temps().begin();
 	auto upper_it = upper_limit().begin();
@@ -378,7 +378,7 @@ bool ComplexLevel::up() const
 }
 
 
-bool ComplexLevel::down() const
+bool ComplexLevel::down(const TemperatureState &temp_state) const
 {
 	auto temp_it = temp_state.biased_temps().begin();
 	auto lower_it = lower_limit().begin();
