@@ -707,7 +707,7 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 	}
 
 	if (node[kw_sensors]) {
-		for (wtf_ptr<SensorDriver> &s : node[kw_sensors].as<vector<wtf_ptr<SensorDriver>>>())
+		for (auto s : node[kw_sensors].as<vector<wtf_ptr<SensorDriver>>>())
 			config->add_sensor(unique_ptr<SensorDriver>(s.release()));
 	}
 	else
@@ -717,7 +717,7 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 		vector<unique_ptr<FanDriver>> fans;
 		try {
 			// Each fan with its own levels section (supports multiple fans)
-			for (auto &fan_cfg : node[kw_fans].as<vector<wtf_ptr<FanConfig>>>()) {
+			for (auto fan_cfg : node[kw_fans].as<vector<wtf_ptr<FanConfig>>>()) {
 				// Have to copy the wtf_ptr first because frickin Ubuntu still haven't updated their libyaml-cpp
 				wtf_ptr<FanConfig> fu { fan_cfg }; // It's const on feckin Ubuntu
 				config->add_fan_config(unique_ptr<FanConfig>(fu.release()));
