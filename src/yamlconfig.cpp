@@ -735,6 +735,23 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 					fans.push_back(unique_ptr<FanDriver>(fu.release()));
 				}
 			}
+
+			if (node[kw_levels]) {
+				// Separate "levels:" section
+				if (config->fan_configs().size())
+					throw YamlError(get_mark_compat(node), "Cannot have a separate 'levels:' section when some fan already has specific levels assigned");
+				if (!node[kw_levels].IsSequence())
+					throw YamlError(get_mark_compat(node), "Level entries must be a sequence. Forgot the dashes?");
+
+
+				for (const Node &n_lvl : node[kw_levels])
+					assign_fan_levels(fan_configs, n_lvl);
+
+				for (unique_ptr<StepwiseMapping> &fan_cfg : fan_configs)
+					config->add_fan_config(std::move(fan_cfg));
+			}
+			else
+				throw YamlError(get_mark_compat(node), "Missing \"levels:\" entry");
 		}
 
 		for (unique_ptr<FanDriver> &fan : fans)
@@ -743,23 +760,6 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 	}
 	else
 		throw YamlError(get_mark_compat(node), "Missing \"fans:\" entry");
-
-	if (node[kw_levels]) {
-		// Separate "levels:" section
-		if (config->fan_configs().size())
-			throw YamlError(get_mark_compat(node), "Cannot have a separate 'levels:' section when some fan already has specific levels assigned");
-		if (!node[kw_levels].IsSequence())
-			throw YamlError(get_mark_compat(node), "Level entries must be a sequence. Forgot the dashes?");
-
-
-		for (const Node &n_lvl : node[kw_levels])
-			assign_fan_levels(fan_configs, n_lvl);
-
-		for (unique_ptr<StepwiseMapping> &fan_cfg : fan_configs)
-			config->add_fan_config(std::move(fan_cfg));
-	}
-	else
-		throw YamlError(get_mark_compat(node), "Missing \"levels:\" entry");
 
 	return true;
 }
