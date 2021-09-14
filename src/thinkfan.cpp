@@ -57,7 +57,6 @@ std::atomic<unsigned char> tolerate_errors(0);
 std::condition_variable sleep_cond;
 std::mutex sleep_mutex;
 
-
 #ifdef USE_YAML
 std::vector<string> config_files { DEFAULT_YAML_CONFIG, DEFAULT_CONFIG };
 #else
@@ -102,30 +101,11 @@ void sig_handler(int signum) {
 }
 
 
-
-static inline void sensor_lost(const SensorDriver &s, const ExpectedError &e) {
-	if (s.optional() || tolerate_errors)
-		log(TF_INF) << SensorLost(e).what();
-	else
-		error<SensorLost>(e);
-	temp_state.add_temp(-128);
-}
-
-
-static inline void read_temps_safe(const std::vector<std::unique_ptr<SensorDriver>> &sensors)
+static inline void read_temps(const std::vector<std::unique_ptr<SensorDriver>> &sensors)
 {
 	temp_state.restart();
-	for (const std::unique_ptr<SensorDriver> &sensor : sensors) {
-		try {
-			sensor->read_temps();
-		} catch (SystemError &e) {
-			sensor_lost(*sensor, e);
-		} catch (IOerror &e) {
-			sensor_lost(*sensor, e);
-		} catch (std::ios_base::failure &e) {
-			sensor_lost(*sensor, IOerror(e.what(), THINKFAN_IO_ERROR_CODE(e)));
-		}
-	}
+	for (const std::unique_ptr<SensorDriver> &sensor : sensors)
+		sensor->read_temps(temp_state);
 }
 
 
@@ -133,7 +113,7 @@ void run(const Config &config)
 {
 	tmp_sleeptime = sleeptime;
 
-	read_temps_safe(config.sensors());
+	read_temps(config.sensors());
 	temp_state.init();
 
 	// Set initial fan level
@@ -152,7 +132,7 @@ void run(const Config &config)
 		if (unlikely(interrupted))
 			break;
 
-		read_temps_safe(config.sensors());
+		read_temps(config.sensors());
 
 		if (unlikely(tolerate_errors) > 0)
 			tolerate_errors--;
@@ -477,7 +457,7 @@ int main(int argc, char **argv) {
 				temp_state = TemperatureState(test_cfg->num_temps());
 				temp_state.init();
 				test_cfg->init_fans();
-				read_temps_safe(test_cfg->sensors());
+				read_temps(test_cfg->sensors());
 				Logger::instance().log_lvl() = old_lvl;
 				// Own scope so the config gets destroyed before forking
 			}

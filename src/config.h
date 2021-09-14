@@ -85,8 +85,8 @@ public:
 	const std::vector<int> &lower_limit() const;
 	const std::vector<int> &upper_limit() const;
 
-	virtual bool up() const = 0;
-	virtual bool down() const = 0;
+	virtual bool up(const TemperatureState &) const = 0;
+	virtual bool down(const TemperatureState &) const = 0;
 
 	virtual void ensure_consistency(const Config &) const = 0;
 
@@ -102,8 +102,8 @@ class SimpleLevel : public Level {
 public:
 	SimpleLevel(int level, int lower_limit, int upper_limit);
 	SimpleLevel(string level, int lower_limit, int upper_limit);
-	virtual bool up() const override;
-	virtual bool down() const override;
+	virtual bool up(const TemperatureState &) const override;
+	virtual bool down(const TemperatureState &) const override;
 	virtual void ensure_consistency(const Config &) const override;
 };
 
@@ -112,8 +112,8 @@ class ComplexLevel : public Level {
 public:
 	ComplexLevel(int level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit);
 	ComplexLevel(string level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit);
-	virtual bool up() const override;
-	virtual bool down() const override;
+	virtual bool up(const TemperatureState &) const override;
+	virtual bool down(const TemperatureState &) const override;
 	virtual void ensure_consistency(const Config &) const override;
 
 private:

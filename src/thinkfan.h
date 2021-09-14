@@ -120,7 +120,6 @@ extern bool dnd_disk;
 extern seconds sleeptime, tmp_sleeptime;
 extern float bias_level;
 extern std::atomic<int> interrupted;
-extern TemperatureState temp_state;
 extern std::vector<string> config_files;
 extern float depulse;
 extern std::atomic<unsigned char> tolerate_errors;
