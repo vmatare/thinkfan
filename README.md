@@ -29,7 +29,7 @@ To compile thinkfan, you will need to have the following things installed:
 
 2. Then configure your build, either interactively:
    ```bash
-   cmake ..
+   ccmake ..
    ```
    Or set your build options from the command line. E.g. to configure a build
    with full debugging support:
