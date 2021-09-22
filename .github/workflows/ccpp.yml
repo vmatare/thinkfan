@@ -7,8 +7,11 @@ on:
     branches: [ master ]
 
 jobs:
-  build-xenial:
-    runs-on: ubuntu-16.04
+  build-ubuntu:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, ubuntu-20.04]
     steps:
     - uses: actions/checkout@v2
     - name: install-deps
@@ -20,18 +23,3 @@ jobs:
         cmake --build build
     - name: install
       run: sudo cmake --install ${{ github.workspace }}/build
-    
-  build-latest:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: install-deps
-      run: sudo apt install libyaml-cpp-dev libatasmart-dev cmake
-    - name: build
-      run: |
-        mkdir build
-        cmake -B build
-        cmake --build build
-    - name: install
-      run: sudo cmake --install ${{ github.workspace }}/build
-    
