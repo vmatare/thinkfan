@@ -697,7 +697,6 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 		throw ParserException(get_mark_compat(node), "Invalid YAML syntax");
 
 	config = make_wtf<Config>();
-	vector<unique_ptr<StepwiseMapping>> fan_configs;
 
 	for (YAML::const_iterator it = node.begin(); it != node.end(); ++it) {
 		const string key = it->first.as<string>();
@@ -714,7 +713,6 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 		throw YamlError(get_mark_compat(node), "Missing \"sensors:\" entry");
 
 	if (node[kw_fans]) {
-		vector<unique_ptr<FanDriver>> fans;
 		try {
 			// Each fan with its own levels section (supports multiple fans)
 			for (auto fan_cfg : node[kw_fans].as<vector<wtf_ptr<FanConfig>>>()) {
@@ -724,6 +722,8 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 			}
 		} catch (BadConversion &) {
 			// Single fan entry with separate levels section below.
+			vector<unique_ptr<FanDriver>> fans;
+
 			if (node[kw_fans].size() > 1)
 				throw YamlError(get_mark_compat(node[kw_fans]), "When multiple fans are configured, each must have its own 'levels:' section");
 			try {
@@ -735,6 +735,12 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 					fans.push_back(unique_ptr<FanDriver>(fu.release()));
 				}
 			}
+
+			vector<unique_ptr<StepwiseMapping>> fan_configs;
+
+			for (unique_ptr<FanDriver> &fan : fans)
+				fan_configs.push_back(std::make_unique<StepwiseMapping>(std::move(fan)));
+			fans.clear();
 
 			if (node[kw_levels]) {
 				// Separate "levels:" section
@@ -754,9 +760,6 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 				throw YamlError(get_mark_compat(node), "Missing \"levels:\" entry");
 		}
 
-		for (unique_ptr<FanDriver> &fan : fans)
-			fan_configs.push_back(std::make_unique<StepwiseMapping>(std::move(fan)));
-		fans.clear();
 	}
 	else
 		throw YamlError(get_mark_compat(node), "Missing \"fans:\" entry");
