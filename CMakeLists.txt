@@ -20,6 +20,9 @@ endif()
 
 pkg_check_modules(ATASMART "libatasmart")
 
+find_library(LM_SENSORS_LIB NAMES "libsensors.so" "libsensors.so.5")
+find_path(LM_SENSORS_INC NAMES "sensors/sensors.h")
+
 if(SYSTEMD_FOUND)
 	set(PID_FILE "/run/thinkfan.pid")
 else()
@@ -38,6 +41,11 @@ option(USE_ATASMART "Enable reading temperatures from HDDs via S.M.A.R.T" OFF)
 # proprietary nVidia driver.
 #
 option(USE_NVML "Get temperatures directly from nVidia GPUs via their proprietary NVML API" ON)
+
+#
+# Defaults to ON.
+#
+option(USE_LM_SENSORS "Get temperatures from LM sensors" ON)
 
 #
 # The shiny new YAML config parser. Depends on yaml-cpp.
@@ -99,6 +107,18 @@ if(USE_NVML)
 	target_compile_definitions(thinkfan PRIVATE -DUSE_NVML)
 	target_link_libraries(thinkfan PRIVATE dl)
 endif(USE_NVML)
+
+if(USE_LM_SENSORS)
+	if(LM_SENSORS_LIB MATCHES "LM_SENSORS_LIB-NOTFOUND")
+		message(FATAL_ERROR "USE_LM_SENSORS enabled but libsensors not found. Please install libsensors-dev!")
+	elseif(LM_SENSORS_INC MATCHES "LM_SENSORS_INC-NOTFOUND")
+		message(FATAL_ERROR "USE_LM_SENSORS enabled but sensors/sensors.h not found. Please install libsensors-dev!")
+	else()
+		target_compile_definitions(thinkfan PRIVATE -DUSE_LM_SENSORS)
+		target_include_directories(thinkfan PRIVATE ${LM_SENSORS_INC})
+		target_link_libraries(thinkfan PRIVATE ${LM_SENSORS_LIB})
+	endif()
+endif(USE_LM_SENSORS)
 
 if(USE_YAML)
 	target_compile_definitions(thinkfan PRIVATE -DUSE_YAML)
