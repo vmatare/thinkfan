@@ -29,6 +29,10 @@ static const string kw_nvidia("nvml");
 #ifdef USE_ATASMART
 static const string kw_atasmart("atasmart");
 #endif
+#ifdef USE_LM_SENSORS
+static const string kw_chip("chip");
+static const string kw_ids("ids");
+#endif
 static const string kw_speed("speed");
 static const string kw_upper("upper_limit");
 static const string kw_lower("lower_limit");
@@ -391,6 +395,45 @@ struct convert<wtf_ptr<AtasmartSensorDriver>> {
 #endif //USE_ATASMART
 
 
+#ifdef USE_LM_SENSORS
+
+template<>
+struct convert<wtf_ptr<LMSensorsDriver>> {
+	static bool decode(const Node &node, wtf_ptr<LMSensorsDriver> &sensor)
+	{
+		if (!node[kw_chip])
+			return false;
+
+		if (!node[kw_ids]) {
+			throw YamlError(get_mark_compat(node[kw_ids]), "No temperature inputs were specified.");
+		}
+
+		string chip_name = node[kw_chip].as<string>();
+		vector<string> feature_names = node[kw_ids].as<vector<string>>();
+
+		bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
+
+		vector<int> correction;
+		if (node[kw_correction]) {
+			correction = node[kw_correction].as<vector<int>>();
+		}
+		if (!correction.empty()) {
+			if (correction.size() != feature_names.size()) {
+				throw YamlError(
+						get_mark_compat(node[kw_ids]),
+						MSG_CONF_CORRECTION_LEN(chip_name, correction.size(), feature_names.size()));
+			}
+		}
+
+		sensor = make_wtf<LMSensorsDriver>(
+			chip_name, feature_names, optional, correction);
+		return true;
+	}
+};
+
+#endif // USE_LM_SENSORS
+
+
 template<>
 struct convert<vector<wtf_ptr<SensorDriver>>> {
 
@@ -419,6 +462,12 @@ struct convert<vector<wtf_ptr<SensorDriver>>> {
 				sensors.push_back(std::move(tmp));
 			}
 #endif //USE_ATASMART
+#ifdef USE_LM_SENSORS
+			else if ((*it)[kw_chip]) {
+				wtf_ptr<LMSensorsDriver> tmp = it->as<wtf_ptr<LMSensorsDriver>>();
+				sensors.push_back(std::move(tmp));
+			}
+#endif // USE_LM_SENSORS
 			else
 				throw YamlError(get_mark_compat(*it), "Invalid sensor entry");
 		}

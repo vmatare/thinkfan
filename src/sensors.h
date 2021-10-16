@@ -32,6 +32,13 @@
 #include <nvidia/gdk/nvml.h>
 #endif /* USE_NVML */
 
+#ifdef USE_LM_SENSORS
+#include <sensors/sensors.h>
+#include <sensors/error.h>
+#include <atomic>
+#include <mutex>
+#endif /* USE_LM_SENSORS */
+
 namespace thinkfan {
 
 class ExpectedError;
@@ -140,6 +147,45 @@ private:
 };
 #endif /* USE_NVML */
 
+
+#ifdef USE_LM_SENSORS
+
+class LMSensorsDriver : public SensorDriver {
+public:
+	LMSensorsDriver(string chip_name, std::vector<string> feature_names,
+	                bool optional, std::vector<int> correction = {});
+	virtual ~LMSensorsDriver();
+
+protected:
+	virtual void read_temps_(TemperatureState &global_temps) const override;
+
+	// LM sensors helpers.
+	static void ensure_lm_sensors_is_initialized();
+	static void initialize_lm_sensors(int* result);
+	static const ::sensors_chip_name* find_chip_by_name(
+		const string& chip_name);
+	static const ::sensors_feature* find_feature_by_name(
+		const ::sensors_chip_name& chip, const string& chip_name,
+		const string& feature_name);
+	static string get_chip_name(const ::sensors_chip_name& chip);
+
+	// LM sensors call backs.
+	static void parse_error_call_back(const char *err, int line_no);
+	static void parse_error_wfn_call_back(const char *err, const char *file_name, int line_no);
+	static void fatal_error_call_back(const char *proc, const char *err);
+
+private:
+	const string chip_name_;
+	const ::sensors_chip_name* chip_;
+
+	const std::vector<string> feature_names_;
+	std::vector<const ::sensors_feature*> features_;
+	std::vector<const ::sensors_subfeature*> sub_features_;
+
+	static std::once_flag lm_sensors_once_init_;
+};
+
+#endif /* USE_LM_SENSORS */
 
 }
 
