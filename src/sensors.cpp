@@ -352,11 +352,17 @@ static const int MIN_CELSIUS_TEMP = -273;
 
 std::once_flag LMSensorsDriver::lm_sensors_once_init_;
 
+
 LMSensorsDriver::LMSensorsDriver(
-	string chip_name, std::vector<string> feature_names,
- 	bool optional, std::vector<int> correction)
-	: SensorDriver(optional),
-	  chip_name_(chip_name), chip_(nullptr), feature_names_(feature_names)
+	string chip_name,
+	vector<string> feature_names,
+	bool optional,
+	vector<int> correction
+)
+: SensorDriver(optional),
+  chip_name_(chip_name),
+  chip_(nullptr),
+  feature_names_(feature_names)
 {
 	LMSensorsDriver::ensure_lm_sensors_is_initialized();
 	chip_ = LMSensorsDriver::find_chip_by_name(chip_name_);
@@ -366,16 +372,14 @@ LMSensorsDriver::LMSensorsDriver(
 	for (size_t i = 0; i < len; ++i) {
 		const string& feature_name = feature_names_[i];
 
-		auto feature = LMSensorsDriver::find_feature_by_name(
-			*chip_, chip_name_, feature_name);
+		auto feature = LMSensorsDriver::find_feature_by_name(*chip_, chip_name_, feature_name);
 		if (!feature) {
 			throw SystemError("LM sensors chip '" + chip_name
 				+ "' does not have the feature '" + feature_name + "'");
 		}
 		features_.push_back(feature);
 
-		auto sub_feature = ::sensors_get_subfeature(
-			chip_, feature, ::SENSORS_SUBFEATURE_TEMP_INPUT);
+		auto sub_feature = ::sensors_get_subfeature(chip_, feature, ::SENSORS_SUBFEATURE_TEMP_INPUT);
 		if (!sub_feature) {
 			throw SystemError("LM sensors feature '" + feature_name
 				+ "' of the chip '" + chip_name_
@@ -387,37 +391,39 @@ LMSensorsDriver::LMSensorsDriver(
 			+ feature_name + "' of chip '" + chip_name_ + "'." << flush;
 	}
 
-	if (correction.empty()) {
+	if (correction.empty())
 		correction.resize(feature_names_.size(), 0);
-	}
 
 	set_num_temps(feature_names_.size());
 	set_correction(correction);
 }
 
-LMSensorsDriver::~LMSensorsDriver() noexcept(false) {}
+
+LMSensorsDriver::~LMSensorsDriver()
+{}
+
 
 void LMSensorsDriver::ensure_lm_sensors_is_initialized() {
 	int r = 0;
-	std::call_once(LMSensorsDriver::lm_sensors_once_init_,
-				   LMSensorsDriver::initialize_lm_sensors, &r);
+	std::call_once(LMSensorsDriver::lm_sensors_once_init_, LMSensorsDriver::initialize_lm_sensors, &r);
 	if (r != 0) {
 		const char *msg = ::sensors_strerror(r);
 		throw SystemError(string("Failed to initialize LM sensors driver: ") + msg);
 	}
 }
 
+
 void LMSensorsDriver::initialize_lm_sensors(int* result) {
 	::sensors_parse_error = LMSensorsDriver::parse_error_callback;
 	::sensors_parse_error_wfn = LMSensorsDriver::parse_error_wfn_callback;
 	::sensors_fatal_error = LMSensorsDriver::fatal_error_callback;
 
-	if ((*result = ::sensors_init(nullptr)) == 0) {
+	if (!(*result = ::sensors_init(nullptr)))
 		atexit(::sensors_cleanup);
-	}
 
 	log(TF_DBG) << "Initialized LM sensors." << flush;
 }
+
 
 const ::sensors_chip_name* LMSensorsDriver::find_chip_by_name(
 	const string& chip_name)
@@ -425,13 +431,16 @@ const ::sensors_chip_name* LMSensorsDriver::find_chip_by_name(
 	int state = 0;
 	for (;;) {
 		auto chip = ::sensors_get_detected_chips(nullptr, &state);
-		if (!chip) break;
+		if (!chip)
+			break;
 
-		if (chip_name == LMSensorsDriver::get_chip_name(*chip)) return chip;
+		if (chip_name == LMSensorsDriver::get_chip_name(*chip))
+			return chip;
 	}
 
 	throw SystemError("LM sensors chip '" + chip_name + "' was not found");
 }
+
 
 string LMSensorsDriver::get_chip_name(const ::sensors_chip_name& chip) {
 	int len = sensors_snprintf_chip_name(nullptr, 0, &chip);
@@ -440,53 +449,66 @@ string LMSensorsDriver::get_chip_name(const ::sensors_chip_name& chip) {
 		throw SystemError(string("Failed to get LM sensors chip name: ") + msg);
 	}
 
-	std::vector<char> buffer((size_t)(len + 1));
-	int r = sensors_snprintf_chip_name(buffer.data(), (size_t)(len + 1), &chip);
+	vector<char> buffer(len + 1);
+	int r = sensors_snprintf_chip_name(buffer.data(), size_t(len + 1), &chip);
 	if (r < 0) {
 		const char *msg = ::sensors_strerror(r);
 		throw SystemError(string("Failed to get LM sensors chip name: ") + msg);
 	} else if (r >= (len + 1)) {
 		throw SystemError("LM sensors chip name is too long");
 	}
+
 	return string(buffer.data(), r);
 }
 
+
 const ::sensors_feature* LMSensorsDriver::find_feature_by_name(
-	const ::sensors_chip_name& chip, const string& chip_name,
-	const string& feature_name)
-{
+	const ::sensors_chip_name& chip,
+	const string& chip_name,
+	const string& feature_name
+) {
 	int state = 0;
+
 	for (;;) {
 		auto feature = ::sensors_get_features(&chip, &state);
-		if (!feature) break;
+		if (!feature)
+			break;
 
 		auto label = ::sensors_get_label(&chip, feature);
 		bool label_matches = (feature_name == label);
 		free(label);
 
-		if (label_matches) return feature;
+		if (label_matches)
+			return feature;
 	}
+
 	return nullptr;
 }
 
-void LMSensorsDriver::parse_error_callback(const char *err, int line_no) {
+
+void LMSensorsDriver::parse_error_callback(const char *err, int line_no)
+{
 	log(TF_ERR) << "LM sensors parsing error: " << err << " in line "
 		<< std::to_string(line_no);
 }
 
-void LMSensorsDriver::parse_error_wfn_callback(
-	const char *err, const char *file_name, int line_no)
+
+void LMSensorsDriver::parse_error_wfn_callback(const char *err, const char *file_name, int line_no)
 {
 	log(TF_ERR) << "LM sensors parsing error: " << err << " in file '"
 		<< file_name << "' at line " << std::to_string(line_no);
 }
 
-void LMSensorsDriver::fatal_error_callback(const char *proc, const char *err) {
+
+void LMSensorsDriver::fatal_error_callback(const char *proc, const char *err)
+{
 	log(TF_ERR) << "LM sensors fatal error in " << proc << ": " << err;
 	exit(EXIT_FAILURE);
 }
 
-void LMSensorsDriver::read_temps_(TemperatureState &global_temps) const {
+
+void LMSensorsDriver::read_temps_(TemperatureState &global_temps) const
+{
 	size_t len = sub_features_.size();
 	for (size_t i = 0; i < len; ++i) {
 		auto sub_feature = sub_features_[i];
@@ -523,5 +545,6 @@ void LMSensorsDriver::read_temps_(TemperatureState &global_temps) const {
 }
 
 #endif /* USE_LM_SENSORS */
+
 
 }

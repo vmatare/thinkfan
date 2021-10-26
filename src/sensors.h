@@ -161,13 +161,16 @@ protected:
 
 	// LM sensors helpers.
 	static void ensure_lm_sensors_is_initialized();
-	static void initialize_lm_sensors(int* result);
-	static const ::sensors_chip_name* find_chip_by_name(
-		const string& chip_name);
-	static const ::sensors_feature* find_feature_by_name(
-		const ::sensors_chip_name& chip, const string& chip_name,
-		const string& feature_name);
-	static string get_chip_name(const ::sensors_chip_name& chip);
+	static void initialize_lm_sensors(int *result);
+	static const ::sensors_chip_name *find_chip_by_name(const string& chip_name);
+
+	static const ::sensors_feature *find_feature_by_name(
+		const ::sensors_chip_name &chip,
+		const string &chip_name,
+		const string &feature_name
+	);
+
+	static string get_chip_name(const ::sensors_chip_name &chip);
 
 	// LM sensors call backs.
 	static void parse_error_callback(const char *err, int line_no);
