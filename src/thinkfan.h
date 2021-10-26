@@ -60,6 +60,21 @@ typedef std::fstream fstream;
 typedef std::chrono::duration<unsigned int> seconds;
 typedef std::chrono::duration<double> secondsf;
 
+template<typename T>
+using vector = std::vector<T>;
+
+template<typename T>
+using shared_ptr = std::shared_ptr<T>;
+
+template<typename T>
+using unique_ptr = std::unique_ptr<T>;
+
+template<typename T1, typename T2>
+using pair = std::pair<T1, T2>;
+
+template<typename T>
+using numeric_limits = std::numeric_limits<T>;
+
 
 class TemperatureState {
 public:
@@ -67,20 +82,20 @@ public:
 	void restart();
 	void add_temp(int t);
 
-	const std::vector<int> &biased_temps() const;
-	const std::vector<int> &temps() const;
-	const std::vector<float> &biases() const;
+	const vector<int> &biased_temps() const;
+	const vector<int> &temps() const;
+	const vector<float> &biases() const;
 	bool complete() const;
 	void init();
 private:
-	std::vector<int> temps_;
-	std::vector<float> biases_;
-	std::vector<int> biased_temps_;
-	std::vector<int>::iterator temp_;
-	std::vector<float>::iterator bias_;
-	std::vector<int>::iterator biased_temp_;
+	vector<int> temps_;
+	vector<float> biases_;
+	vector<int> biased_temps_;
+	vector<int>::iterator temp_;
+	vector<float>::iterator bias_;
+	vector<int>::iterator biased_temp_;
 public:
-	std::vector<int>::const_iterator tmax;
+	vector<int>::const_iterator tmax;
 };
 
 
@@ -120,7 +135,7 @@ extern bool dnd_disk;
 extern seconds sleeptime, tmp_sleeptime;
 extern float bias_level;
 extern std::atomic<int> interrupted;
-extern std::vector<string> config_files;
+extern vector<string> config_files;
 extern float depulse;
 extern std::atomic<unsigned char> tolerate_errors;
 

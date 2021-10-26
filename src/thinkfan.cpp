@@ -58,9 +58,9 @@ std::condition_variable sleep_cond;
 std::mutex sleep_mutex;
 
 #ifdef USE_YAML
-std::vector<string> config_files { DEFAULT_YAML_CONFIG, DEFAULT_CONFIG };
+vector<string> config_files { DEFAULT_YAML_CONFIG, DEFAULT_CONFIG };
 #else
-std::vector<std::string> config_files { DEFAULT_CONFIG };
+vector<std::string> config_files { DEFAULT_CONFIG };
 #endif
 
 std::atomic<int> interrupted(0);
@@ -101,10 +101,10 @@ void sig_handler(int signum) {
 }
 
 
-static inline void read_temps(const std::vector<std::unique_ptr<SensorDriver>> &sensors)
+static inline void read_temps(const vector<unique_ptr<SensorDriver>> &sensors)
 {
 	temp_state.restart();
-	for (const std::unique_ptr<SensorDriver> &sensor : sensors)
+	for (const unique_ptr<SensorDriver> &sensor : sensors)
 		sensor->read_temps(temp_state);
 }
 
@@ -172,7 +172,7 @@ int set_options(int argc, char **argv)
 			break;
 #endif
 		case 'c':
-			config_files = std::vector<string>({optarg});
+			config_files = vector<string>({optarg});
 			break;
 		case 'q':
 			--Logger::instance().log_lvl();
@@ -376,15 +376,15 @@ bool TemperatureState::complete() const
 { return temp_ == temps_.end(); }
 
 
-const std::vector<int> & TemperatureState::biased_temps() const
+const vector<int> & TemperatureState::biased_temps() const
 { return biased_temps_; }
 
 
-const std::vector<int> & TemperatureState::temps() const
+const vector<int> & TemperatureState::temps() const
 { return temps_; }
 
 
-const std::vector<float> & TemperatureState::biases() const
+const vector<float> & TemperatureState::biases() const
 { return biases_; }
 
 
@@ -403,7 +403,7 @@ int main(int argc, char **argv) {
 
 	struct sigaction handler;
 #if defined(PID_FILE)
-	std::unique_ptr<PidFileHolder> pid_file;
+	unique_ptr<PidFileHolder> pid_file;
 #endif
 
 	if (!isatty(fileno(stdout))) {
@@ -453,7 +453,7 @@ int main(int argc, char **argv) {
 				// Test the config before forking
 				LogLevel old_lvl = Logger::instance().log_lvl();
 				Logger::instance().log_lvl() = TF_ERR;
-				std::unique_ptr<const Config> test_cfg(Config::read_config(config_files));
+				unique_ptr<const Config> test_cfg(Config::read_config(config_files));
 				temp_state = TemperatureState(test_cfg->num_temps());
 				temp_state.init();
 				test_cfg->init_fans();
@@ -487,7 +487,7 @@ int main(int argc, char **argv) {
 #endif
 
 		// Load the config for real after forking & enabling syslog
-		std::unique_ptr<const Config> config(Config::read_config(config_files));
+		unique_ptr<const Config> config(Config::read_config(config_files));
 
 		temp_state = TemperatureState(config->num_temps());
 
@@ -498,7 +498,7 @@ int main(int argc, char **argv) {
 			if (interrupted == SIGHUP) {
 				log(TF_NFY) << MSG_RELOAD_CONF << flush;
 				try {
-					std::unique_ptr<const Config> config_new(Config::read_config(config_files));
+					unique_ptr<const Config> config_new(Config::read_config(config_files));
 					config.swap(config_new);
 				} catch(ExpectedError &) {
 					log(TF_ERR) << MSG_CONF_RELOAD_ERR << flush;

@@ -17,7 +17,6 @@
 namespace YAML {
 
 using namespace thinkfan;
-using namespace std;
 
 static const string kw_sensors("sensors");
 static const string kw_fans("fans");
@@ -553,7 +552,7 @@ struct convert<vector<wtf_ptr<FanConfig>>> {
 
 				for (unique_ptr<FanDriver> &fan_drv : fan_drivers) {
 					stepwise_mappings.push_back(
-						make_unique<StepwiseMapping>(std::move(fan_drv))
+						std::make_unique<StepwiseMapping>(std::move(fan_drv))
 					);
 				}
 				fan_drivers.clear();
@@ -581,7 +580,7 @@ vector<int> get_limit(const Node &n) {
 		try {
 			int i = m.as<int>();
 			if (i == numeric_limits<int>::min())
-				throw YamlError(get_mark_compat(m), to_string(i) + " is not a valid temperature limit");
+				throw YamlError(get_mark_compat(m), std::to_string(i) + " is not a valid temperature limit");
 			rv.push_back(i);
 		} catch (BadConversion &) {
 			string s = m.as<string>();

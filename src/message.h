@@ -54,7 +54,7 @@ class FanConfig;
 class Logger {
 private:
 	Logger();
-	static std::unique_ptr<Logger> instance_;
+	static unique_ptr<Logger> instance_;
 public:
 	~Logger();
 	void enable_syslog();
@@ -72,7 +72,7 @@ public:
 	Logger &operator<< (char *msg);
 
 	Logger &operator<< (const TemperatureState &);
-	Logger &operator<< (const std::vector<std::unique_ptr<FanConfig>> &);
+	Logger &operator<< (const vector<unique_ptr<FanConfig>> &);
 
 	template<class ListT>
 	Logger &operator<< (const ListT &l) {

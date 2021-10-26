@@ -29,7 +29,7 @@
 
 namespace thinkfan {
 
-std::unique_ptr<Logger> Logger::instance_(nullptr);
+unique_ptr<Logger> Logger::instance_(nullptr);
 
 
 LogLevel &operator--(LogLevel &l)
@@ -69,7 +69,7 @@ Logger::Logger()
 
 Logger &Logger::instance()
 {
-	if (!instance_) instance_ = std::unique_ptr<Logger>(new Logger());
+	if (!instance_) instance_ = unique_ptr<Logger>(new Logger());
 	return *instance_;
 }
 
@@ -171,8 +171,8 @@ Logger &Logger::operator<< (const TemperatureState &ts)
 {
 	msg_pfx_ += "Temperatures(bias): ";
 
-	std::vector<float>::const_iterator bias_it;
-	std::vector<int>::const_iterator temp_it;
+	vector<float>::const_iterator bias_it;
+	vector<int>::const_iterator temp_it;
 
 	for (temp_it = ts.temps().cbegin(), bias_it = ts.biases().cbegin();
 			temp_it != ts.temps().cend() && bias_it != ts.biases().cend();
@@ -184,10 +184,10 @@ Logger &Logger::operator<< (const TemperatureState &ts)
 }
 
 
-Logger &Logger::operator<< (const std::vector<std::unique_ptr<FanConfig>> &fan_configs)
+Logger &Logger::operator<< (const vector<unique_ptr<FanConfig>> &fan_configs)
 {
 	msg_pfx_ += "Fans: ";
-	for (const std::unique_ptr<FanConfig> &fan_cf : fan_configs)
+	for (const unique_ptr<FanConfig> &fan_cf : fan_configs)
 		msg_pfx_ += fan_cf->fan()->current_speed() + ", ";
 
 	msg_pfx_.pop_back(); msg_pfx_.pop_back();

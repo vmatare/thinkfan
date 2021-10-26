@@ -32,8 +32,6 @@
 
 namespace thinkfan {
 
-using namespace std;
-
 class SimpleLevel;
 class ComplexLevel;
 class Config;
@@ -115,20 +113,20 @@ public:
 };
 
 
-class IntListParser : public Parser<std::vector<int>> {
+class IntListParser : public Parser<vector<int>> {
 private:
 	IntParser int_parser_;
 	RegexParser dot_parser_;
 	bool allow_dot_;
 public:
 	IntListParser(bool allow_dot = false);
-	virtual std::vector<int> *_parse(const char *&input) override;
+	virtual vector<int> *_parse(const char *&input) override;
 };
 
 
 class EnclosureParser : public Parser<string> {
 public:
-	EnclosureParser(initializer_list<string> bracket_pairs, bool nl = true);
+	EnclosureParser(std::initializer_list<string> bracket_pairs, bool nl = true);
 	virtual string *_parse(const char *&input) override;
 
 	bool open(const char *&input);

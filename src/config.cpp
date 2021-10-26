@@ -37,7 +37,7 @@
 namespace thinkfan {
 
 
-FanConfig::FanConfig(std::unique_ptr<FanDriver> &&fan_drv)
+FanConfig::FanConfig(unique_ptr<FanDriver> &&fan_drv)
 : fan_(std::move(fan_drv))
 {}
 
@@ -49,11 +49,11 @@ void FanConfig::set_fan(unique_ptr<FanDriver> &&fan)
 
 
 
-StepwiseMapping::StepwiseMapping(std::unique_ptr<FanDriver> &&fan_drv)
+StepwiseMapping::StepwiseMapping(unique_ptr<FanDriver> &&fan_drv)
 : FanConfig(std::move(fan_drv))
 {}
 
-const std::vector<unique_ptr<Level>> &StepwiseMapping::levels() const
+const vector<unique_ptr<Level>> &StepwiseMapping::levels() const
 { return levels_; }
 
 void StepwiseMapping::init_fanspeed(const TemperatureState &ts)
@@ -108,7 +108,7 @@ void StepwiseMapping::ensure_consistency(const Config &config) const
 }
 
 
-void StepwiseMapping::add_level(std::unique_ptr<Level> &&level)
+void StepwiseMapping::add_level(unique_ptr<Level> &&level)
 {
 	if (levels_.size() > 0) {
 		const unique_ptr<Level> &last_lvl = levels_.back();
@@ -120,7 +120,7 @@ void StepwiseMapping::add_level(std::unique_ptr<Level> &&level)
 		if (last_lvl->upper_limit().size() != level->upper_limit().size())
 			error<ConfigError>(MSG_CONF_LVLORDER);
 
-		for (std::vector<int>::const_iterator mit = last_lvl->upper_limit().begin(), oit = level->lower_limit().begin();
+		for (vector<int>::const_iterator mit = last_lvl->upper_limit().begin(), oit = level->lower_limit().begin();
 				mit != last_lvl->upper_limit().end() && oit != level->lower_limit().end();
 				++mit, ++oit)
 		{
@@ -139,7 +139,7 @@ Config::Config()
 {}
 
 
-const Config *Config::read_config(const std::vector<string> &filenames)
+const Config *Config::read_config(const vector<string> &filenames)
 {
 	const Config *rv = nullptr;
 	for (auto it = filenames.begin(); it != filenames.end(); ++it) {
@@ -233,7 +233,7 @@ void Config::ensure_consistency() const
 	if (fan_configs().empty())
 		throw ConfigError("No fans are configured in " + src_file);
 
-	for (const std::unique_ptr<FanConfig> &fan_cfg : fan_configs())
+	for (const unique_ptr<FanConfig> &fan_cfg : fan_configs())
 		try {
 			fan_cfg->ensure_consistency(*this);
 		} catch (ConfigError &err) {
@@ -247,7 +247,7 @@ void Config::ensure_consistency() const
 
 
 
-void Config::add_sensor(std::unique_ptr<SensorDriver> &&sensor)
+void Config::add_sensor(unique_ptr<SensorDriver> &&sensor)
 {
 	num_temps_ += sensor->num_temps();
 	sensors_.push_back(std::move(sensor));
@@ -256,40 +256,40 @@ void Config::add_sensor(std::unique_ptr<SensorDriver> &&sensor)
 unsigned int Config::num_temps() const
 { return num_temps_; }
 
-const std::vector<unique_ptr<SensorDriver>> &Config::sensors() const
+const vector<unique_ptr<SensorDriver>> &Config::sensors() const
 { return sensors_; }
 
-const std::vector<std::unique_ptr<FanConfig>> &Config::fan_configs() const
+const vector<unique_ptr<FanConfig>> &Config::fan_configs() const
 { return temp_mappings_; }
 
-void Config::add_fan_config(std::unique_ptr<FanConfig> &&fan_cfg)
+void Config::add_fan_config(unique_ptr<FanConfig> &&fan_cfg)
 { temp_mappings_.push_back(std::move(fan_cfg)); }
 
 
 void Config::init_fans() const
 {
-	for (const std::unique_ptr<FanConfig> &fan_cfg : fan_configs())
+	for (const unique_ptr<FanConfig> &fan_cfg : fan_configs())
 		fan_cfg->fan()->init();
 }
 
 
 
 Level::Level(int level, int lower_limit, int upper_limit)
-: Level(level, std::vector<int>(1, lower_limit), std::vector<int>(1, upper_limit))
+: Level(level, vector<int>(1, lower_limit), vector<int>(1, upper_limit))
 {}
 
 Level::Level(string level, int lower_limit, int upper_limit)
-: Level(level, std::vector<int>(1, lower_limit), std::vector<int>(1, upper_limit))
+: Level(level, vector<int>(1, lower_limit), vector<int>(1, upper_limit))
 {}
 
-Level::Level(int level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit)
+Level::Level(int level, const vector<int> &lower_limit, const vector<int> &upper_limit)
 : level_s_("level " + std::to_string(level)),
   level_n_(level),
   lower_limit_(lower_limit),
   upper_limit_(upper_limit)
 {}
 
-Level::Level(string level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit)
+Level::Level(string level, const vector<int> &lower_limit, const vector<int> &upper_limit)
 : level_s_(level),
   level_n_(string_to_int(level_s_)),
   lower_limit_(lower_limit),
@@ -298,7 +298,7 @@ Level::Level(string level, const std::vector<int> &lower_limit, const std::vecto
 	if (lower_limit.size() != upper_limit.size())
 		error<ConfigError>(MSG_CONF_LIMITLEN);
 
-	for (std::vector<int>::const_iterator l_it = lower_limit.begin(), u_it = upper_limit.begin();
+	for (vector<int>::const_iterator l_it = lower_limit.begin(), u_it = upper_limit.begin();
 			l_it != lower_limit.end() && u_it != upper_limit.end();
 			++u_it, ++l_it) {
 		if (*l_it != numeric_limits<int>::max() && *l_it >= *u_it)
@@ -323,10 +323,10 @@ int Level::string_to_int(string &level) {
 	return rv;
 }
 
-const std::vector<int> &Level::lower_limit() const
+const vector<int> &Level::lower_limit() const
 { return lower_limit_; }
 
-const std::vector<int> &Level::upper_limit() const
+const vector<int> &Level::upper_limit() const
 { return upper_limit_; }
 
 const string &Level::str() const
@@ -356,19 +356,19 @@ void SimpleLevel::ensure_consistency(const Config &) const
 
 
 
-ComplexLevel::ComplexLevel(int level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit)
+ComplexLevel::ComplexLevel(int level, const vector<int> &lower_limit, const vector<int> &upper_limit)
 : Level(level, lower_limit, upper_limit)
 {}
 
 
-ComplexLevel::ComplexLevel(string level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit)
+ComplexLevel::ComplexLevel(string level, const vector<int> &lower_limit, const vector<int> &upper_limit)
 : Level(level, lower_limit, upper_limit)
 {}
 
 
 bool ComplexLevel::up(const TemperatureState &temp_state) const
 {
-	std::vector<int>::const_iterator temp_it = temp_state.biased_temps().begin();
+	vector<int>::const_iterator temp_it = temp_state.biased_temps().begin();
 	auto upper_it = upper_limit().begin();
 
 	while (temp_it != temp_state.biased_temps().end())
@@ -416,7 +416,7 @@ void ComplexLevel::ensure_consistency(const Config &cfg) const
 	);
 }
 
-string ComplexLevel::format_limit(const std::vector<int> &limit)
+string ComplexLevel::format_limit(const vector<int> &limit)
 {
 	return "[" + std::accumulate(
 		std::next(limit.begin()),

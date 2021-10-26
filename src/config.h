@@ -39,32 +39,32 @@ class Config;
 
 class FanConfig {
 public:
-	FanConfig(std::unique_ptr<FanDriver> && = nullptr);
+	FanConfig(unique_ptr<FanDriver> && = nullptr);
 	virtual ~FanConfig() = default;
 	virtual void init_fanspeed(const TemperatureState &) = 0;
 	virtual bool set_fanspeed(const TemperatureState &) = 0;
 	virtual void ensure_consistency(const Config &) const = 0;
-	void set_fan(std::unique_ptr<FanDriver> &&);
-	const std::unique_ptr<FanDriver> &fan() const;
+	void set_fan(unique_ptr<FanDriver> &&);
+	const unique_ptr<FanDriver> &fan() const;
 
 private:
-	std::unique_ptr<FanDriver> fan_;
+	unique_ptr<FanDriver> fan_;
 };
 
 
 class StepwiseMapping : public FanConfig {
 public:
-	StepwiseMapping(std::unique_ptr<FanDriver> && = nullptr);
+	StepwiseMapping(unique_ptr<FanDriver> && = nullptr);
 	virtual ~StepwiseMapping() override = default;
 	virtual void init_fanspeed(const TemperatureState &) override;
 	virtual bool set_fanspeed(const TemperatureState &) override;
 	virtual void ensure_consistency(const Config &) const override;
-	void add_level(std::unique_ptr<Level> &&level);
-	const std::vector<std::unique_ptr<Level>> &levels() const;
+	void add_level(unique_ptr<Level> &&level);
+	const vector<unique_ptr<Level>> &levels() const;
 
 private:
-	std::vector<std::unique_ptr<Level>> levels_;
-	std::vector<std::unique_ptr<Level>>::const_iterator cur_lvl_;
+	vector<unique_ptr<Level>> levels_;
+	vector<unique_ptr<Level>>::const_iterator cur_lvl_;
 };
 
 
@@ -72,18 +72,18 @@ class Level {
 protected:
 	string level_s_;
 	int level_n_;
-	std::vector<int> lower_limit_;
-	std::vector<int> upper_limit_;
+	vector<int> lower_limit_;
+	vector<int> upper_limit_;
 public:
 	Level(int level, int lower_limit, int upper_limit);
 	Level(string level, int lower_limit, int upper_limit);
-	Level(int level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit);
-	Level(string level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit);
+	Level(int level, const vector<int> &lower_limit, const vector<int> &upper_limit);
+	Level(string level, const vector<int> &lower_limit, const vector<int> &upper_limit);
 
 	virtual ~Level() = default;
 
-	const std::vector<int> &lower_limit() const;
-	const std::vector<int> &upper_limit() const;
+	const vector<int> &lower_limit() const;
+	const vector<int> &upper_limit() const;
 
 	virtual bool up(const TemperatureState &) const = 0;
 	virtual bool down(const TemperatureState &) const = 0;
@@ -110,14 +110,14 @@ public:
 
 class ComplexLevel : public Level {
 public:
-	ComplexLevel(int level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit);
-	ComplexLevel(string level, const std::vector<int> &lower_limit, const std::vector<int> &upper_limit);
+	ComplexLevel(int level, const vector<int> &lower_limit, const vector<int> &upper_limit);
+	ComplexLevel(string level, const vector<int> &lower_limit, const vector<int> &upper_limit);
 	virtual bool up(const TemperatureState &) const override;
 	virtual bool down(const TemperatureState &) const override;
 	virtual void ensure_consistency(const Config &) const override;
 
 private:
-	static string format_limit(const std::vector<int> &limit);
+	static string format_limit(const vector<int> &limit);
 };
 
 
@@ -127,15 +127,15 @@ public:
 	// Not trivially copyable since it holds raw pointers to levels, drivers and fans.
 	Config(const Config &) = delete;
 	~Config() = default;
-	static const Config *read_config(const std::vector<string> &filenames);
-	void add_sensor(std::unique_ptr<SensorDriver> &&sensor);
-	void add_fan_config(std::unique_ptr<FanConfig> &&fan_cfg);
+	static const Config *read_config(const vector<string> &filenames);
+	void add_sensor(unique_ptr<SensorDriver> &&sensor);
+	void add_fan_config(unique_ptr<FanConfig> &&fan_cfg);
 	void ensure_consistency() const;
 	void init_fans() const;
 
 	unsigned int num_temps() const;
-	const std::vector<std::unique_ptr<SensorDriver>> &sensors() const;
-	const std::vector<std::unique_ptr<FanConfig>> &fan_configs() const;
+	const vector<unique_ptr<SensorDriver>> &sensors() const;
+	const vector<unique_ptr<FanConfig>> &fan_configs() const;
 
 	// No copy assignment operator either (not required).
 	Config &operator = (const Config &) = delete;
@@ -143,8 +143,8 @@ public:
 	string src_file;
 private:
 	static const Config *try_read_config(const string &data);
-	std::vector<std::unique_ptr<SensorDriver>> sensors_;
-	std::vector<std::unique_ptr<FanConfig>> temp_mappings_;
+	vector<unique_ptr<SensorDriver>> sensors_;
+	vector<unique_ptr<FanConfig>> temp_mappings_;
 	unsigned int num_temps_;
 };
 

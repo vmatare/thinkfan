@@ -40,7 +40,7 @@ namespace thinkfan {
 | SensorDriver: The superclass of all hardware-specific sensor drivers       |
 ----------------------------------------------------------------------------*/
 
-SensorDriver::SensorDriver(std::string path, bool optional, std::vector<int> correction)
+SensorDriver::SensorDriver(std::string path, bool optional, vector<int> correction)
 : path_(path),
   correction_(correction),
   num_temps_(0),
@@ -62,7 +62,7 @@ SensorDriver::~SensorDriver() noexcept(false)
 {}
 
 
-void SensorDriver::set_correction(const std::vector<int> &correction)
+void SensorDriver::set_correction(const vector<int> &correction)
 {
 	correction_ = correction;
 	check_correction_length();
@@ -110,7 +110,7 @@ const string &SensorDriver::path() const
 | typically somewhere in sysfs.                                              |
 ----------------------------------------------------------------------------*/
 
-HwmonSensorDriver::HwmonSensorDriver(std::string path, bool optional, std::vector<int> correction)
+HwmonSensorDriver::HwmonSensorDriver(std::string path, bool optional, vector<int> correction)
 : SensorDriver(path, optional, correction)
 { set_num_temps(1); }
 
@@ -134,7 +134,7 @@ void HwmonSensorDriver::read_temps_(TemperatureState &global_temps) const
 
 const string TpSensorDriver::skip_prefix_("temperatures:");
 
-TpSensorDriver::TpSensorDriver(std::string path, bool optional, const std::vector<unsigned int> &temp_indices, std::vector<int> correction)
+TpSensorDriver::TpSensorDriver(std::string path, bool optional, const vector<unsigned int> &temp_indices, vector<int> correction)
 : SensorDriver(path, optional, correction)
 {
 	std::ifstream f(path_);
@@ -173,18 +173,18 @@ TpSensorDriver::TpSensorDriver(std::string path, bool optional, const std::vecto
 
 		set_num_temps(static_cast<unsigned int>(temp_indices.size()));
 
-		in_use_ = std::vector<bool>(count, false);
+		in_use_ = vector<bool>(count, false);
 		for (unsigned int i : temp_indices)
 			in_use_[i] = true;
 	}
 	else {
-		in_use_ = std::vector<bool>(count, true);
+		in_use_ = vector<bool>(count, true);
 		set_num_temps(count);
 	}
 }
 
 
-TpSensorDriver::TpSensorDriver(std::string path, bool optional, std::vector<int> correction)
+TpSensorDriver::TpSensorDriver(std::string path, bool optional, vector<int> correction)
 	: TpSensorDriver(path, optional, {}, correction)
 {}
 
@@ -218,7 +218,7 @@ void TpSensorDriver::read_temps_(TemperatureState &global_temps) const
 | via device files like /dev/sda.                                            |
 ----------------------------------------------------------------------------*/
 
-AtasmartSensorDriver::AtasmartSensorDriver(string device_path, bool optional, std::vector<int> correction)
+AtasmartSensorDriver::AtasmartSensorDriver(string device_path, bool optional, vector<int> correction)
 : SensorDriver(device_path, optional, correction)
 {
 	if (sk_disk_open(device_path.c_str(), &disk_) < 0) {
@@ -277,7 +277,7 @@ void AtasmartSensorDriver::read_temps_(TemperatureState &global_temps) const
 | nVidia Management Library that is included with the proprietary driver.    |
 ----------------------------------------------------------------------------*/
 
-NvmlSensorDriver::NvmlSensorDriver(string bus_id, bool optional, std::vector<int> correction)
+NvmlSensorDriver::NvmlSensorDriver(string bus_id, bool optional, vector<int> correction)
 : SensorDriver(optional),
   dl_nvmlInit_v2(nullptr),
   dl_nvmlDeviceGetHandleByPciBusId_v2(nullptr),

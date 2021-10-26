@@ -11,16 +11,16 @@
 
 namespace YAML {
 
-using namespace std;
+using namespace thinkfan;
 
 /**
  * This is the glorious wtf_ptr which unifies shared_ptr semantics with
  * the unique_ptr's ability to release(), i.e. relinquish ownership.
  * This weird hack is required since yaml-cpp cannot deal with non-copyable types like
- * std::unique_ptr. I'm sorry.
+ * unique_ptr. I'm sorry.
  */
 template<typename T>
-class wtf_ptr : public shared_ptr<unique_ptr<T>>, public enable_shared_from_this<unique_ptr<T>> {
+class wtf_ptr : public shared_ptr<unique_ptr<T>>, public std::enable_shared_from_this<unique_ptr<T>> {
 public:
 	using shared_ptr<unique_ptr<T>>::shared_ptr;
 
