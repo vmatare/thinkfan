@@ -15,7 +15,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: install-deps
-      run: sudo apt install libyaml-cpp-dev libatasmart-dev cmake libsensors-dev
+      run: sudo apt install libyaml-cpp-dev libatasmart-dev cmake libsensors4-dev
     - name: build
       run: |
         mkdir build
