@@ -372,7 +372,7 @@ LMSensorsDriver::LMSensorsDriver(
 	for (size_t i = 0; i < len; ++i) {
 		const string& feature_name = feature_names_[i];
 
-		auto feature = LMSensorsDriver::find_feature_by_name(*chip_, chip_name_, feature_name);
+		auto feature = LMSensorsDriver::find_feature_by_name(*chip_, feature_name);
 		if (!feature) {
 			throw SystemError("LM sensors chip '" + chip_name
 				+ "' does not have the feature '" + feature_name + "'");
@@ -464,7 +464,6 @@ string LMSensorsDriver::get_chip_name(const ::sensors_chip_name& chip) {
 
 const ::sensors_feature* LMSensorsDriver::find_feature_by_name(
 	const ::sensors_chip_name& chip,
-	const string& chip_name,
 	const string& feature_name
 ) {
 	int state = 0;
@@ -474,7 +473,7 @@ const ::sensors_feature* LMSensorsDriver::find_feature_by_name(
 		if (!feature)
 			break;
 
-		auto label = ::sensors_get_label(&chip, feature);
+		char* label = ::sensors_get_label(&chip, feature);
 		bool label_matches = (feature_name == label);
 		free(label);
 
@@ -503,6 +502,12 @@ void LMSensorsDriver::parse_error_wfn_callback(const char *err, const char *file
 void LMSensorsDriver::fatal_error_callback(const char *proc, const char *err)
 {
 	log(TF_ERR) << "LM sensors fatal error in " << proc << ": " << err;
+
+	// libsensors documentation for sensors_fatal_error() requires this
+	// function to never return.
+	//
+	// We can also consider calling abort() in order to generate a core dump
+	// in addition to reporting failure.
 	exit(EXIT_FAILURE);
 }
 

@@ -166,7 +166,6 @@ protected:
 
 	static const ::sensors_feature *find_feature_by_name(
 		const ::sensors_chip_name &chip,
-		const string &chip_name,
 		const string &feature_name
 	);
 
