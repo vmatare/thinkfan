@@ -408,9 +408,9 @@ void LMSensorsDriver::ensure_lm_sensors_is_initialized() {
 }
 
 void LMSensorsDriver::initialize_lm_sensors(int* result) {
-	::sensors_parse_error = LMSensorsDriver::parse_error_call_back;
-	::sensors_parse_error_wfn = LMSensorsDriver::parse_error_wfn_call_back;
-	::sensors_fatal_error = LMSensorsDriver::fatal_error_call_back;
+	::sensors_parse_error = LMSensorsDriver::parse_error_callback;
+	::sensors_parse_error_wfn = LMSensorsDriver::parse_error_wfn_callback;
+	::sensors_fatal_error = LMSensorsDriver::fatal_error_callback;
 
 	if ((*result = ::sensors_init(nullptr)) == 0) {
 		atexit(::sensors_cleanup);
@@ -469,19 +469,19 @@ const ::sensors_feature* LMSensorsDriver::find_feature_by_name(
 	return nullptr;
 }
 
-void LMSensorsDriver::parse_error_call_back(const char *err, int line_no) {
+void LMSensorsDriver::parse_error_callback(const char *err, int line_no) {
 	log(TF_ERR) << "LM sensors parsing error: " << err << " in line "
 		<< std::to_string(line_no);
 }
 
-void LMSensorsDriver::parse_error_wfn_call_back(
+void LMSensorsDriver::parse_error_wfn_callback(
 	const char *err, const char *file_name, int line_no)
 {
 	log(TF_ERR) << "LM sensors parsing error: " << err << " in file '"
 		<< file_name << "' at line " << std::to_string(line_no);
 }
 
-void LMSensorsDriver::fatal_error_call_back(const char *proc, const char *err) {
+void LMSensorsDriver::fatal_error_callback(const char *proc, const char *err) {
 	log(TF_ERR) << "LM sensors fatal error in " << proc << ": " << err;
 	exit(EXIT_FAILURE);
 }

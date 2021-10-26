@@ -170,9 +170,9 @@ protected:
 	static string get_chip_name(const ::sensors_chip_name& chip);
 
 	// LM sensors call backs.
-	static void parse_error_call_back(const char *err, int line_no);
-	static void parse_error_wfn_call_back(const char *err, const char *file_name, int line_no);
-	static void fatal_error_call_back(const char *proc, const char *err);
+	static void parse_error_callback(const char *err, int line_no);
+	static void parse_error_wfn_callback(const char *err, const char *file_name, int line_no);
+	static void fatal_error_callback(const char *proc, const char *err);
 
 private:
 	const string chip_name_;
