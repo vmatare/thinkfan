@@ -500,7 +500,7 @@ void LMSensorsDriver::fatal_error_callback(const char *proc, const char *err)
 	//
 	// We can also consider calling abort() in order to generate a core dump
 	// in addition to reporting failure.
-	exit(EXIT_FAILURE);
+	abort();
 }
 
 
