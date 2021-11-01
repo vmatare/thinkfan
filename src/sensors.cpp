@@ -364,27 +364,23 @@ LMSensorsDriver::LMSensorsDriver(
   chip_(nullptr),
   feature_names_(feature_names)
 {
-	LMSensorsDriver::ensure_lm_sensors_is_initialized();
+	std::call_once(lm_sensors_once_init_, initialize_lm_sensors);
+
 	chip_ = LMSensorsDriver::find_chip_by_name(chip_name_);
 	path_ = chip_->path;
 
-	size_t len = feature_names_.size();
-	for (size_t i = 0; i < len; ++i) {
-		const string& feature_name = feature_names_[i];
-
+	for (const string& feature_name : feature_names_) {
 		auto feature = LMSensorsDriver::find_feature_by_name(*chip_, feature_name);
-		if (!feature) {
+		if (!feature)
 			throw SystemError("LM sensors chip '" + chip_name
 				+ "' does not have the feature '" + feature_name + "'");
-		}
 		features_.push_back(feature);
 
 		auto sub_feature = ::sensors_get_subfeature(chip_, feature, ::SENSORS_SUBFEATURE_TEMP_INPUT);
-		if (!sub_feature) {
-			throw SystemError("LM sensors feature '" + feature_name
+		if (!sub_feature)
+			throw SystemError("LM sensors feature ID '" + feature_name
 				+ "' of the chip '" + chip_name_
 				+ "' does not have a temperature input sensor");
-		}
 		sub_features_.push_back(sub_feature);
 
 		log(TF_DBG) << "Initialized LM sensors temperature input of feature '"
@@ -403,31 +399,26 @@ LMSensorsDriver::~LMSensorsDriver()
 {}
 
 
-void LMSensorsDriver::ensure_lm_sensors_is_initialized() {
-	int r = 0;
-	std::call_once(LMSensorsDriver::lm_sensors_once_init_, LMSensorsDriver::initialize_lm_sensors, &r);
-	if (r != 0) {
-		const char *msg = ::sensors_strerror(r);
-		throw SystemError(string("Failed to initialize LM sensors driver: ") + msg);
-	}
-}
-
-
-void LMSensorsDriver::initialize_lm_sensors(int* result) {
+void LMSensorsDriver::initialize_lm_sensors()
+{
 	::sensors_parse_error = LMSensorsDriver::parse_error_callback;
 	::sensors_parse_error_wfn = LMSensorsDriver::parse_error_wfn_callback;
 	::sensors_fatal_error = LMSensorsDriver::fatal_error_callback;
 
-	if (!(*result = ::sensors_init(nullptr)))
-		atexit(::sensors_cleanup);
+	int err;
+	if ((err = ::sensors_init(nullptr))) {
+		const char *msg = ::sensors_strerror(err);
+		throw SystemError(string("Failed to initialize LM sensors driver: ") + msg);
+	}
 
+	atexit(::sensors_cleanup);
 	log(TF_DBG) << "Initialized LM sensors." << flush;
 }
 
 
 const ::sensors_chip_name* LMSensorsDriver::find_chip_by_name(
-	const string& chip_name)
-{
+	const string& chip_name
+) {
 	int state = 0;
 	for (;;) {
 		auto chip = ::sensors_get_detected_chips(nullptr, &state);
@@ -442,7 +433,8 @@ const ::sensors_chip_name* LMSensorsDriver::find_chip_by_name(
 }
 
 
-string LMSensorsDriver::get_chip_name(const ::sensors_chip_name& chip) {
+string LMSensorsDriver::get_chip_name(const ::sensors_chip_name& chip)
+{
 	int len = sensors_snprintf_chip_name(nullptr, 0, &chip);
 	if (len < 0) {
 		const char *msg = ::sensors_strerror(len);
@@ -450,15 +442,15 @@ string LMSensorsDriver::get_chip_name(const ::sensors_chip_name& chip) {
 	}
 
 	vector<char> buffer(len + 1);
-	int r = sensors_snprintf_chip_name(buffer.data(), size_t(len + 1), &chip);
-	if (r < 0) {
-		const char *msg = ::sensors_strerror(r);
+	int w_sz = sensors_snprintf_chip_name(buffer.data(), size_t(len + 1), &chip);
+	if (w_sz < 0) {
+		const char *msg = ::sensors_strerror(w_sz);
 		throw SystemError(string("Failed to get LM sensors chip name: ") + msg);
-	} else if (r >= (len + 1)) {
+	} else if (w_sz >= (len + 1)) {
 		throw SystemError("LM sensors chip name is too long");
 	}
 
-	return string(buffer.data(), r);
+	return string(buffer.data(), w_sz);
 }
 
 
@@ -473,7 +465,7 @@ const ::sensors_feature* LMSensorsDriver::find_feature_by_name(
 		if (!feature)
 			break;
 
-		char* label = ::sensors_get_label(&chip, feature);
+		char *label = ::sensors_get_label(&chip, feature);
 		bool label_matches = (feature_name == label);
 		free(label);
 
@@ -519,33 +511,30 @@ void LMSensorsDriver::read_temps_(TemperatureState &global_temps) const
 		auto sub_feature = sub_features_[i];
 
 		double real_value = MIN_CELSIUS_TEMP;
-		int r = ::sensors_get_value(chip_, sub_feature->number, &real_value);
-
-		int integer_value;
-		if (r == 0) {
-			integer_value = int(real_value) + correction_[i];
-		} else {
+		int err = ::sensors_get_value(chip_, sub_feature->number, &real_value);
+		if (err) {
 			// NOTICE:
 			// If this happens, then all remaining temperature sources reported
 			// by the current driver instance are skipped.
 			//
 			// Sources of temperatures that are not always available should be
 			// configured on their own "- chip" entry, and marked optional.
-			integer_value = MIN_CELSIUS_TEMP;
-
-			const char *msg = ::sensors_strerror(r);
+			const char *msg = ::sensors_strerror(err);
 			throw SystemError(
 				string("temperature input value of feature '")
 				+ feature_names_[i] + "' of chip '" + chip_name_
 				+ "' is unavailable: " + msg);
 		}
+		else {
+			int integer_value;
+			integer_value = int(real_value) + correction_[i];
+			if (integer_value < MIN_CELSIUS_TEMP) {
+				// Make sure the reported value is physically valid.
+				integer_value = MIN_CELSIUS_TEMP;
+			}
 
-		if (integer_value < MIN_CELSIUS_TEMP) {
-			// Make sure the reported value is physically valid.
-			integer_value = MIN_CELSIUS_TEMP;
+			global_temps.add_temp(integer_value);
 		}
-
-		global_temps.add_temp(integer_value);
 	}
 }
 

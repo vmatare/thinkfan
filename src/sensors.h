@@ -160,8 +160,7 @@ protected:
 	virtual void read_temps_(TemperatureState &global_temps) const override;
 
 	// LM sensors helpers.
-	static void ensure_lm_sensors_is_initialized();
-	static void initialize_lm_sensors(int *result);
+	static void initialize_lm_sensors();
 	static const ::sensors_chip_name *find_chip_by_name(const string& chip_name);
 
 	static const ::sensors_feature *find_feature_by_name(
