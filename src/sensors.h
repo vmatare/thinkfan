@@ -184,6 +184,15 @@ private:
 	std::vector<const ::sensors_subfeature*> sub_features_;
 
 	static std::once_flag lm_sensors_once_init_;
+
+	// Maximum number of attempts to read the value of one sensor when all
+	// previous attempts fail.
+	//
+	// One second elapses before the next attempt, so this implies a maximum
+	// amount of time retrying before reporting an error.
+	//
+	// Zero means "never retry failed sensor readings".
+	static const size_t MAX_SENSOR_READ_ATTEMPTS;
 };
 
 #endif /* USE_LM_SENSORS */

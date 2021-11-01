@@ -350,6 +350,7 @@ void NvmlSensorDriver::read_temps_(TemperatureState &global_temps) const
 // Closest integer value to zero Kelvin.
 static const int MIN_CELSIUS_TEMP = -273;
 
+const size_t LMSensorsDriver::MAX_SENSOR_READ_ATTEMPTS = 30;
 std::once_flag LMSensorsDriver::lm_sensors_once_init_;
 
 
@@ -506,34 +507,51 @@ void LMSensorsDriver::fatal_error_callback(const char *proc, const char *err)
 
 void LMSensorsDriver::read_temps_(TemperatureState &global_temps) const
 {
+	size_t remaining_attempts = 1 + LMSensorsDriver::MAX_SENSOR_READ_ATTEMPTS;
 	size_t len = sub_features_.size();
-	for (size_t i = 0; i < len; ++i) {
-		auto sub_feature = sub_features_[i];
+	for (size_t index = 0; index < len; ) {
+		auto sub_feature = sub_features_[index];
 
 		double real_value = MIN_CELSIUS_TEMP;
 		int err = ::sensors_get_value(chip_, sub_feature->number, &real_value);
 		if (err) {
-			// NOTICE:
-			// If this happens, then all remaining temperature sources reported
-			// by the current driver instance are skipped.
-			//
-			// Sources of temperatures that are not always available should be
-			// configured on their own "- chip" entry, and marked optional.
 			const char *msg = ::sensors_strerror(err);
-			throw SystemError(
-				string("temperature input value of feature '")
-				+ feature_names_[i] + "' of chip '" + chip_name_
-				+ "' is unavailable: " + msg);
+
+			if (!(--remaining_attempts)) {
+				// NOTICE:
+				// If this happens, then all remaining temperature sources
+				// reported by the current driver instance are skipped.
+				//
+				// Sources of temperatures that are not always available should
+				// be configured on their own "- chip" entry, and marked optional.
+				throw SystemError(
+					string("temperature input value of feature '")
+					+ feature_names_[index] + "' of chip '" + chip_name_
+					+ "' is unavailable: " + msg);
+			}
+			else {
+				std::this_thread::sleep_for(std::chrono::seconds(1));
+
+				log(TF_DBG) << "Retrying reading LM sensor '" + feature_names_[index]
+					+ "' of chip '" + chip_name_ + "': " + msg + " (attempt "
+					+ std::to_string(1 + LMSensorsDriver::MAX_SENSOR_READ_ATTEMPTS - remaining_attempts)
+					+ ")" << flush;
+				
+				// Retry reading the same sensor...
+			}
 		}
 		else {
 			int integer_value;
-			integer_value = int(real_value) + correction_[i];
+			integer_value = int(real_value) + correction_[index];
 			if (integer_value < MIN_CELSIUS_TEMP) {
 				// Make sure the reported value is physically valid.
 				integer_value = MIN_CELSIUS_TEMP;
 			}
 
 			global_temps.add_temp(integer_value);
+
+            remaining_attempts = 1 + LMSensorsDriver::MAX_SENSOR_READ_ATTEMPTS;
+            index += 1;
 		}
 	}
 }
