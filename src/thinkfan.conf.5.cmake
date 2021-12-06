@@ -1,4 +1,4 @@
-.TH THINKFAN.CONF 5 "April 2020" "thinkfan 1.2"
+.TH THINKFAN.CONF 5 "December 2021" "thinkfan @THINKFAN_VERSION@"
 .SH NAME
 thinkfan.conf \- YAML-formatted config for
 .BR thinkfan (1)
