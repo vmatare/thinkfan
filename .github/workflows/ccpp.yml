@@ -14,6 +14,8 @@ jobs:
         os: [ubuntu-18.04, ubuntu-20.04]
     steps:
     - uses: actions/checkout@v2
+    - name: fetch tags
+      run: git fetch --tags --force --prune --prune-tags
     - name: install-deps
       run: sudo apt install libyaml-cpp-dev libatasmart-dev cmake
     - name: cmake
