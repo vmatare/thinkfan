@@ -1,5 +1,5 @@
 [Unit]
-Description=Thinkfan, the minimalist fan control program
+Description=thinkfan @THINKFAN_VERSION@
 After=sysinit.target
 After=systemd-modules-load.service
 
