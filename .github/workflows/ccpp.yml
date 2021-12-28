@@ -22,6 +22,7 @@ jobs:
         cmake -B build
     - name: check version
       run: |
+        git diff -- VERSION
         if [[ -n $(git diff -- VERSION) ]]; then
           echo "Error: VERSION file not in sync:"
           git diff -- VERSION
