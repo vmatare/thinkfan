@@ -1,6 +1,8 @@
 project(thinkfan)
 include(GNUInstallDirs)
 
+set(THINKFAN_VERSION 1.4.0)
+
 cmake_minimum_required(VERSION 3.0)
 
 # Generate absolute paths or something
@@ -86,7 +88,7 @@ add_executable(thinkfan ${SRC_FILES})
 if (PID_FILE)
 	target_compile_definitions(thinkfan PRIVATE -DPID_FILE=\"${PID_FILE}\")
 endif()
-target_compile_definitions(thinkfan PRIVATE -DVERSION="1.4.0")
+target_compile_definitions(thinkfan PRIVATE -DVERSION="${THINKFAN_VERSION}")
 
 # std::condition_variable::wait_for doesn't block if not explicitly linked against libpthread
 # https://stackoverflow.com/questions/41394670/c-condition-variable-wait-for-returns-instantly
@@ -140,12 +142,15 @@ if(DISABLE_EXCEPTION_CATCHING)
 	target_compile_definitions(thinkfan PRIVATE -DDISABLE_EXCEPTION_CATCHING)
 endif(DISABLE_EXCEPTION_CATCHING)
 
+configure_file(src/thinkfan.1.cmake thinkfan.1)
+configure_file(src/thinkfan.conf.5.cmake thinkfan.conf.5)
+configure_file(src/thinkfan.conf.legacy.5.cmake thinkfan.conf.legacy.5)
 
 install(TARGETS thinkfan DESTINATION "${CMAKE_INSTALL_SBINDIR}")
 install(FILES COPYING README.md examples/thinkfan.yaml DESTINATION "${CMAKE_INSTALL_DOCDIR}")
-install(FILES src/thinkfan.1 DESTINATION "${CMAKE_INSTALL_MANDIR}/man1")
-install(FILES src/thinkfan.conf.5 DESTINATION "${CMAKE_INSTALL_MANDIR}/man5")
-install(FILES src/thinkfan.conf.legacy.5 DESTINATION "${CMAKE_INSTALL_MANDIR}/man5")
+install(FILES ${CMAKE_BINARY_DIR}/thinkfan.1 DESTINATION "${CMAKE_INSTALL_MANDIR}/man1")
+install(FILES ${CMAKE_BINARY_DIR}/thinkfan.conf.5 DESTINATION "${CMAKE_INSTALL_MANDIR}/man5")
+install(FILES ${CMAKE_BINARY_DIR}/thinkfan.conf.legacy.5 DESTINATION "${CMAKE_INSTALL_MANDIR}/man5")
 
 if(SYSTEMD_FOUND)
 	configure_file(rcscripts/systemd/thinkfan.service.cmake

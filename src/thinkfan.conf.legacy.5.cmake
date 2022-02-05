@@ -1,4 +1,4 @@
-.TH THINKFAN.CONF.LEGACY 5 2020-04-09 "thinkfan 1.2"
+.TH THINKFAN.CONF.LEGACY 5 2020-04-09 "thinkfan @THINKFAN_VERSION@"
 .SH NAME
 thinkfan.conf.legacy \- the old, backwards-compatible config syntax for
 thinkfan

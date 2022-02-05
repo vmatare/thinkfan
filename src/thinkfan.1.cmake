@@ -1,4 +1,4 @@
-.TH THINKFAN "1" "April 2020" "thinkfan 1.2" "thinkfan"
+.TH THINKFAN "5" "December 2021" "thinkfan @THINKFAN_VERSION@" "thinkfan"
 .SH NAME
 thinkfan \- A simple fan control program
 .SH SYNOPSIS
