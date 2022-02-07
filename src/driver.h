@@ -30,7 +30,6 @@ namespace thinkfan {
 class Driver {
 protected:
 	Driver(unsigned int max_errors, const string &path, bool optional);
-	virtual ~Driver() noexcept(false) = default;
 
 public:
 	void try_init();
