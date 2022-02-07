@@ -77,10 +77,10 @@ public:
 };
 
 
-class SensorLost : public ExpectedError {
+class DriverLost : public ExpectedError {
 public:
 	template<class CauseT>
-	SensorLost(const CauseT &cause) {
+	DriverLost(const CauseT &cause) {
 		msg_ = string("Lost driver ") + cause.what();
 	}
 };

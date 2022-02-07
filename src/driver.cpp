@@ -67,7 +67,7 @@ bool Driver::initialized() const
 void Driver::handle_io_error_(const ExpectedError &e)
 {
 	if (!(optional() || tolerate_errors || errors() < max_errors()))
-		error<SensorLost>(e);
+		error<DriverLost>(e);
 	skip_io_error(e);
 }
 
