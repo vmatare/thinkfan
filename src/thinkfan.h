@@ -28,6 +28,7 @@
 #include <atomic>
 #include <mutex>
 #include <condition_variable>
+#include <functional>
 
 #define DEFAULT_CONFIG "/etc/thinkfan.conf"
 #define DEFAULT_YAML_CONFIG "/etc/thinkfan.yaml"
@@ -76,24 +77,56 @@ template<typename T>
 using numeric_limits = std::numeric_limits<T>;
 
 
+class SensorDriver;
+class Config;
+
+
 class TemperatureState {
 public:
+	template<typename T>
+	using Iter = typename vector<T>::iterator;
+
+	class Ref {
+	public:
+		Ref();
+		void add_temp(int t);
+		void skip_temp();
+		inline int temp() const;
+		float bias() const;
+		int biased_temp() const;
+		void restart();
+
+	private:
+		friend TemperatureState;
+		Ref(TemperatureState &ts, unsigned int offset);
+
+		Iter<int> temp0_;
+		Iter<float> bias0_;
+		Iter<int> biased_temp0_;
+
+		Iter<int> temp_;
+		Iter<float> bias_;
+		Iter<int> biased_temp_;
+
+		TemperatureState *tstate_;
+	};
+
 	TemperatureState(unsigned int num_temps);
-	void restart();
-	void add_temp(int t);
 
 	const vector<int> &biased_temps() const;
 	const vector<int> &temps() const;
 	const vector<float> &biases() const;
-	bool complete() const;
-	void init();
+
+	Ref ref(unsigned int num_temps);
+
+	void reset_refd_count();
+
 private:
 	vector<int> temps_;
 	vector<float> biases_;
 	vector<int> biased_temps_;
-	vector<int>::iterator temp_;
-	vector<float>::iterator bias_;
-	vector<int>::iterator biased_temp_;
+	unsigned int refd_temps_;
+
 public:
 	vector<int>::const_iterator tmax;
 };
@@ -122,6 +155,9 @@ public:
 };
 
 #endif // defined(PID_FILE)
+
+
+void sleep(thinkfan::seconds duration);
 
 
 // Command line options

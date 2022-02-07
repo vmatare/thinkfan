@@ -37,6 +37,7 @@ namespace thinkfan {
 
 class Config;
 
+
 class FanConfig {
 public:
 	FanConfig(unique_ptr<FanDriver> && = nullptr);
@@ -132,6 +133,7 @@ public:
 	void add_fan_config(unique_ptr<FanConfig> &&fan_cfg);
 	void ensure_consistency() const;
 	void init_fans() const;
+	void init_sensors(TemperatureState &) const;
 
 	unsigned int num_temps() const;
 	const vector<unique_ptr<SensorDriver>> &sensors() const;
@@ -143,6 +145,7 @@ public:
 	string src_file;
 private:
 	static const Config *try_read_config(const string &data);
+	void try_init_driver(Driver &drv) const;
 	vector<unique_ptr<SensorDriver>> sensors_;
 	vector<unique_ptr<FanConfig>> temp_mappings_;
 	unsigned int num_temps_;

@@ -1,6 +1,7 @@
 /********************************************************************
  * drivers.cpp: Interface to the kernel drivers.
  * (C) 2015, Victor Mataré
+ *     2021, Koutheir Attouchi
  *
  * this file is part of thinkfan. See thinkfan.c for further information.
  *
@@ -40,22 +41,19 @@ namespace thinkfan {
 | SensorDriver: The superclass of all hardware-specific sensor drivers       |
 ----------------------------------------------------------------------------*/
 
-SensorDriver::SensorDriver(std::string path, bool optional, vector<int> correction)
-: path_(path),
-  correction_(correction),
-  num_temps_(0),
-  optional_(optional)
+SensorDriver::SensorDriver(unsigned int max_errors, string path, bool optional, vector<int> correction)
+: Driver(max_errors, path, optional)
+, correction_(correction)
+, num_temps_(0)
+{}
+
+void SensorDriver::init()
 {
 	std::ifstream f(path_);
 	if (!(f.is_open() && f.good()))
 		throw IOerror(path_ + ": ", errno);
 }
 
-
-SensorDriver::SensorDriver(bool optional)
-: num_temps_(0),
-  optional_(optional)
-{}
 
 
 SensorDriver::~SensorDriver() noexcept(false)
@@ -83,8 +81,18 @@ bool SensorDriver::operator == (const SensorDriver &other) const
 {
 	return typeid(*this) == typeid(other)
 			&& this->correction_ == other.correction_
-			&& this->path_ == other.path_;
+	&& this->path_ == other.path_;
 }
+
+
+void SensorDriver::read_temps()
+{
+	temp_state_.restart();
+	robust_io(&SensorDriver::read_temps_);
+}
+
+void SensorDriver::init_temp_state_ref(TemperatureState::Ref &&ref)
+{ temp_state_ = std::move(ref); }
 
 
 void SensorDriver::check_correction_length()
@@ -96,26 +104,41 @@ void SensorDriver::check_correction_length()
 }
 
 
-void SensorDriver::set_optional(bool o)
-{ optional_ = o; }
+void SensorDriver::skip_io_error(const ExpectedError &e)
+{
+	if (this->optional()) {
+		log(TF_INF) << SensorLost(e).what();
+		// Completely ignore sensor. optional says we're good without it
+		temp_state_.add_temp(-128);
+	}
+	else if (tolerate_errors) {
+		log(TF_NFY) << SensorLost(e).what();
+		// Read error on wakeup: keep last temp
+		temp_state_.skip_temp();
+	}
+	else {
+		log(TF_NFY) << "Ignoring Error " << errors() << "/" << max_errors()
+		<< " on " << path_ << ": " << e.what();
 
-bool SensorDriver::optional() const
-{ return optional_; }
+		// Other error the user said is acceptable: keep last temp
+		temp_state_.skip_temp();
+	}
+}
 
-const string &SensorDriver::path() const
-{ return path_; }
+
+
 
 /*----------------------------------------------------------------------------
 | HwmonSensorDriver: A driver for sensors provided by other kernel drivers,  |
 | typically somewhere in sysfs.                                              |
 ----------------------------------------------------------------------------*/
 
-HwmonSensorDriver::HwmonSensorDriver(std::string path, bool optional, vector<int> correction)
-: SensorDriver(path, optional, correction)
+HwmonSensorDriver::HwmonSensorDriver(std::string path, bool optional, vector<int> correction, unsigned int max_errors)
+: SensorDriver(max_errors, path, optional, correction)
 { set_num_temps(1); }
 
 
-void HwmonSensorDriver::read_temps_(TemperatureState &global_temps) const
+void HwmonSensorDriver::read_temps_()
 {
 	std::ifstream f(path_);
 	if (!(f.is_open() && f.good()))
@@ -123,7 +146,7 @@ void HwmonSensorDriver::read_temps_(TemperatureState &global_temps) const
 	int tmp;
 	if (!(f >> tmp))
 		throw IOerror(MSG_T_GET(path_), errno);
-	global_temps.add_temp(tmp/1000 + correction_[0]);
+	temp_state_.add_temp(tmp/1000 + correction_[0]);
 }
 
 
@@ -134,8 +157,39 @@ void HwmonSensorDriver::read_temps_(TemperatureState &global_temps) const
 
 const string TpSensorDriver::skip_prefix_("temperatures:");
 
-TpSensorDriver::TpSensorDriver(std::string path, bool optional, const vector<unsigned int> &temp_indices, vector<int> correction)
-: SensorDriver(path, optional, correction)
+TpSensorDriver::TpSensorDriver(
+	std::string path,
+	bool optional,
+	const vector<unsigned int> &temp_indices,
+	vector<int> correction,
+	unsigned int max_errors
+)
+: SensorDriver(max_errors, path, optional, correction)
+, temp_indices_(temp_indices)
+{}
+
+TpSensorDriver::TpSensorDriver(
+	std::string path,
+	bool optional,
+	vector<int> correction,
+	unsigned int max_errors
+)
+: TpSensorDriver(path, optional, {}, correction, max_errors)
+{}
+
+
+bool TpSensorDriver::optional() const
+{
+	// This driver cannot be optional before it has been initialized because we
+	// have to know the number of temperatures to be able to start up.
+	if (!initialized())
+		return false;
+	else
+		return Driver::optional();
+}
+
+
+void TpSensorDriver::init()
 {
 	std::ifstream f(path_);
 	if (!(f.is_open() && f.good()))
@@ -163,18 +217,18 @@ TpSensorDriver::TpSensorDriver(std::string path, bool optional, const vector<uns
 			++count;
 	}
 
-	if (temp_indices.size() > 0) {
-		if (temp_indices.size() > count)
+	if (temp_indices_.size() > 0) {
+		if (temp_indices_.size() > count)
 			throw ConfigError(
-				"Config specifies " + std::to_string(temp_indices.size())
-				+ " temperature inputs in " + path
+				"Config specifies " + std::to_string(temp_indices_.size())
+				+ " temperature inputs in " + path_
 				+ ", but there are only " + std::to_string(count) + "."
 			);
 
-		set_num_temps(static_cast<unsigned int>(temp_indices.size()));
+		set_num_temps(static_cast<unsigned int>(temp_indices_.size()));
 
 		in_use_ = vector<bool>(count, false);
-		for (unsigned int i : temp_indices)
+		for (unsigned int i : temp_indices_)
 			in_use_[i] = true;
 	}
 	else {
@@ -184,12 +238,7 @@ TpSensorDriver::TpSensorDriver(std::string path, bool optional, const vector<uns
 }
 
 
-TpSensorDriver::TpSensorDriver(std::string path, bool optional, vector<int> correction)
-	: TpSensorDriver(path, optional, {}, correction)
-{}
-
-
-void TpSensorDriver::read_temps_(TemperatureState &global_temps) const
+void TpSensorDriver::read_temps_()
 {
 	std::ifstream f(path_);
 	if (!(f.is_open() && f.good()))
@@ -207,7 +256,7 @@ void TpSensorDriver::read_temps_(TemperatureState &global_temps) const
 		if (f.bad())
 			throw IOerror(MSG_T_GET(path_), errno);
 		if (!f.fail() && in_use_[tidx++])
-			global_temps.add_temp(tmp + correction_[cidx++]);
+			temp_state_.add_temp(tmp + correction_[cidx++]);
 	}
 }
 
@@ -218,12 +267,20 @@ void TpSensorDriver::read_temps_(TemperatureState &global_temps) const
 | via device files like /dev/sda.                                            |
 ----------------------------------------------------------------------------*/
 
-AtasmartSensorDriver::AtasmartSensorDriver(string device_path, bool optional, vector<int> correction)
-: SensorDriver(device_path, optional, correction)
+AtasmartSensorDriver::AtasmartSensorDriver(
+	string path,
+	bool optional,
+	vector<int> correction,
+	unsigned int max_errors
+)
+: SensorDriver(max_errors, path, optional, correction)
+{}
+
+void AtasmartSensorDriver::init()
 {
-	if (sk_disk_open(device_path.c_str(), &disk_) < 0) {
+	if (sk_disk_open(path_.c_str(), &disk_) < 0) {
 		string msg = std::strerror(errno);
-		throw SystemError("sk_disk_open(" + device_path + "): " + msg);
+		throw SystemError("sk_disk_open(" + path_ + "): " + msg);
 	}
 	set_num_temps(1);
 }
@@ -233,7 +290,7 @@ AtasmartSensorDriver::~AtasmartSensorDriver()
 { sk_disk_free(disk_); }
 
 
-void AtasmartSensorDriver::read_temps_(TemperatureState &global_temps) const
+void AtasmartSensorDriver::read_temps_()
 {
 	SkBool disk_sleeping = false;
 
@@ -243,7 +300,7 @@ void AtasmartSensorDriver::read_temps_(TemperatureState &global_temps) const
 	}
 
 	if (unlikely(disk_sleeping)) {
-		global_temps.add_temp(0);
+		temp_state_.add_temp(0);
 	}
 	else {
 		uint64_t mKelvin;
@@ -265,7 +322,7 @@ void AtasmartSensorDriver::read_temps_(TemperatureState &global_temps) const
 			throw SystemError(MSG_T_GET(path_) + std::to_string(tmp) + " isn't a valid temperature.");
 		}
 
-		global_temps.add_temp(int(tmp) + correction_[0]);
+		temp_state_.add_temp(int(tmp) + correction_[0]);
 	}
 }
 #endif /* USE_ATASMART */
@@ -277,8 +334,8 @@ void AtasmartSensorDriver::read_temps_(TemperatureState &global_temps) const
 | nVidia Management Library that is included with the proprietary driver.    |
 ----------------------------------------------------------------------------*/
 
-NvmlSensorDriver::NvmlSensorDriver(string bus_id, bool optional, vector<int> correction)
-: SensorDriver(optional),
+NvmlSensorDriver::NvmlSensorDriver(string bus_id, bool optional, vector<int> correction, unsigned int max_errors)
+: SensorDriver(max_errors, bus_id, optional),
   dl_nvmlInit_v2(nullptr),
   dl_nvmlDeviceGetHandleByPciBusId_v2(nullptr),
   dl_nvmlDeviceGetName(nullptr),
@@ -306,7 +363,11 @@ NvmlSensorDriver::NvmlSensorDriver(string bus_id, bool optional, vector<int> cor
 		throw SystemError("Incompatible NVML driver.");
 
 	set_correction(correction);
+}
 
+
+void NvmlSensorDriver::init()
+{
 	nvmlReturn_t ret;
 	string name, brand;
 	name.resize(256);
@@ -314,10 +375,10 @@ NvmlSensorDriver::NvmlSensorDriver(string bus_id, bool optional, vector<int> cor
 
 	if ((ret = dl_nvmlInit_v2()))
 		throw SystemError("Failed to initialize NVML driver. Error code (cf. nvml.h): " + std::to_string(ret));
-	if ((ret = dl_nvmlDeviceGetHandleByPciBusId_v2(bus_id.c_str(), &device_)))
-		throw SystemError("Failed to open PCI device " + bus_id + ". Error code (cf. nvml.h): " + std::to_string(ret));
+	if ((ret = dl_nvmlDeviceGetHandleByPciBusId_v2(path_.c_str(), &device_)))
+		throw SystemError("Failed to open PCI device " + path_ + ". Error code (cf. nvml.h): " + std::to_string(ret));
 	dl_nvmlDeviceGetName(device_, &*name.begin(), 255);
-	log(TF_DBG) << "Initialized NVML sensor on " << name << " at PCI " << bus_id << "." << flush;
+	log(TF_DBG) << "Initialized NVML sensor on " << name << " at PCI " << path_ << "." << flush;
 	set_num_temps(1);
 }
 
@@ -330,13 +391,13 @@ NvmlSensorDriver::~NvmlSensorDriver() noexcept(false)
 	dlclose(nvml_so_handle_);
 }
 
-void NvmlSensorDriver::read_temps_(TemperatureState &global_temps) const
+void NvmlSensorDriver::read_temps_()
 {
 	nvmlReturn_t ret;
 	unsigned int tmp;
 	if ((ret = dl_nvmlDeviceGetTemperature(device_, NVML_TEMPERATURE_GPU, &tmp)))
 		throw SystemError(MSG_T_GET(path_) + "Error code (cf. nvml.h): " + std::to_string(ret));
-	global_temps.add_temp(int(tmp));
+	temp_state_.add_temp(int(tmp));
 }
 #endif /* USE_NVML */
 
@@ -350,7 +411,6 @@ void NvmlSensorDriver::read_temps_(TemperatureState &global_temps) const
 // Closest integer value to zero Kelvin.
 static const int MIN_CELSIUS_TEMP = -273;
 
-const size_t LMSensorsDriver::MAX_SENSOR_READ_ATTEMPTS = 30;
 std::once_flag LMSensorsDriver::lm_sensors_once_init_;
 
 
@@ -358,22 +418,28 @@ LMSensorsDriver::LMSensorsDriver(
 	string chip_name,
 	vector<string> feature_names,
 	bool optional,
-	vector<int> correction
+	vector<int> correction,
+	unsigned int max_errors
 )
-: SensorDriver(optional),
+: SensorDriver(max_errors, chip_name, optional, correction),
   chip_name_(chip_name),
   chip_(nullptr),
   feature_names_(feature_names)
 {
 	std::call_once(lm_sensors_once_init_, initialize_lm_sensors);
+}
+
+
+void LMSensorsDriver::init()
+{
 
 	chip_ = LMSensorsDriver::find_chip_by_name(chip_name_);
-	path_ = chip_->path;
+	set_path(chip_->path);
 
 	for (const string& feature_name : feature_names_) {
 		auto feature = LMSensorsDriver::find_feature_by_name(*chip_, feature_name);
 		if (!feature)
-			throw SystemError("LM sensors chip '" + chip_name
+			throw SystemError("LM sensors chip '" + chip_name_
 				+ "' does not have the feature '" + feature_name + "'");
 		features_.push_back(feature);
 
@@ -388,11 +454,11 @@ LMSensorsDriver::LMSensorsDriver(
 			+ feature_name + "' of chip '" + chip_name_ + "'." << flush;
 	}
 
-	if (correction.empty())
-		correction.resize(feature_names_.size(), 0);
+	if (correction_.empty())
+		correction_.resize(feature_names_.size(), 0);
 
 	set_num_temps(feature_names_.size());
-	set_correction(correction);
+	set_correction(correction_);
 }
 
 
@@ -505,53 +571,33 @@ void LMSensorsDriver::fatal_error_callback(const char *proc, const char *err)
 }
 
 
-void LMSensorsDriver::read_temps_(TemperatureState &global_temps) const
+void LMSensorsDriver::read_temps_()
 {
-	size_t remaining_attempts = 1 + LMSensorsDriver::MAX_SENSOR_READ_ATTEMPTS;
 	size_t len = sub_features_.size();
-	for (size_t index = 0; index < len; ) {
+	for (size_t index = 0; index < len; ++index) {
 		auto sub_feature = sub_features_[index];
 
 		double real_value = MIN_CELSIUS_TEMP;
 		int err = ::sensors_get_value(chip_, sub_feature->number, &real_value);
 		if (err) {
 			const char *msg = ::sensors_strerror(err);
-
-			if (!(--remaining_attempts)) {
-				// NOTICE:
-				// If this happens, then all remaining temperature sources
-				// reported by the current driver instance are skipped.
-				//
-				// Sources of temperatures that are not always available should
-				// be configured on their own "- chip" entry, and marked optional.
-				throw SystemError(
-					string("temperature input value of feature '")
-					+ feature_names_[index] + "' of chip '" + chip_name_
-					+ "' is unavailable: " + msg);
-			}
-			else {
-				std::this_thread::sleep_for(std::chrono::seconds(1));
-
-				log(TF_DBG) << "Retrying reading LM sensor '" + feature_names_[index]
-					+ "' of chip '" + chip_name_ + "': " + msg + " (attempt "
-					+ std::to_string(1 + LMSensorsDriver::MAX_SENSOR_READ_ATTEMPTS - remaining_attempts)
-					+ ")" << flush;
-				
-				// Retry reading the same sensor...
-			}
+			throw SystemError(
+				string("temperature input value of feature '")
+				+ feature_names_[index] + "' of chip '" + chip_name_
+				+ "' is unavailable: " + msg
+			);
 		}
 		else {
 			int integer_value;
 			integer_value = int(real_value) + correction_[index];
-			if (integer_value < MIN_CELSIUS_TEMP) {
-				// Make sure the reported value is physically valid.
-				integer_value = MIN_CELSIUS_TEMP;
-			}
 
-			global_temps.add_temp(integer_value);
-
-            remaining_attempts = 1 + LMSensorsDriver::MAX_SENSOR_READ_ATTEMPTS;
-            index += 1;
+			// Make sure the reported value is physically valid.
+			if (integer_value < MIN_CELSIUS_TEMP)
+				throw SystemError("Invalid temperature on feature '" + feature_names_[index]
+					+ "' of chip '" + chip_name_ + "': " + std::to_string(integer_value)
+				);
+			else
+				temp_state_.add_temp(integer_value);
 		}
 	}
 }

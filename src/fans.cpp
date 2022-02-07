@@ -41,13 +41,23 @@ namespace thinkfan {
 | provided by its subclasses.                                                |
 ----------------------------------------------------------------------------*/
 
-FanDriver::FanDriver(const std::string &path, const unsigned int watchdog_timeout)
-: path_(path),
+FanDriver::FanDriver(unsigned int max_errors, const std::string &path, bool optional, unsigned int watchdog_timeout)
+: Driver(max_errors, path, optional),
   watchdog_(watchdog_timeout),
-  depulse_(0)
+depulse_(0)
+{}
+
+FanDriver::~FanDriver() noexcept(false)
 {}
 
 void FanDriver::set_speed(const string &level)
+{ robust_io(&FanDriver::set_speed_, level); }
+
+void FanDriver::skip_io_error(const ExpectedError &)
+{}
+
+
+void FanDriver::set_speed_(const string &level)
 {
 	std::ofstream f_out(path_);
 	if(!(f_out << level << std::flush)) {
@@ -79,8 +89,8 @@ const string &FanDriver::current_speed() const
 | for noise oscillation with old & worn-out fans).                           |
 ----------------------------------------------------------------------------*/
 
-TpFanDriver::TpFanDriver(const std::string &path)
-: FanDriver(path, 120)
+TpFanDriver::TpFanDriver(const std::string &path, unsigned int max_errors)
+: FanDriver(max_errors, path, 120)
 {}
 
 TpFanDriver::~TpFanDriver() noexcept(false)
@@ -171,8 +181,8 @@ void TpFanDriver::init()
 | HwmonFanDriver: Driver for PWM fans, typically somewhere in sysfs.         |
 ----------------------------------------------------------------------------*/
 
-HwmonFanDriver::HwmonFanDriver(const std::string &path)
-: FanDriver(path, 0)
+HwmonFanDriver::HwmonFanDriver(const std::string &path, unsigned int max_errors)
+: FanDriver(max_errors, path, 0)
 {}
 
 

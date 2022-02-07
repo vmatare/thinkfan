@@ -24,51 +24,61 @@
 #include <string>
 
 #include "thinkfan.h"
+#include "driver.h"
 
 namespace thinkfan {
 
 class Level;
 
-class FanDriver {
+class FanDriver : public Driver {
 protected:
-	string path_;
+	FanDriver(unsigned int max_errors, const string &path, bool optional, const unsigned int watchdog_timeout = 120);
+
+public:
+	bool is_default() { return path_.length() == 0; }
+	virtual ~FanDriver() noexcept(false);
+	virtual void set_speed(const Level &level) = 0;
+	const string &current_speed() const;
+	virtual void ping_watchdog_and_depulse(const Level &) {}
+	bool operator == (const FanDriver &other) const;
+
+protected:
+	void set_speed(const string &level);
+
 	string initial_state_;
 	string current_speed_;
 	seconds watchdog_;
 	secondsf depulse_;
 	std::chrono::system_clock::time_point last_watchdog_ping_;
-	FanDriver(const string &path, const unsigned int watchdog_timeout = 120);
-public:
-	FanDriver() : watchdog_(0) {}
-	bool is_default() { return path_.length() == 0; }
-	virtual ~FanDriver() noexcept(false) {}
-	virtual void init() {}
-	virtual void set_speed(const string &level);
-	virtual void set_speed(const Level &level) = 0;
-	const string &current_speed() const;
-	virtual void ping_watchdog_and_depulse(const Level &) {}
-	bool operator == (const FanDriver &other) const;
+
+private:
+	virtual void skip_io_error(const ExpectedError &e) override;
+	void set_speed_(const string &level);
 };
 
 
 class TpFanDriver : public FanDriver {
 public:
-	TpFanDriver(const string &path);
+	TpFanDriver(const string &path, unsigned int max_errors = 0);
 	virtual ~TpFanDriver() noexcept(false) override;
 	void set_watchdog(const unsigned int timeout);
 	void set_depulse(float duration);
-	virtual void init() override;
 	virtual void set_speed(const Level &level) override;
 	virtual void ping_watchdog_and_depulse(const Level &level) override;
+
+protected:
+	virtual void init() override;
 };
 
 
 class HwmonFanDriver : public FanDriver {
 public:
-	HwmonFanDriver(const string &path);
+	HwmonFanDriver(const string &path, unsigned int max_errors = 0);
 	virtual ~HwmonFanDriver() noexcept(false) override;
-	virtual void init() override;
 	virtual void set_speed(const Level &level) override;
+
+protected:
+	virtual void init() override;
 };
 
 

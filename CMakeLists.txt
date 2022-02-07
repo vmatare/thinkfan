@@ -61,6 +61,7 @@ option(DISABLE_EXCEPTION_CATCHING "Terminate with SIGABRT on all exceptions, cau
 
 
 set(SRC_FILES src/thinkfan.cpp src/config.cpp src/fans.cpp src/sensors.cpp
+	src/driver.cpp
 	src/message.cpp src/parser.cpp src/error.cpp)
 
 if(USE_YAML)

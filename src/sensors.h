@@ -3,6 +3,7 @@
 /********************************************************************
  * config.h: Config data structures and consistency checking.
  * (C) 2015, Victor Mataré
+ *     2021, Koutheir Attouchi
  *
  * this file is part of thinkfan. See thinkfan.c for further information.
  *
@@ -23,6 +24,7 @@
 
 #include "thinkfan.h"
 #include "error.h"
+#include "driver.h"
 
 #ifdef USE_ATASMART
 #include <atasmart.h>
@@ -39,87 +41,89 @@
 #include <mutex>
 #endif /* USE_LM_SENSORS */
 
+#include <functional>
+
 namespace thinkfan {
 
 class ExpectedError;
 
-class SensorDriver {
+
+class SensorDriver : public Driver {
 protected:
-	SensorDriver(string path, bool optional, vector<int> correction = {});
-	SensorDriver(bool optional);
+	SensorDriver(unsigned int max_errors, string path, bool optional, vector<int> correction = {});
+
 public:
 	virtual ~SensorDriver() noexcept(false);
 	unsigned int num_temps() const { return num_temps_; }
 	void set_correction(const vector<int> &correction);
-	void set_num_temps(unsigned int n);
 	bool operator == (const SensorDriver &other) const;
-	void set_optional(bool);
-	bool optional() const;
-	const string &path() const;
 
-	inline void read_temps(TemperatureState &global_temps) const
-	{
-		try {
-			read_temps_(global_temps);
-		} catch (SystemError &e) {
-			sensor_lost(e, global_temps);
-		} catch (IOerror &e) {
-			sensor_lost(e, global_temps);
-		} catch (std::ios_base::failure &e) {
-			sensor_lost(IOerror(e.what(), THINKFAN_IO_ERROR_CODE(e)), global_temps);
-		}
-	}
+	void read_temps();
+	void init_temp_state_ref(TemperatureState::Ref &&);
 
 protected:
-	virtual void read_temps_(TemperatureState &global_temps) const = 0;
+	virtual void init() override;
+	void set_num_temps(unsigned int n);
+	virtual void skip_io_error(const ExpectedError &e) override;
+	virtual void read_temps_() = 0;
 
-	string path_;
 	vector<int> correction_;
+	TemperatureState::Ref temp_state_;
 
+	/** @brief Protocol: Throw SensorLost(e) or nothing
+	 *  @param e The original error */
 private:
 	unsigned int num_temps_;
-	bool optional_;
 	void check_correction_length();
-
-	inline void sensor_lost(const ExpectedError &e, TemperatureState &global_temps) const
-	{
-		if (this->optional() || tolerate_errors)
-			log(TF_INF) << SensorLost(e).what();
-		else
-			error<SensorLost>(e);
-		global_temps.add_temp(-128);
-	}
-};
-
-
-class TpSensorDriver : public SensorDriver {
-public:
-	TpSensorDriver(string path, bool optional, vector<int> correction = {});
-	TpSensorDriver(string path, bool optional, const vector<unsigned int> &temp_indices, vector<int> correction = {});
-protected:
-	virtual void read_temps_(TemperatureState &global_temps) const override;
-private:
-	std::char_traits<char>::off_type skip_bytes_;
-	static const string skip_prefix_;
-	vector<bool> in_use_;
 };
 
 
 class HwmonSensorDriver : public SensorDriver {
 public:
-	HwmonSensorDriver(string path, bool optional, vector<int> correction = {});
+	HwmonSensorDriver(string path, bool optional, vector<int> correction = {}, unsigned int max_errors = 0);
 protected:
-	virtual void read_temps_(TemperatureState &global_temps) const override;
+	virtual void read_temps_() override;
+};
+
+
+class TpSensorDriver : public SensorDriver {
+public:
+	TpSensorDriver(
+		string path,
+		bool optional,
+		vector<int> correction = {},
+		unsigned int max_errors = 0
+	);
+	TpSensorDriver(
+		string path,
+		bool optional,
+		const vector<unsigned int> &temp_indices,
+		vector<int> correction = {},
+		unsigned int max_errors = 0
+	);
+
+	virtual bool optional() const override;
+
+protected:
+	virtual void init() override;
+	virtual void read_temps_() override;
+
+private:
+	std::char_traits<char>::off_type skip_bytes_;
+	static const string skip_prefix_;
+	vector<bool> in_use_;
+	const vector<unsigned int> &temp_indices_;
 };
 
 
 #ifdef USE_ATASMART
 class AtasmartSensorDriver : public SensorDriver {
 public:
-	AtasmartSensorDriver(string device_path, bool optional, vector<int> correction = {});
+	AtasmartSensorDriver(string device_path, bool optional, vector<int> correction = {}, unsigned int max_errors = 0);
 	virtual ~AtasmartSensorDriver();
 protected:
-	virtual void read_temps_(TemperatureState &global_temps) const override;
+	virtual void init() override;
+	virtual void read_temps_() override;
 private:
 	SkDisk *disk_;
 };
@@ -129,10 +133,11 @@ private:
 #ifdef USE_NVML
 class NvmlSensorDriver : public SensorDriver {
 public:
-	NvmlSensorDriver(string bus_id, bool optional, vector<int> correction = {});
+	NvmlSensorDriver(string bus_id, bool optional, vector<int> correction = {}, unsigned int max_errors = 0);
 	virtual ~NvmlSensorDriver() noexcept(false) override;
 protected:
-	virtual void read_temps_(TemperatureState &global_temps) const override;
+	virtual void init() override;
+	virtual void read_temps_() override;
 private:
 	nvmlDevice_t device_;
 	void *nvml_so_handle_;
@@ -152,12 +157,18 @@ private:
 
 class LMSensorsDriver : public SensorDriver {
 public:
-	LMSensorsDriver(string chip_name, std::vector<string> feature_names,
-	                bool optional, std::vector<int> correction = {});
+	LMSensorsDriver(
+		string chip_name,
+		std::vector<string> feature_names,
+		bool optional,
+		std::vector<int> correction = {},
+		unsigned int max_errors = 0
+	);
 	virtual ~LMSensorsDriver();
 
 protected:
-	virtual void read_temps_(TemperatureState &global_temps) const override;
+	virtual void init() override;
+	virtual void read_temps_() override;
 
 	// LM sensors helpers.
 	static void initialize_lm_sensors();
@@ -184,15 +195,6 @@ private:
 	std::vector<const ::sensors_subfeature*> sub_features_;
 
 	static std::once_flag lm_sensors_once_init_;
-
-	// Maximum number of attempts to read the value of one sensor when all
-	// previous attempts fail.
-	//
-	// One second elapses before the next attempt, so this implies a maximum
-	// amount of time retrying before reporting an error.
-	//
-	// Zero means "never retry failed sensor readings".
-	static const size_t MAX_SENSOR_READ_ATTEMPTS;
 };
 
 #endif /* USE_LM_SENSORS */

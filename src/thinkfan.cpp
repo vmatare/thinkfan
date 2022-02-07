@@ -101,11 +101,13 @@ void sig_handler(int signum) {
 }
 
 
-static inline void read_temps(const vector<unique_ptr<SensorDriver>> &sensors)
-{
-	temp_state.restart();
-	for (const unique_ptr<SensorDriver> &sensor : sensors)
-		sensor->read_temps(temp_state);
+void sleep(thinkfan::seconds duration) {
+	auto until = std::chrono::steady_clock::now() + duration;
+
+	std::unique_lock<std::mutex> sleep_locked(sleep_mutex);
+	sleep_cond.wait_until(sleep_locked, until, [] () {
+		return interrupted != 0;
+	} );
 }
 
 
@@ -113,8 +115,8 @@ void run(const Config &config)
 {
 	tmp_sleeptime = sleeptime;
 
-	read_temps(config.sensors());
-	temp_state.init();
+	for (const unique_ptr<SensorDriver> &sensor : config.sensors())
+		sensor->read_temps();
 
 	// Set initial fan level
 	for (auto &fan_config : config.fan_configs())
@@ -123,22 +125,16 @@ void run(const Config &config)
 
 	bool did_something = false;
 	while (likely(!interrupted)) {
-		auto until = std::chrono::steady_clock::now() + tmp_sleeptime;
+		sleep(tmp_sleeptime);
 
-		std::unique_lock<std::mutex> sleep_locked(sleep_mutex);
-		sleep_cond.wait_until(sleep_locked, until, [] () {
-			return interrupted != 0;
-		} );
 		if (unlikely(interrupted))
 			break;
 
-		read_temps(config.sensors());
+		for (const unique_ptr<SensorDriver> &sensor : config.sensors())
+			sensor->read_temps();
 
 		if (unlikely(tolerate_errors) > 0)
 			tolerate_errors--;
-
-		if (unlikely(!temp_state.complete()))
-			throw SystemError(MSG_SENSOR_LOST);
 
 		for (auto &fan_config : config.fan_configs())
 			did_something |= fan_config->set_fanspeed(temp_state);
@@ -308,23 +304,35 @@ TemperatureState::TemperatureState(unsigned int num_temps)
 : temps_(num_temps, 0),
   biases_(num_temps, 0),
   biased_temps_(num_temps, 0),
-  temp_(temps_.begin()),
-  bias_(biases_.begin()),
-  biased_temp_(biased_temps_.begin()),
+  refd_temps_(0),
   tmax(biased_temps_.begin())
 {}
 
 
-void TemperatureState::restart()
+
+
+TemperatureState::Ref::Ref(TemperatureState &ts, unsigned int offset)
+: temp0_(ts.temps_.begin() + offset),
+  bias0_(ts.biases_.begin() + offset),
+  biased_temp0_(ts.biased_temps_.begin() + offset),
+  temp_(temp0_),
+  bias_(bias0_),
+  biased_temp_(biased_temp0_),
+  tstate_(&ts)
+{}
+
+TemperatureState::Ref::Ref()
+{}
+
+void TemperatureState::Ref::restart()
 {
-	temp_ = temps_.begin();
-	bias_ = biases_.begin();
-	biased_temp_ = biased_temps_.begin();
-	tmax = biased_temps_.begin();
+	temp_ = temp0_;
+	bias_ = bias0_;
+	biased_temp_ = biased_temp0_;
 }
 
 
-void TemperatureState::add_temp(int t)
+void TemperatureState::Ref::add_temp(int t)
 {
 	int diff = *temp_ >= 0 ?
 		t - *temp_
@@ -363,37 +371,42 @@ void TemperatureState::add_temp(int t)
 
 	*biased_temp_ = *temp_ + int(*bias_);
 
-	if (*biased_temp_ > *tmax)
-		tmax = biased_temp_;
+	if (*biased_temp_ > *tstate_->tmax)
+		tstate_->tmax = biased_temp_;
 
+	skip_temp();
+}
+
+void TemperatureState::Ref::skip_temp()
+{
 	++temp_;
 	++bias_;
 	++biased_temp_;
 }
 
 
-bool TemperatureState::complete() const
-{ return temp_ == temps_.end(); }
-
 
 const vector<int> & TemperatureState::biased_temps() const
 { return biased_temps_; }
 
-
 const vector<int> & TemperatureState::temps() const
 { return temps_; }
-
 
 const vector<float> & TemperatureState::biases() const
 { return biases_; }
 
+void TemperatureState::reset_refd_count()
+{ refd_temps_ = 0; }
 
-void TemperatureState::init()
+
+TemperatureState::Ref TemperatureState::ref(unsigned int num_temps)
 {
-	biases_.clear();
-	biases_.resize(temps_.size(), 0);
-	biased_temps_ = temps_;
+       auto ref = TemperatureState::Ref(*this, refd_temps_);
+       refd_temps_ += num_temps;
+       return ref;
 }
+
+
 
 } // namespace thinkfan
 
@@ -455,9 +468,10 @@ int main(int argc, char **argv) {
 				Logger::instance().log_lvl() = TF_ERR;
 				unique_ptr<const Config> test_cfg(Config::read_config(config_files));
 				temp_state = TemperatureState(test_cfg->num_temps());
-				temp_state.init();
+				test_cfg->init_sensors(temp_state);
 				test_cfg->init_fans();
-				read_temps(test_cfg->sensors());
+				for (auto &sensor : test_cfg->sensors())
+					sensor->read_temps();
 				Logger::instance().log_lvl() = old_lvl;
 				// Own scope so the config gets destroyed before forking
 			}
@@ -488,11 +502,11 @@ int main(int argc, char **argv) {
 
 		// Load the config for real after forking & enabling syslog
 		unique_ptr<const Config> config(Config::read_config(config_files));
-
 		temp_state = TemperatureState(config->num_temps());
 
 		do {
 			config->init_fans();
+			config->init_sensors(temp_state);
 			run(*config);
 
 			if (interrupted == SIGHUP) {
