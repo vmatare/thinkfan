@@ -40,6 +40,7 @@
 #include "config.h"
 #include "message.h"
 #include "error.h"
+#include "temperature_state.h"
 
 
 namespace thinkfan {
@@ -71,6 +72,64 @@ bool dnd_disk = false;
 #endif /* USE_ATASMART */
 
 
+#if defined(PID_FILE)
+
+PidFileHolder *PidFileHolder::instance_ = nullptr;
+
+PidFileHolder::PidFileHolder(::pid_t pid)
+: pid_file_(PID_FILE, std::ios_base::in)
+{
+	if (!pid_file_.fail())
+		error<SystemError>(MSG_RUNNING);
+	if (instance_)
+		throw Bug("Attempt to initialize PID file twice");
+	pid_file_.close();
+	pid_file_.open(PID_FILE, std::ios_base::out | std::ios_base::trunc);
+	if (!(pid_file_ << pid << std::flush))
+		error<IOerror>("Writing to " PID_FILE ": ", errno);
+	instance_ = this;
+}
+
+PidFileHolder::~PidFileHolder()
+{ remove_file(); }
+
+bool PidFileHolder::file_exists()
+{ return !ifstream(PID_FILE).fail(); }
+
+
+void PidFileHolder::remove_file()
+{
+	if (pid_file_.is_open()) {
+		pid_file_.close();
+		if (::unlink(PID_FILE) == -1)
+			log(TF_ERR) << "Deleting " PID_FILE ": " << errno << "." << flush;
+	}
+}
+
+
+void PidFileHolder::cleanup()
+{
+	if (instance_)
+		instance_->remove_file();
+}
+
+#else
+
+void PidFileHolder::cleanup()
+{}
+
+#endif // defined(PID_FILE)
+
+
+void sleep(thinkfan::seconds duration) {
+	auto until = std::chrono::steady_clock::now() + duration;
+
+	std::unique_lock<std::mutex> sleep_locked(sleep_mutex);
+	sleep_cond.wait_until(sleep_locked, until, [] () {
+		return interrupted != 0;
+	} );
+}
+
 
 void sig_handler(int signum) {
 	switch(signum) {
@@ -98,16 +157,6 @@ void sig_handler(int signum) {
 		log(TF_NFY) << "Going to sleep: Will allow sensor read errors for the next "
 			<< std::to_string(tolerate_errors) << " loops." << flush;
 	}
-}
-
-
-void sleep(thinkfan::seconds duration) {
-	auto until = std::chrono::steady_clock::now() + duration;
-
-	std::unique_lock<std::mutex> sleep_locked(sleep_mutex);
-	sleep_cond.wait_until(sleep_locked, until, [] () {
-		return interrupted != 0;
-	} );
 }
 
 
@@ -247,163 +296,6 @@ int set_options(int argc, char **argv)
 		log(TF_NFY) << MSG_DEPULSE(depulse, sleeptime.count()) << flush;
 
 	return 0;
-}
-
-
-
-#if defined(PID_FILE)
-
-PidFileHolder *PidFileHolder::instance_ = nullptr;
-
-PidFileHolder::PidFileHolder(::pid_t pid)
-: pid_file_(PID_FILE, std::ios_base::in)
-{
-	if (!pid_file_.fail())
-		error<SystemError>(MSG_RUNNING);
-	if (instance_)
-		throw Bug("Attempt to initialize PID file twice");
-	pid_file_.close();
-	pid_file_.open(PID_FILE, std::ios_base::out | std::ios_base::trunc);
-	if (!(pid_file_ << pid << std::flush))
-		error<IOerror>("Writing to " PID_FILE ": ", errno);
-	instance_ = this;
-}
-
-PidFileHolder::~PidFileHolder()
-{ remove_file(); }
-
-bool PidFileHolder::file_exists()
-{ return !ifstream(PID_FILE).fail(); }
-
-
-void PidFileHolder::remove_file()
-{
-	if (pid_file_.is_open()) {
-		pid_file_.close();
-		if (::unlink(PID_FILE) == -1)
-			log(TF_ERR) << "Deleting " PID_FILE ": " << errno << "." << flush;
-	}
-}
-
-
-void PidFileHolder::cleanup()
-{
-	if (instance_)
-		instance_->remove_file();
-}
-
-#else
-
-void PidFileHolder::cleanup()
-{}
-
-#endif // defined(PID_FILE)
-
-
-TemperatureState::TemperatureState(unsigned int num_temps)
-: temps_(num_temps, 0),
-  biases_(num_temps, 0),
-  biased_temps_(num_temps, 0),
-  refd_temps_(0),
-  tmax(biased_temps_.begin())
-{}
-
-
-
-
-TemperatureState::Ref::Ref(TemperatureState &ts, unsigned int offset)
-: temp0_(ts.temps_.begin() + offset),
-  bias0_(ts.biases_.begin() + offset),
-  biased_temp0_(ts.biased_temps_.begin() + offset),
-  temp_(temp0_),
-  bias_(bias0_),
-  biased_temp_(biased_temp0_),
-  tstate_(&ts)
-{}
-
-TemperatureState::Ref::Ref()
-{}
-
-void TemperatureState::Ref::restart()
-{
-	temp_ = temp0_;
-	bias_ = bias0_;
-	biased_temp_ = biased_temp0_;
-}
-
-
-void TemperatureState::Ref::add_temp(int t)
-{
-	int diff = *temp_ >= 0 ?
-		t - *temp_
-		: 0;
-	*temp_ = t;
-
-	if (unlikely(diff > 2)) {
-		// Apply bias_ if temperature changed quickly
-		float tmp_bias = float(diff) * bias_level;
-
-		*bias_ = int(tmp_bias);
-		if (tmp_sleeptime > seconds(2))
-			tmp_sleeptime = seconds(2);
-	}
-	else {
-		if (unlikely(diff < 0)) {
-			// Return to normal operation if temperature dropped
-			tmp_sleeptime = sleeptime;
-			*bias_ = 0;
-		}
-		else {
-			// Slowly return to normal sleeptime
-			if (unlikely(tmp_sleeptime < sleeptime)) tmp_sleeptime++;
-			// slowly reduce the bias_
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wfloat-equal" // bias is set to 0 explicitly
-			if (unlikely(*bias_ != 0)) {
-#pragma GCC diagnostic pop
-				if (std::abs(*bias_) < 0.5f)
-					*bias_ = 0;
-				else
-					*bias_ -= 1 + *bias_/5 ;
-			}
-		}
-	}
-
-	*biased_temp_ = *temp_ + int(*bias_);
-
-	if (*biased_temp_ > *tstate_->tmax)
-		tstate_->tmax = biased_temp_;
-
-	skip_temp();
-}
-
-void TemperatureState::Ref::skip_temp()
-{
-	++temp_;
-	++bias_;
-	++biased_temp_;
-}
-
-
-
-const vector<int> & TemperatureState::biased_temps() const
-{ return biased_temps_; }
-
-const vector<int> & TemperatureState::temps() const
-{ return temps_; }
-
-const vector<float> & TemperatureState::biases() const
-{ return biases_; }
-
-void TemperatureState::reset_refd_count()
-{ refd_temps_ = 0; }
-
-
-TemperatureState::Ref TemperatureState::ref(unsigned int num_temps)
-{
-       auto ref = TemperatureState::Ref(*this, refd_temps_);
-       refd_temps_ += num_temps;
-       return ref;
 }
 
 

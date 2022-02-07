@@ -28,6 +28,7 @@
 #include <memory>
 
 #include "thinkfan.h"
+#include "temperature_state.h"
 
 namespace thinkfan {
 
