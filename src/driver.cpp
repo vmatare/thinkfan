@@ -54,8 +54,8 @@ unsigned int Driver::max_errors() const
 bool Driver::optional() const
 { return optional_; }
 
-//const string &Driver::path() const
-//{ return path_; }
+const string &Driver::path() const
+{ return path_; }
 
 void Driver::set_path(const string &path)
 { path_ = path; }

@@ -37,7 +37,7 @@ public:
 	unsigned int errors() const;
 	unsigned int max_errors() const;
 	virtual bool optional() const;
-//	const string &path() const;
+	const string &path() const;
 	void set_path(const string &path);
 
 	template<class DriverT, typename... ArgTs>
@@ -50,11 +50,11 @@ private:
 	unsigned int errors_;
 	const bool optional_;
 	bool initialized_;
+	string path_;
 
 	void handle_io_error_(const ExpectedError &e);
 
 protected:
-	string path_;
 	virtual void init() = 0;
 	virtual void skip_io_error(const ExpectedError &);
 };

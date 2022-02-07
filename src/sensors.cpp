@@ -49,9 +49,9 @@ SensorDriver::SensorDriver(unsigned int max_errors, string path, bool optional, 
 
 void SensorDriver::init()
 {
-	std::ifstream f(path_);
+	std::ifstream f(path());
 	if (!(f.is_open() && f.good()))
-		throw IOerror(path_ + ": ", errno);
+		throw IOerror(path() + ": ", errno);
 }
 
 
@@ -81,7 +81,7 @@ bool SensorDriver::operator == (const SensorDriver &other) const
 {
 	return typeid(*this) == typeid(other)
 			&& this->correction_ == other.correction_
-	&& this->path_ == other.path_;
+	&& this->path() == other.path();
 }
 
 
@@ -98,9 +98,9 @@ void SensorDriver::init_temp_state_ref(TemperatureState::Ref &&ref)
 void SensorDriver::check_correction_length()
 {
 	if (correction_.size() > num_temps())
-		throw ConfigError(MSG_CONF_CORRECTION_LEN(path_, correction_.size(), num_temps()));
+		throw ConfigError(MSG_CONF_CORRECTION_LEN(path(), correction_.size(), num_temps()));
 	else if (correction_.size() < num_temps_)
-		log(TF_WRN) << MSG_CONF_CORRECTION_LEN(path_, correction_.size(), num_temps()) << flush;
+		log(TF_WRN) << MSG_CONF_CORRECTION_LEN(path(), correction_.size(), num_temps()) << flush;
 }
 
 
@@ -118,7 +118,7 @@ void SensorDriver::skip_io_error(const ExpectedError &e)
 	}
 	else {
 		log(TF_NFY) << "Ignoring Error " << errors() << "/" << max_errors()
-		<< " on " << path_ << ": " << e.what();
+		<< " on " << path() << ": " << e.what();
 
 		// Other error the user said is acceptable: keep last temp
 		temp_state_.skip_temp();
@@ -140,12 +140,12 @@ HwmonSensorDriver::HwmonSensorDriver(std::string path, bool optional, vector<int
 
 void HwmonSensorDriver::read_temps_()
 {
-	std::ifstream f(path_);
+	std::ifstream f(path());
 	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_T_GET(path_), errno);
+		throw IOerror(MSG_T_GET(path()), errno);
 	int tmp;
 	if (!(f >> tmp))
-		throw IOerror(MSG_T_GET(path_), errno);
+		throw IOerror(MSG_T_GET(path()), errno);
 	temp_state_.add_temp(tmp/1000 + correction_[0]);
 }
 
@@ -191,9 +191,9 @@ bool TpSensorDriver::optional() const
 
 void TpSensorDriver::init()
 {
-	std::ifstream f(path_);
+	std::ifstream f(path());
 	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_SENSOR_INIT(path_), errno);
+		throw IOerror(MSG_SENSOR_INIT(path()), errno);
 
 	int tmp;
 	unsigned int count = 0;
@@ -202,17 +202,17 @@ void TpSensorDriver::init()
 	skip.resize(skip_prefix_.size());
 
 	if (!f.get(&*skip.begin(), static_cast<std::streamsize>(skip_prefix_.size() + 1)))
-		throw IOerror(MSG_SENSOR_INIT(path_), errno);
+		throw IOerror(MSG_SENSOR_INIT(path()), errno);
 
 	if (skip == skip_prefix_)
 		skip_bytes_ = f.tellg();
 	else
-		throw SystemError(path_ + ": Unknown file format.");
+		throw SystemError(path() + ": Unknown file format.");
 
 	while (!(f.eof() || f.fail())) {
 		f >> tmp;
 		if (f.bad())
-			throw IOerror(MSG_T_GET(path_), errno);
+			throw IOerror(MSG_T_GET(path()), errno);
 		if (!f.fail())
 			++count;
 	}
@@ -221,7 +221,7 @@ void TpSensorDriver::init()
 		if (temp_indices_.size() > count)
 			throw ConfigError(
 				"Config specifies " + std::to_string(temp_indices_.size())
-				+ " temperature inputs in " + path_
+				+ " temperature inputs in " + path()
 				+ ", but there are only " + std::to_string(count) + "."
 			);
 
@@ -240,13 +240,13 @@ void TpSensorDriver::init()
 
 void TpSensorDriver::read_temps_()
 {
-	std::ifstream f(path_);
+	std::ifstream f(path());
 	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_T_GET(path_), errno);
+		throw IOerror(MSG_T_GET(path()), errno);
 
 	f.seekg(skip_bytes_);
 	if (f.fail())
-		throw IOerror(MSG_T_GET(path_), errno);
+		throw IOerror(MSG_T_GET(path()), errno);
 
 	unsigned int tidx = 0;
 	unsigned int cidx = 0;
@@ -254,7 +254,7 @@ void TpSensorDriver::read_temps_()
 	while (!(f.eof() || f.fail())) {
 		f >> tmp;
 		if (f.bad())
-			throw IOerror(MSG_T_GET(path_), errno);
+			throw IOerror(MSG_T_GET(path()), errno);
 		if (!f.fail() && in_use_[tidx++])
 			temp_state_.add_temp(tmp + correction_[cidx++]);
 	}
@@ -278,9 +278,9 @@ AtasmartSensorDriver::AtasmartSensorDriver(
 
 void AtasmartSensorDriver::init()
 {
-	if (sk_disk_open(path_.c_str(), &disk_) < 0) {
+	if (sk_disk_open(path().c_str(), &disk_) < 0) {
 		string msg = std::strerror(errno);
-		throw SystemError("sk_disk_open(" + path_ + "): " + msg);
+		throw SystemError("sk_disk_open(" + path() + "): " + msg);
 	}
 	set_num_temps(1);
 }
@@ -296,7 +296,7 @@ void AtasmartSensorDriver::read_temps_()
 
 	if (unlikely(dnd_disk && (sk_disk_check_sleep_mode(disk_, &disk_sleeping) < 0))) {
 		string msg = strerror(errno);
-		throw SystemError("sk_disk_check_sleep_mode(" + path_ + "): " + msg);
+		throw SystemError("sk_disk_check_sleep_mode(" + path() + "): " + msg);
 	}
 
 	if (unlikely(disk_sleeping)) {
@@ -308,18 +308,18 @@ void AtasmartSensorDriver::read_temps_()
 
 		if (unlikely(sk_disk_smart_read_data(disk_) < 0)) {
 			string msg = strerror(errno);
-			throw SystemError("sk_disk_smart_read_data(" + path_ + "): " + msg);
+			throw SystemError("sk_disk_smart_read_data(" + path() + "): " + msg);
 		}
 		if (unlikely(sk_disk_smart_get_temperature(disk_, &mKelvin)) < 0) {
 			string msg = strerror(errno);
-			throw SystemError("sk_disk_smart_get_temperature(" + path_ + "): " + msg);
+			throw SystemError("sk_disk_smart_get_temperature(" + path() + "): " + msg);
 		}
 
 		tmp = mKelvin / 1000.0f;
 		tmp -= 273.15f;
 
 		if (unlikely(tmp > std::numeric_limits<int>::max() || tmp < std::numeric_limits<int>::min())) {
-			throw SystemError(MSG_T_GET(path_) + std::to_string(tmp) + " isn't a valid temperature.");
+			throw SystemError(MSG_T_GET(path()) + std::to_string(tmp) + " isn't a valid temperature.");
 		}
 
 		temp_state_.add_temp(int(tmp) + correction_[0]);
@@ -375,10 +375,10 @@ void NvmlSensorDriver::init()
 
 	if ((ret = dl_nvmlInit_v2()))
 		throw SystemError("Failed to initialize NVML driver. Error code (cf. nvml.h): " + std::to_string(ret));
-	if ((ret = dl_nvmlDeviceGetHandleByPciBusId_v2(path_.c_str(), &device_)))
-		throw SystemError("Failed to open PCI device " + path_ + ". Error code (cf. nvml.h): " + std::to_string(ret));
+	if ((ret = dl_nvmlDeviceGetHandleByPciBusId_v2(path().c_str(), &device_)))
+		throw SystemError("Failed to open PCI device " + path() + ". Error code (cf. nvml.h): " + std::to_string(ret));
 	dl_nvmlDeviceGetName(device_, &*name.begin(), 255);
-	log(TF_DBG) << "Initialized NVML sensor on " << name << " at PCI " << path_ << "." << flush;
+	log(TF_DBG) << "Initialized NVML sensor on " << name << " at PCI " << path() << "." << flush;
 	set_num_temps(1);
 }
 
@@ -396,7 +396,7 @@ void NvmlSensorDriver::read_temps_()
 	nvmlReturn_t ret;
 	unsigned int tmp;
 	if ((ret = dl_nvmlDeviceGetTemperature(device_, NVML_TEMPERATURE_GPU, &tmp)))
-		throw SystemError(MSG_T_GET(path_) + "Error code (cf. nvml.h): " + std::to_string(ret));
+		throw SystemError(MSG_T_GET(path()) + "Error code (cf. nvml.h): " + std::to_string(ret));
 	temp_state_.add_temp(int(tmp));
 }
 #endif /* USE_NVML */

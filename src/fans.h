@@ -35,7 +35,7 @@ protected:
 	FanDriver(unsigned int max_errors, const string &path, bool optional, const unsigned int watchdog_timeout = 120);
 
 public:
-	bool is_default() { return path_.length() == 0; }
+	bool is_default() { return path().length() == 0; }
 	virtual ~FanDriver() noexcept(false);
 	virtual void set_speed(const Level &level) = 0;
 	const string &current_speed() const;
