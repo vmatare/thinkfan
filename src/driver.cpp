@@ -1,7 +1,6 @@
 /********************************************************************
- * config.h: Config data structures and consistency checking.
- * (C) 2015, Victor Mataré
- *     2021, Koutheir Attouchi
+ * driver.h: Common functionality for all drivers
+ * (C) 2022, Victor Mataré
  *
  * this file is part of thinkfan. See thinkfan.c for further information.
  *

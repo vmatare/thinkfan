@@ -1,7 +1,7 @@
 #pragma once
 
 /********************************************************************
- * driver.h: Generic
+ * driver.h: Common functionality for all drivers
  * (C) 2022, Victor Mataré
  *
  * this file is part of thinkfan. See thinkfan.c for further information.
