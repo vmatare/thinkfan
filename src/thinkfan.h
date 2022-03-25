@@ -29,6 +29,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <functional>
+#include <optional>
 
 #define DEFAULT_CONFIG "/etc/thinkfan.conf"
 #define DEFAULT_YAML_CONFIG "/etc/thinkfan.yaml"
@@ -76,6 +77,31 @@ using pair = std::pair<T1, T2>;
 template<typename T>
 using numeric_limits = std::numeric_limits<T>;
 
+template<typename T>
+using opt = std::optional<T>;
+
+class Config;
+class Level;
+class Driver;
+class FanDriver;
+class SensorDriver;
+class HwmonSensorDriver;
+class HwmonFanDriver;
+class TpSensorDriver;
+class TpFanDriver;
+
+#ifdef USE_NVML
+class NvmlSensorDriver;
+#endif
+
+#ifdef USE_ATASMART
+class AtasmartSensorDriver;
+#endif
+
+#ifdef USE_LM_SENSORS
+class LMSensorsDriver;
+#endif
+
 
 #if defined(PID_FILE)
 
@@ -104,6 +130,7 @@ public:
 
 void sleep(thinkfan::seconds duration);
 
+void noop();
 
 // Command line options
 extern bool chk_sanity;

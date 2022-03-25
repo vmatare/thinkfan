@@ -25,6 +25,7 @@
 
 #include "thinkfan.h"
 #include "driver.h"
+#include "hwmon.h"
 
 namespace thinkfan {
 
@@ -32,7 +33,7 @@ class Level;
 
 class FanDriver : public Driver {
 protected:
-	FanDriver(unsigned int max_errors, const string &path, bool optional, const unsigned int watchdog_timeout = 120);
+	FanDriver(unsigned int max_errors, opt<const string> &&path, bool optional, const unsigned int watchdog_timeout = 120);
 
 public:
 	bool is_default() { return path().length() == 0; }
@@ -59,7 +60,8 @@ private:
 
 class TpFanDriver : public FanDriver {
 public:
-	TpFanDriver(const string &path, unsigned int max_errors = 0);
+	TpFanDriver(const string &path, bool optional = false, unsigned int max_errors = 0);
+
 	virtual ~TpFanDriver() noexcept(false) override;
 	void set_watchdog(const unsigned int timeout);
 	void set_depulse(float duration);
@@ -68,17 +70,28 @@ public:
 
 protected:
 	virtual void init() override;
+	virtual string lookup() override;
 };
 
 
-class HwmonFanDriver : public FanDriver {
+class HwmonFanDriver : public FanDriver, public HwmonInterface {
 public:
 	HwmonFanDriver(const string &path, unsigned int max_errors = 0);
+
+	HwmonFanDriver(
+		const string &base_path,
+		opt<const string> &&name,
+		bool optional,
+		opt<unsigned int> &&index,
+		unsigned int max_errors
+	);
+
 	virtual ~HwmonFanDriver() noexcept(false) override;
 	virtual void set_speed(const Level &level) override;
 
 protected:
 	virtual void init() override;
+	virtual string lookup() override;
 };
 
 

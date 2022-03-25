@@ -29,6 +29,7 @@
 #include <cstring>
 #include <thread>
 #include <typeinfo>
+#include <cmath>
 
 #ifdef USE_NVML
 #include <dlfcn.h>
@@ -41,8 +42,8 @@ namespace thinkfan {
 | SensorDriver: The superclass of all hardware-specific sensor drivers       |
 ----------------------------------------------------------------------------*/
 
-SensorDriver::SensorDriver(unsigned int max_errors, string path, bool optional, vector<int> correction)
-: Driver(max_errors, path, optional)
+SensorDriver::SensorDriver(unsigned int max_errors, opt<const string> &&path, bool optional, const vector<int> &correction)
+: Driver(max_errors, std::forward<opt<const string>>(path), optional)
 , correction_(correction)
 , num_temps_(0)
 {}
@@ -133,8 +134,25 @@ void SensorDriver::skip_io_error(const ExpectedError &e)
 | typically somewhere in sysfs.                                              |
 ----------------------------------------------------------------------------*/
 
-HwmonSensorDriver::HwmonSensorDriver(std::string path, bool optional, vector<int> correction, unsigned int max_errors)
+HwmonSensorDriver::HwmonSensorDriver(
+	const string &path,
+	bool optional,
+	const vector<int> &correction,
+	unsigned int max_errors
+)
 : SensorDriver(max_errors, path, optional, correction)
+{ set_num_temps(1); }
+
+HwmonSensorDriver::HwmonSensorDriver(
+	const string &base_path,
+	opt<const string> &&name,
+	bool optional,
+	opt<unsigned int> &&index,
+	const vector<int> &correction,
+	unsigned int max_errors
+)
+: SensorDriver(max_errors, std::nullopt, optional, {correction})
+, HwmonInterface(base_path, std::forward<opt<const string>>(name), std::forward<opt<unsigned int>>(index))
 { set_num_temps(1); }
 
 
@@ -150,6 +168,10 @@ void HwmonSensorDriver::read_temps_()
 }
 
 
+string HwmonSensorDriver::lookup()
+{ return HwmonInterface::lookup<HwmonSensorDriver>(); }
+
+
 /*----------------------------------------------------------------------------
 | TpSensorDriver: A driver for sensors provided by thinkpad_acpi, typically  |
 | in /proc/acpi/ibm/thermal.                                                 |
@@ -161,7 +183,7 @@ TpSensorDriver::TpSensorDriver(
 	std::string path,
 	bool optional,
 	const vector<unsigned int> &temp_indices,
-	vector<int> correction,
+	const vector<int> &correction,
 	unsigned int max_errors
 )
 : SensorDriver(max_errors, path, optional, correction)
@@ -171,22 +193,11 @@ TpSensorDriver::TpSensorDriver(
 TpSensorDriver::TpSensorDriver(
 	std::string path,
 	bool optional,
-	vector<int> correction,
+	const vector<int> &correction,
 	unsigned int max_errors
 )
 : TpSensorDriver(path, optional, {}, correction, max_errors)
 {}
-
-
-bool TpSensorDriver::optional() const
-{
-	// This driver cannot be optional before it has been initialized because we
-	// have to know the number of temperatures to be able to start up.
-	if (!initialized())
-		return false;
-	else
-		return Driver::optional();
-}
 
 
 void TpSensorDriver::init()
@@ -261,6 +272,10 @@ void TpSensorDriver::read_temps_()
 }
 
 
+string TpSensorDriver::lookup()
+{ return path(); }
+
+
 #ifdef USE_ATASMART
 /*----------------------------------------------------------------------------
 | AtssmartSensorDriver: Reads temperatures from hard disks using S.M.A.R.T.  |
@@ -318,13 +333,17 @@ void AtasmartSensorDriver::read_temps_()
 		tmp = mKelvin / 1000.0f;
 		tmp -= 273.15f;
 
-		if (unlikely(tmp > std::numeric_limits<int>::max() || tmp < std::numeric_limits<int>::min())) {
+		if (unlikely(tmp > std::floor(numeric_limits<int>::max()) || tmp < std::numeric_limits<int>::min())) {
 			throw SystemError(MSG_T_GET(path()) + std::to_string(tmp) + " isn't a valid temperature.");
 		}
 
 		temp_state_.add_temp(int(tmp) + correction_[0]);
 	}
 }
+
+string AtasmartSensorDriver::lookup()
+{ return path(); }
+
 #endif /* USE_ATASMART */
 
 
@@ -391,6 +410,7 @@ NvmlSensorDriver::~NvmlSensorDriver() noexcept(false)
 	dlclose(nvml_so_handle_);
 }
 
+
 void NvmlSensorDriver::read_temps_()
 {
 	nvmlReturn_t ret;
@@ -399,6 +419,10 @@ void NvmlSensorDriver::read_temps_()
 		throw SystemError(MSG_T_GET(path()) + "Error code (cf. nvml.h): " + std::to_string(ret));
 	temp_state_.add_temp(int(tmp));
 }
+
+string NvmlSensorDriver::lookup()
+{ return path(); }
+
 #endif /* USE_NVML */
 
 
@@ -432,7 +456,6 @@ LMSensorsDriver::LMSensorsDriver(
 
 void LMSensorsDriver::init()
 {
-
 	chip_ = LMSensorsDriver::find_chip_by_name(chip_name_);
 	set_path(chip_->path);
 
@@ -601,6 +624,10 @@ void LMSensorsDriver::read_temps_()
 		}
 	}
 }
+
+string LMSensorsDriver::lookup()
+{ return path(); }
+
 
 #endif /* USE_LM_SENSORS */
 

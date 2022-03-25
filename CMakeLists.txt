@@ -62,6 +62,7 @@ option(DISABLE_EXCEPTION_CATCHING "Terminate with SIGABRT on all exceptions, cau
 
 set(SRC_FILES src/thinkfan.cpp src/config.cpp src/fans.cpp src/sensors.cpp
 	src/driver.cpp
+	src/hwmon.cpp
 	src/temperature_state.cpp
 	src/message.cpp src/parser.cpp src/error.cpp)
 
@@ -81,9 +82,8 @@ if(NOT CMAKE_BUILD_TYPE)
 		FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
 
-add_compile_options(-Wall -std=c++1y)
+add_compile_options(-Wall)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g3 -DDEBUG")
-
 
 add_executable(thinkfan ${SRC_FILES})
 
@@ -96,6 +96,8 @@ target_compile_definitions(thinkfan PRIVATE -DVERSION="${THINKFAN_VERSION}")
 # https://stackoverflow.com/questions/41394670/c-condition-variable-wait-for-returns-instantly
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=58929
 target_link_libraries(thinkfan PRIVATE ${CMAKE_THREAD_LIBS_INIT})
+
+set_property(TARGET thinkfan PROPERTY CXX_STANDARD 17)
 
 if(USE_ATASMART)
 	if(NOT ATASMART_FOUND)

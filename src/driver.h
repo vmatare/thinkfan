@@ -23,13 +23,15 @@
 
 #include "thinkfan.h"
 #include "error.h"
+#include <functional>
+#include <optional>
 
 namespace thinkfan {
 
 
 class Driver {
 protected:
-	Driver(unsigned int max_errors, const string &path, bool optional);
+	Driver(unsigned int max_errors, opt<const string> &&path, bool optional);
 
 public:
 	void try_init();
@@ -39,22 +41,29 @@ public:
 	const string &path() const;
 	void set_path(const string &path);
 
+	template<typename OpFnT, typename SkipFnT>
+	void robust_op(OpFnT op_fn, SkipFnT skip_fn);
+
 	template<class DriverT, typename... ArgTs>
-	void robust_io(void (DriverT::*f)(ArgTs...), ArgTs &&... args);
+	void robust_io(void (DriverT::*io_func)(ArgTs...), ArgTs &&... args);
+
 
 	bool initialized() const;
+	bool available() const;
 
 private:
-	const unsigned int max_errors_;
+	unsigned int max_errors_;
 	unsigned int errors_;
-	const bool optional_;
+	bool optional_;
 	bool initialized_;
-	string path_;
+	opt<const string> path_;
 
-	void handle_io_error_(const ExpectedError &e);
+	template<class SkipFnT>
+	void handle_io_error_(const ExpectedError &e, SkipFnT skip_fn);
 
 protected:
 	virtual void init() = 0;
+	virtual string lookup() = 0;
 	virtual void skip_io_error(const ExpectedError &);
 };
 
@@ -62,24 +71,47 @@ protected:
 template<class DriverT, typename... ArgTs>
 void Driver::robust_io(void (DriverT::*io_func)(ArgTs...), ArgTs &&... args)
 {
+	using namespace std::placeholders;
+
+	if (!initialized())
+		try_init();
+
+	if (initialized())
+		robust_op(
+			[&] () {
+				(static_cast<DriverT *>(this)->*io_func)(
+					std::forward<ArgTs>(args)...
+				);
+			},
+			std::bind(&Driver::skip_io_error, this, _1)
+		);
+}
+
+
+template<typename OpFnT, typename SkipFnT>
+void Driver::robust_op(OpFnT op_fn, SkipFnT skip_fn)
+{
 	try {
 		errors_++;
-
-		if (!initialized_)
-			init();
-
-		(static_cast<DriverT *>(this)->*io_func)(
-			std::forward<ArgTs>(args)...
-		);
-
+		op_fn();
 		errors_ = 0;
 	} catch (SystemError &e) {
-		handle_io_error_(e);
+		handle_io_error_(e, skip_fn);
 	} catch (IOerror &e) {
-		handle_io_error_(e);
+		handle_io_error_(e, skip_fn);
 	} catch (std::ios_base::failure &e) {
-		handle_io_error_(IOerror(e.what(), THINKFAN_IO_ERROR_CODE(e)));
+		handle_io_error_(IOerror(e.what(), THINKFAN_IO_ERROR_CODE(e)), skip_fn);
 	}
+}
+
+
+template<class SkipFnT>
+void Driver::handle_io_error_(const ExpectedError &e, SkipFnT skip_fn)
+{
+	if (optional() || tolerate_errors || errors() < max_errors() || !chk_sanity)
+		skip_fn(e);
+	else
+		throw e;
 }
 
 

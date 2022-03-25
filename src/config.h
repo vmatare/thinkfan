@@ -29,14 +29,9 @@
 #include <memory>
 #include <map>
 
-#include "fans.h"
-#include "sensors.h"
 #include "thinkfan.h"
 
 namespace thinkfan {
-
-class Config;
-
 
 class FanConfig {
 public:

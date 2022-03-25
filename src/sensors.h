@@ -25,6 +25,7 @@
 #include "thinkfan.h"
 #include "error.h"
 #include "driver.h"
+#include "hwmon.h"
 
 #ifdef USE_ATASMART
 #include <atasmart.h>
@@ -42,15 +43,19 @@
 #endif /* USE_LM_SENSORS */
 
 #include <functional>
+#include <optional>
 
 namespace thinkfan {
 
 class ExpectedError;
 
+template<class T>
+using optional = std::optional<T>;
+
 
 class SensorDriver : public Driver {
 protected:
-	SensorDriver(unsigned int max_errors, string path, bool optional, vector<int> correction = {});
+	SensorDriver(unsigned int max_errors, opt<const string> &&path, bool optional, const vector<int> &correction = {});
 
 public:
 	virtual ~SensorDriver() noexcept(false);
@@ -78,11 +83,26 @@ private:
 };
 
 
-class HwmonSensorDriver : public SensorDriver {
+class HwmonSensorDriver : public SensorDriver, public HwmonInterface {
 public:
-	HwmonSensorDriver(string path, bool optional, vector<int> correction = {}, unsigned int max_errors = 0);
+	HwmonSensorDriver(
+		const string &path,
+		bool optional,
+		const vector<int> &correction = {},
+		unsigned int max_errors = 0
+	);
+	HwmonSensorDriver(
+		const string &base_path,
+		opt<const string> &&name,
+		bool optional,
+		opt<unsigned int> &&index,
+		const vector<int> &correction,
+		unsigned int max_errors
+	);
+
 protected:
 	virtual void read_temps_() override;
+	virtual string lookup() override;
 };
 
 
@@ -91,22 +111,21 @@ public:
 	TpSensorDriver(
 		string path,
 		bool optional,
-		vector<int> correction = {},
+		const vector<int> &correction = {},
 		unsigned int max_errors = 0
 	);
 	TpSensorDriver(
 		string path,
 		bool optional,
 		const vector<unsigned int> &temp_indices,
-		vector<int> correction = {},
+		const vector<int> &correction = {},
 		unsigned int max_errors = 0
 	);
-
-	virtual bool optional() const override;
 
 protected:
 	virtual void init() override;
 	virtual void read_temps_() override;
+	virtual string lookup() override;
 
 private:
 	std::char_traits<char>::off_type skip_bytes_;
@@ -124,6 +143,7 @@ public:
 protected:
 	virtual void init() override;
 	virtual void read_temps_() override;
+	virtual string lookup() override;
 private:
 	SkDisk *disk_;
 };
@@ -138,6 +158,7 @@ public:
 protected:
 	virtual void init() override;
 	virtual void read_temps_() override;
+	virtual string lookup() override;
 private:
 	nvmlDevice_t device_;
 	void *nvml_so_handle_;
@@ -169,6 +190,7 @@ public:
 protected:
 	virtual void init() override;
 	virtual void read_temps_() override;
+	virtual string lookup() override;
 
 	// LM sensors helpers.
 	static void initialize_lm_sensors();

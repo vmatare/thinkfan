@@ -23,7 +23,7 @@
 
 namespace thinkfan {
 
-Driver::Driver(unsigned int max_errors, const string &path, bool optional)
+Driver::Driver(unsigned int max_errors, opt<const string> &&path, bool optional)
 : max_errors_(max_errors)
 , errors_(0)
 , optional_(optional)
@@ -31,47 +31,51 @@ Driver::Driver(unsigned int max_errors, const string &path, bool optional)
 , path_(path)
 {}
 
+
 void Driver::try_init()
 {
-	try {
-		init();
-		initialized_ = true;
-		errors_ = 0;
-		return;
-	} catch (std::exception &e) {
-		if (++errors_ > max_errors_)
-			throw e;
-	}
+	robust_op(
+		[&] () {
+			if (!available())
+				path_.emplace(lookup());
+			init();
+			initialized_ = true;
+		},
+		[&] (const ExpectedError &e) { /* skip_fn */
+			if (!optional())
+				log(TF_WRN)
+					<< "Error " << errors() << "/" << max_errors()
+					<< " while initializing driver: " << e.what() << flush
+				;
+		}
+	);
 }
+
 
 unsigned int Driver::errors() const
 { return errors_; }
 
 unsigned int Driver::max_errors() const
-{ return max_errors_; }
+{ return std::max(max_errors_, static_cast<unsigned int>(tolerate_errors)); }
 
 bool Driver::optional() const
 { return optional_; }
 
 const string &Driver::path() const
-{ return path_; }
+{ return path_.value(); }
 
 void Driver::set_path(const string &path)
-{ path_ = path; }
+{ path_.emplace(path); }
 
 bool Driver::initialized() const
 { return initialized_; }
 
-
-void Driver::handle_io_error_(const ExpectedError &e)
-{
-	if (!(optional() || tolerate_errors || errors() < max_errors()))
-		error<DriverLost>(e);
-	skip_io_error(e);
-}
+bool Driver::available() const
+{ return path_.has_value(); }
 
 void Driver::skip_io_error(const ExpectedError &e)
 { log(TF_ERR) << e.what() << flush; }
+
 
 
 } // namespace thinkfan

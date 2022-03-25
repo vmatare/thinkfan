@@ -40,6 +40,8 @@
 #include "config.h"
 #include "message.h"
 #include "error.h"
+#include "sensors.h"
+#include "fans.h"
 #include "temperature_state.h"
 
 
@@ -297,6 +299,10 @@ int set_options(int argc, char **argv)
 
 	return 0;
 }
+
+
+void noop()
+{}
 
 
 

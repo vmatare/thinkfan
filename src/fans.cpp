@@ -41,10 +41,10 @@ namespace thinkfan {
 | provided by its subclasses.                                                |
 ----------------------------------------------------------------------------*/
 
-FanDriver::FanDriver(unsigned int max_errors, const std::string &path, bool optional, unsigned int watchdog_timeout)
-: Driver(max_errors, path, optional),
+FanDriver::FanDriver(unsigned int max_errors, opt<const string> &&path, bool optional, unsigned int watchdog_timeout)
+: Driver(max_errors, std::forward<opt<const string>>(path), optional),
   watchdog_(watchdog_timeout),
-depulse_(0)
+  depulse_(0)
 {}
 
 FanDriver::~FanDriver() noexcept(false)
@@ -89,9 +89,10 @@ const string &FanDriver::current_speed() const
 | for noise oscillation with old & worn-out fans).                           |
 ----------------------------------------------------------------------------*/
 
-TpFanDriver::TpFanDriver(const std::string &path, unsigned int max_errors)
-: FanDriver(max_errors, path, 120)
+TpFanDriver::TpFanDriver(const std::string &path, bool optional, unsigned int max_errors)
+: FanDriver(max_errors, path, optional, 120)
 {}
+
 
 TpFanDriver::~TpFanDriver() noexcept(false)
 {
@@ -177,12 +178,33 @@ void TpFanDriver::init()
 }
 
 
+string TpFanDriver::lookup()
+{
+	std::fstream f(path());
+	if (!(f.is_open() && f.good()))
+		throw IOerror(MSG_FAN_INIT(path()), errno);
+	return path();
+}
+
+
 /*----------------------------------------------------------------------------
 | HwmonFanDriver: Driver for PWM fans, typically somewhere in sysfs.         |
 ----------------------------------------------------------------------------*/
 
 HwmonFanDriver::HwmonFanDriver(const std::string &path, unsigned int max_errors)
-: FanDriver(max_errors, path, 0)
+: FanDriver(max_errors, path, false, 0)
+{}
+
+
+HwmonFanDriver::HwmonFanDriver(
+	const string &base_path,
+	opt<const string> &&name,
+	bool optional,
+	opt<unsigned int> &&index,
+	unsigned int max_errors
+)
+: FanDriver(max_errors, std::nullopt, optional, 0)
+, HwmonInterface(base_path, std::forward<opt<const string>>(name), std::forward<opt<unsigned int>>(index))
 {}
 
 
@@ -221,6 +243,9 @@ void HwmonFanDriver::init()
 		throw IOerror(MSG_FAN_INIT(path()), errno);
 }
 
+string HwmonFanDriver::lookup()
+{ return HwmonInterface::lookup<HwmonFanDriver>(); }
+
 
 void HwmonFanDriver::set_speed(const Level &level)
 {
@@ -247,4 +272,7 @@ void HwmonFanDriver::set_speed(const Level &level)
 	}
 }
 
-}
+
+
+
+} // namespace thinkfan
