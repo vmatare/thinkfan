@@ -189,7 +189,10 @@ TpSensorDriver::TpSensorDriver(
 )
 : SensorDriver(path, optional, correction, max_errors)
 , temp_indices_(temp_indices)
-{}
+{
+	if (temp_indices_)
+		set_num_temps(static_cast<unsigned int>(temp_indices_->size()));
+}
 
 
 void TpSensorDriver::init()
@@ -228,7 +231,6 @@ void TpSensorDriver::init()
 				+ ", but there are only " + std::to_string(count) + "."
 			);
 
-		set_num_temps(static_cast<unsigned int>(temp_indices_->size()));
 
 		in_use_ = vector<bool>(count, false);
 		for (unsigned int i : *temp_indices_)
@@ -281,7 +283,9 @@ AtasmartSensorDriver::AtasmartSensorDriver(
 	opt<unsigned int> max_errors
 )
 : SensorDriver(path, optional, correction, max_errors)
-{}
+{
+	set_num_temps(1);
+}
 
 void AtasmartSensorDriver::init()
 {
@@ -289,7 +293,6 @@ void AtasmartSensorDriver::init()
 		string msg = std::strerror(errno);
 		throw SystemError("sk_disk_open(" + path() + "): " + msg);
 	}
-	set_num_temps(1);
 }
 
 
@@ -372,6 +375,7 @@ NvmlSensorDriver::NvmlSensorDriver(string bus_id, bool optional, opt<vector<int>
 	if (!(dl_nvmlDeviceGetHandleByPciBusId_v2 && dl_nvmlDeviceGetName &&
 			dl_nvmlDeviceGetTemperature && dl_nvmlInit_v2 && dl_nvmlShutdown))
 		throw SystemError("Incompatible NVML driver.");
+	set_num_temps(1);
 }
 
 
@@ -388,7 +392,6 @@ void NvmlSensorDriver::init()
 		throw SystemError("Failed to open PCI device " + path() + ". Error code (cf. nvml.h): " + std::to_string(ret));
 	dl_nvmlDeviceGetName(device_, &*name.begin(), 255);
 	log(TF_DBG) << "Initialized NVML sensor on " << name << " at PCI " << path() << "." << flush;
-	set_num_temps(1);
 }
 
 
@@ -441,6 +444,7 @@ LMSensorsDriver::LMSensorsDriver(
   feature_names_(feature_names)
 {
 	std::call_once(lm_sensors_once_init_, initialize_lm_sensors);
+	set_num_temps(feature_names_.size());
 }
 
 
@@ -470,7 +474,6 @@ void LMSensorsDriver::init()
 	if (correction_.empty())
 		correction_.resize(feature_names_.size(), 0);
 
-	set_num_temps(feature_names_.size());
 }
 
 
