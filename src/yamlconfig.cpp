@@ -80,6 +80,14 @@ struct convert
 {};
 
 
+template<class T>
+opt<T> decode_opt(const Node &node) {
+	if (node)
+		return node.as<T>();
+	else
+		return nullopt;
+}
+
 
 template<>
 bool convert_driver<vector<wtf_ptr<HwmonSensorDriver>>>(
@@ -89,35 +97,34 @@ bool convert_driver<vector<wtf_ptr<HwmonSensorDriver>>>(
 	if (!node[kw_hwmon])
 		return false;
 
-	auto initial_size = sensors.size();
 	string path = node[kw_hwmon].as<string>();
 
-	vector<int> correction;
-	if (node[kw_correction])
-		correction = node[kw_correction].as<vector<int>>();
-
-	opt<const string> name;
-	if (node[kw_name])
-		name.emplace(node[kw_name].as<string>());
-
+	opt<vector<int>> correction = decode_opt<vector<int>>(node[kw_correction]);
+	opt<const string> name = decode_opt<string>(node[kw_name]);
 	bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
+	opt<unsigned int> max_errors = decode_opt<unsigned int>(node[kw_max_errors]);
 
 	if (node[kw_indices]) {
 		vector<unsigned int> indices = node[kw_indices].as<vector<unsigned int>>();
 
-		if (!correction.empty()) {
-			if (correction.size() != indices.size())
+		if (correction) {
+			if (correction->size() != indices.size())
 				throw YamlError(
 					get_mark_compat(node[kw_indices]),
-					MSG_CONF_CORRECTION_LEN(path, correction.size(), indices.size())
+					MSG_CONF_CORRECTION_LEN(path, correction->size(), indices.size())
 				);
-		} else {
-			correction.resize(indices.size(), 0);
 		}
 
 		vector<int>::size_type i = 0;
 		for (unsigned int index : indices) {
-			wtf_ptr<HwmonSensorDriver> drv(new HwmonSensorDriver(path, std::move(name), optional, index, { correction[i++] }, 0));
+			wtf_ptr<HwmonSensorDriver> drv(new HwmonSensorDriver(
+				path,
+				name,
+				optional,
+				index,
+				correction ? opt<int>(correction.value()[i++]) : nullopt,
+				max_errors
+			));
 			sensors.push_back(drv);
 		}
 	}
@@ -125,13 +132,26 @@ bool convert_driver<vector<wtf_ptr<HwmonSensorDriver>>>(
 		if (optional)
 			throw YamlError(
 				get_mark_compat(node),
-				"An optional hwmon sensor must have an \"indices\" entry so thinkfan knows how many temperatures to expect."
+				"An optional hwmon sensor must have an '"+kw_indices+"' entry so thinkfan knows how many temperatures to expect."
 			);
-		wtf_ptr<HwmonSensorDriver> h(new HwmonSensorDriver(path, std::move(name), optional, std::nullopt, correction, 0));
+		if (correction && correction->size() != 1)
+			throw YamlError(
+				get_mark_compat(node[kw_correction]),
+				"If no indices are specified, the '"+kw_hwmon+"' path must refer to a specific temp*_input file "
+				"and therefore the length of '"+kw_correction+"' must be 1"
+			);
+		wtf_ptr<HwmonSensorDriver> h(new HwmonSensorDriver(
+			path,
+			name,
+			optional,
+			nullopt,
+			correction ? opt<int>(correction.value()[0]) : nullopt,
+			max_errors
+		));
 		sensors.push_back(h);
 	}
 
-	return sensors.size() > initial_size;
+	return true;
 }
 
 
@@ -141,28 +161,24 @@ bool convert_driver<wtf_ptr<TpSensorDriver>>(const Node &node, wtf_ptr<TpSensorD
 	if (!node[kw_tpacpi])
 		return false;
 
-	vector<int> correction;
-	if (node[kw_correction])
-		correction = node[kw_correction].as<vector<int>>();
-
+	opt<vector<int>> correction = decode_opt<vector<int>>(node[kw_correction]);
+	opt<vector<unsigned int>> indices = decode_opt<vector<unsigned int>>(node[kw_indices]);
 	bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
+	opt<unsigned int> max_errors = decode_opt<unsigned int>(node[kw_max_errors]);
 
-	if (node[kw_indices]) {
-		sensor = make_wtf<TpSensorDriver>(
-			node[kw_tpacpi].as<string>(),
-			optional,
-			node[kw_indices].as<vector<unsigned int>>(),
-			correction
+	if (!indices && optional)
+		throw YamlError(
+			get_mark_compat(node),
+			"An optional hwmon sensor must have an \"indices\" entry so thinkfan knows how many temperatures to expect."
 		);
-	}
-	else {
-		if (optional)
-			throw YamlError(
-				get_mark_compat(node),
-				"An optional hwmon sensor must have an \"indices\" entry so thinkfan knows how many temperatures to expect."
-			);
-		sensor = make_wtf<TpSensorDriver>(node[kw_tpacpi].as<string>(), optional, correction);
-	}
+
+	sensor = wtf_ptr<TpSensorDriver>(new TpSensorDriver(
+		node[kw_tpacpi].as<string>(),
+		optional,
+		indices,
+		correction,
+		max_errors
+	));
 
 	return true;
 }
@@ -175,13 +191,11 @@ bool convert_driver<wtf_ptr<NvmlSensorDriver>>(const Node &node, wtf_ptr<NvmlSen
 	if (!node[kw_nvidia])
 		return false;
 
-	vector<int> correction;
-	if (node[kw_correction])
-		correction = node[kw_correction].as<vector<int>>();
-
+	opt<vector<int>> correction = decode_opt<vector<int>>(node[kw_correction]);
 	bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
+	opt<unsigned int> max_errors = decode_opt<unsigned int>(node[kw_max_errors]);
 
-	sensor = make_wtf<NvmlSensorDriver>(node[kw_nvidia].as<string>(), optional, correction);
+	sensor = wtf_ptr<NvmlSensorDriver>(new NvmlSensorDriver(node[kw_nvidia].as<string>(), optional, correction, max_errors));
 
 	return true;
 }
@@ -192,16 +206,14 @@ bool convert_driver<wtf_ptr<NvmlSensorDriver>>(const Node &node, wtf_ptr<NvmlSen
 template<>
 bool convert_driver<wtf_ptr<AtasmartSensorDriver>>(const Node &node, wtf_ptr<AtasmartSensorDriver> &sensor)
 {
-	if (!node["atasmart"])
+	if (!node[kw_atasmart])
 		return false;
 
-	vector<int> correction;
-	if (node[kw_correction])
-		correction = node[kw_correction].as<vector<int>>();
-
+	opt<vector<int>> correction = decode_opt<vector<int>>(node[kw_correction]);
 	bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
+	opt<unsigned int> max_errors = decode_opt<unsigned int>(node[kw_max_errors]);
 
-	sensor = make_wtf<AtasmartSensorDriver>(node["atasmart"].as<string>(), optional, correction);
+	sensor = make_wtf<AtasmartSensorDriver>(node[kw_atasmart].as<string>(), optional, correction, max_errors);
 
 	return true;
 }
@@ -216,28 +228,24 @@ bool convert_driver<wtf_ptr<LMSensorsDriver>>(const Node &node, wtf_ptr<LMSensor
 		return false;
 
 	if (!node[kw_ids]) {
-		throw YamlError(get_mark_compat(node[kw_ids]), "No temperature inputs were specified.");
+		throw YamlError(get_mark_compat(node), "No temperature inputs were specified.");
 	}
 
 	string chip_name = node[kw_chip].as<string>();
 	vector<string> feature_names = node[kw_ids].as<vector<string>>();
 
+	opt<vector<int>> correction = decode_opt<vector<int>>(node[kw_correction]);
 	bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
+	opt<unsigned int> max_errors = decode_opt<unsigned int>(node[kw_max_errors]);
 
-	vector<int> correction;
-	if (node[kw_correction]) {
-		correction = node[kw_correction].as<vector<int>>();
-	}
-	if (!correction.empty()) {
-		if (correction.size() != feature_names.size()) {
-			throw YamlError(
-					get_mark_compat(node[kw_ids]),
-					MSG_CONF_CORRECTION_LEN(chip_name, correction.size(), feature_names.size()));
-		}
+	if (correction && correction->size() != feature_names.size()) {
+		throw YamlError(
+			get_mark_compat(node[kw_ids]),
+			MSG_CONF_CORRECTION_LEN(chip_name, correction->size(), feature_names.size())
+		);
 	}
 
-	sensor = make_wtf<LMSensorsDriver>(
-		chip_name, feature_names, optional, correction);
+	sensor = make_wtf<LMSensorsDriver>(chip_name, feature_names, optional, correction, max_errors);
 	return true;
 }
 #endif // USE_LM_SENSORS
@@ -249,7 +257,10 @@ bool convert_driver<wtf_ptr<TpFanDriver>>(const Node &node, wtf_ptr<TpFanDriver>
 	if (!node[kw_tpacpi])
 		return false;
 
-	fan = make_wtf<TpFanDriver>(node[kw_tpacpi].as<string>());
+	bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
+	opt<unsigned int> max_errors = decode_opt<unsigned int>(node[kw_max_errors]);
+
+	fan = make_wtf<TpFanDriver>(node[kw_tpacpi].as<string>(), optional, max_errors);
 	return true;
 }
 
@@ -260,20 +271,15 @@ bool convert_driver<vector<wtf_ptr<HwmonFanDriver>>>(const Node &node, vector<wt
 	if (!node[kw_hwmon])
 		return false;
 
-	auto initial_size = fans.size();
 	string path = node[kw_hwmon].as<string>();
+	opt<string> name = decode_opt<string>(node[kw_name]);
+	bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
+	opt<vector<unsigned int>> indices = decode_opt<vector<unsigned int>>(node[kw_indices]);
+	opt<unsigned int> max_errors = decode_opt<unsigned int>(node[kw_max_errors]);
 
-	opt<string> name;
-	if (node[kw_name])
-		name = node[kw_name].as<string>();
-
-	bool optional = false;
-	if (node[kw_optional])
-		optional = node[kw_optional].as<bool>();
-
-	if (node[kw_indices]) {
-		for (unsigned int idx : node[kw_indices].as<vector<unsigned int>>())
-			fans.push_back(make_wtf<HwmonFanDriver>(path, name, optional, idx, 0));
+	if (indices) {
+		for (unsigned int idx : *indices)
+			fans.push_back(wtf_ptr<HwmonFanDriver>(new HwmonFanDriver(path, name, optional, idx, max_errors)));
 	}
 	else {
 		if (optional)
@@ -282,10 +288,10 @@ bool convert_driver<vector<wtf_ptr<HwmonFanDriver>>>(const Node &node, vector<wt
 				"An optional hwmon fan must have an \"indices\" entry so thinkfan knows how many temperatures to expect."
 			);
 
-		fans.push_back(make_wtf<HwmonFanDriver>(node[kw_hwmon].as<string>()));
+		fans.push_back(wtf_ptr<HwmonFanDriver>(new HwmonFanDriver(node[kw_hwmon].as<string>(), optional, max_errors)));
 	}
 
-	return fans.size() > initial_size;
+	return true;
 }
 
 

@@ -23,7 +23,7 @@
 
 namespace thinkfan {
 
-Driver::Driver(unsigned int max_errors, opt<const string> &&path, bool optional)
+Driver::Driver(opt<const string> path, bool optional, unsigned int max_errors)
 : max_errors_(max_errors)
 , errors_(0)
 , optional_(optional)

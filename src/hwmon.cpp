@@ -249,10 +249,10 @@ vector<string> find_hwmons_by_indices(const string &path, const vector<unsigned 
 HwmonInterface::HwmonInterface()
 {}
 
-HwmonInterface::HwmonInterface(const string &base_path, opt<const string> &&name, opt<unsigned int> &&index)
+HwmonInterface::HwmonInterface(const string &base_path, opt<const string> name, opt<unsigned int> index)
 : base_path_(base_path)
-, name_(std::forward<opt<const string>>(name))
-, index_(std::forward<opt<unsigned int>>(index))
+, name_(name)
+, index_(index)
 {}
 
 

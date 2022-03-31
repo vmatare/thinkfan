@@ -41,8 +41,9 @@ namespace thinkfan {
 | provided by its subclasses.                                                |
 ----------------------------------------------------------------------------*/
 
-FanDriver::FanDriver(unsigned int max_errors, opt<const string> &&path, bool optional, unsigned int watchdog_timeout)
-: Driver(max_errors, std::forward<opt<const string>>(path), optional),
+FanDriver::FanDriver(opt<const string> path, bool optional, unsigned int watchdog_timeout, opt<unsigned int> max_errors)
+: Driver(path, optional, max_errors.value_or(0)),
+  current_speed_("_"),
   watchdog_(watchdog_timeout),
   depulse_(0)
 {}
@@ -89,8 +90,8 @@ const string &FanDriver::current_speed() const
 | for noise oscillation with old & worn-out fans).                           |
 ----------------------------------------------------------------------------*/
 
-TpFanDriver::TpFanDriver(const std::string &path, bool optional, unsigned int max_errors)
-: FanDriver(max_errors, path, optional, 120)
+TpFanDriver::TpFanDriver(const std::string &path, bool optional, opt<unsigned int> max_errors)
+: FanDriver(path, optional, 120, max_errors)
 {}
 
 
@@ -191,20 +192,20 @@ string TpFanDriver::lookup()
 | HwmonFanDriver: Driver for PWM fans, typically somewhere in sysfs.         |
 ----------------------------------------------------------------------------*/
 
-HwmonFanDriver::HwmonFanDriver(const std::string &path, unsigned int max_errors)
-: FanDriver(max_errors, path, false, 0)
+HwmonFanDriver::HwmonFanDriver(const std::string &path, bool optional, opt<unsigned int> max_errors)
+: FanDriver(path, optional, 0, max_errors)
 {}
 
 
 HwmonFanDriver::HwmonFanDriver(
 	const string &base_path,
-	opt<const string> &&name,
+	opt<const string> name,
 	bool optional,
-	opt<unsigned int> &&index,
-	unsigned int max_errors
+	opt<unsigned int> index,
+	opt<unsigned int> max_errors
 )
-: FanDriver(max_errors, std::nullopt, optional, 0)
-, HwmonInterface(base_path, std::forward<opt<const string>>(name), std::forward<opt<unsigned int>>(index))
+: FanDriver(nullopt, optional, 0, max_errors)
+, HwmonInterface(base_path, name, index)
 {}
 
 

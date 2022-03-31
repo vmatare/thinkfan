@@ -55,7 +55,7 @@ using optional = std::optional<T>;
 
 class SensorDriver : public Driver {
 protected:
-	SensorDriver(unsigned int max_errors, opt<const string> &&path, bool optional, const vector<int> &correction = {});
+	SensorDriver(opt<const string> path, bool optional, opt<vector<int>> correction = nullopt, opt<unsigned int> max_errors = nullopt);
 
 public:
 	virtual ~SensorDriver() noexcept(false);
@@ -88,16 +88,16 @@ public:
 	HwmonSensorDriver(
 		const string &path,
 		bool optional,
-		const vector<int> &correction = {},
-		unsigned int max_errors = 0
+		opt<int> correction = nullopt,
+		opt<unsigned int> max_errors = nullopt
 	);
 	HwmonSensorDriver(
 		const string &base_path,
-		opt<const string> &&name,
+		opt<const string> name,
 		bool optional,
-		opt<unsigned int> &&index,
-		const vector<int> &correction,
-		unsigned int max_errors
+		opt<unsigned int> index,
+		opt<int> correction = nullopt,
+		opt<unsigned int> max_errors = nullopt
 	);
 
 protected:
@@ -111,15 +111,9 @@ public:
 	TpSensorDriver(
 		string path,
 		bool optional,
-		const vector<int> &correction = {},
-		unsigned int max_errors = 0
-	);
-	TpSensorDriver(
-		string path,
-		bool optional,
-		const vector<unsigned int> &temp_indices,
-		const vector<int> &correction = {},
-		unsigned int max_errors = 0
+		opt<vector<unsigned int>> temp_indices = nullopt,
+		opt<vector<int>> correction = nullopt,
+		opt<unsigned int> max_errors = nullopt
 	);
 
 protected:
@@ -131,14 +125,14 @@ private:
 	std::char_traits<char>::off_type skip_bytes_;
 	static const string skip_prefix_;
 	vector<bool> in_use_;
-	const vector<unsigned int> &temp_indices_;
+	const opt<vector<unsigned int>> temp_indices_;
 };
 
 
 #ifdef USE_ATASMART
 class AtasmartSensorDriver : public SensorDriver {
 public:
-	AtasmartSensorDriver(string device_path, bool optional, vector<int> correction = {}, unsigned int max_errors = 0);
+	AtasmartSensorDriver(string device_path, bool optional, opt<vector<int>> correction = nullopt, opt<unsigned int> max_errors = nullopt);
 	virtual ~AtasmartSensorDriver();
 protected:
 	virtual void init() override;
@@ -153,7 +147,7 @@ private:
 #ifdef USE_NVML
 class NvmlSensorDriver : public SensorDriver {
 public:
-	NvmlSensorDriver(string bus_id, bool optional, vector<int> correction = {}, unsigned int max_errors = 0);
+	NvmlSensorDriver(string bus_id, bool optional, opt<vector<int>> correction = nullopt, opt<unsigned int> max_errors = nullopt);
 	virtual ~NvmlSensorDriver() noexcept(false) override;
 protected:
 	virtual void init() override;
@@ -182,8 +176,8 @@ public:
 		string chip_name,
 		std::vector<string> feature_names,
 		bool optional,
-		std::vector<int> correction = {},
-		unsigned int max_errors = 0
+		opt<vector<int>> correction = nullopt,
+		opt<unsigned int> max_errors = nullopt
 	);
 	virtual ~LMSensorsDriver();
 

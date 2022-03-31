@@ -37,7 +37,7 @@ vector<string> find_hwmons_by_indices(const string &path, const vector<unsigned 
 class HwmonInterface {
 public:
 	HwmonInterface();
-	HwmonInterface(const string &base_path, opt<const string> &&name, opt<unsigned int> &&index);
+	HwmonInterface(const string &base_path, opt<const string> name, opt<unsigned int> index);
 
 	template<class HwmonT>
 	string lookup();

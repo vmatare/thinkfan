@@ -80,6 +80,10 @@ using numeric_limits = std::numeric_limits<T>;
 template<typename T>
 using opt = std::optional<T>;
 
+inline constexpr std::nullopt_t nullopt = std::nullopt;
+
+using std::forward;
+
 class Config;
 class Level;
 class Driver;

@@ -42,9 +42,9 @@ namespace thinkfan {
 | SensorDriver: The superclass of all hardware-specific sensor drivers       |
 ----------------------------------------------------------------------------*/
 
-SensorDriver::SensorDriver(unsigned int max_errors, opt<const string> &&path, bool optional, const vector<int> &correction)
-: Driver(max_errors, std::forward<opt<const string>>(path), optional)
-, correction_(correction)
+SensorDriver::SensorDriver(opt<const string> path, bool optional, opt<vector<int>> correction, opt<unsigned int> max_errors)
+: Driver(std::forward<opt<const string>>(path), optional, max_errors.value_or(0))
+, correction_(correction.value_or(vector<int>()))
 , num_temps_(0)
 {}
 
@@ -137,22 +137,23 @@ void SensorDriver::skip_io_error(const ExpectedError &e)
 HwmonSensorDriver::HwmonSensorDriver(
 	const string &path,
 	bool optional,
-	const vector<int> &correction,
-	unsigned int max_errors
+	opt<int> correction,
+	opt<unsigned int> max_errors
 )
-: SensorDriver(max_errors, path, optional, correction)
+: SensorDriver(path, optional, correction ? vector<int>{*correction} : vector<int>{}, max_errors)
+, HwmonInterface(path, nullopt, nullopt)
 { set_num_temps(1); }
 
 HwmonSensorDriver::HwmonSensorDriver(
 	const string &base_path,
-	opt<const string> &&name,
+	opt<const string> name,
 	bool optional,
-	opt<unsigned int> &&index,
-	const vector<int> &correction,
-	unsigned int max_errors
+	opt<unsigned int> index,
+	opt<int> correction,
+	opt<unsigned int> max_errors
 )
-: SensorDriver(max_errors, std::nullopt, optional, {correction})
-, HwmonInterface(base_path, std::forward<opt<const string>>(name), std::forward<opt<unsigned int>>(index))
+: SensorDriver(std::nullopt, optional, correction ? vector<int>{*correction} : vector<int>{}, max_errors)
+, HwmonInterface(base_path, name, index)
 { set_num_temps(1); }
 
 
@@ -182,21 +183,12 @@ const string TpSensorDriver::skip_prefix_("temperatures:");
 TpSensorDriver::TpSensorDriver(
 	std::string path,
 	bool optional,
-	const vector<unsigned int> &temp_indices,
-	const vector<int> &correction,
-	unsigned int max_errors
+	opt<vector<unsigned int>> temp_indices,
+	opt<vector<int>> correction,
+	opt<unsigned int> max_errors
 )
-: SensorDriver(max_errors, path, optional, correction)
+: SensorDriver(path, optional, correction, max_errors)
 , temp_indices_(temp_indices)
-{}
-
-TpSensorDriver::TpSensorDriver(
-	std::string path,
-	bool optional,
-	const vector<int> &correction,
-	unsigned int max_errors
-)
-: TpSensorDriver(path, optional, {}, correction, max_errors)
 {}
 
 
@@ -228,18 +220,18 @@ void TpSensorDriver::init()
 			++count;
 	}
 
-	if (temp_indices_.size() > 0) {
-		if (temp_indices_.size() > count)
+	if (temp_indices_) {
+		if (temp_indices_->size() > count)
 			throw ConfigError(
-				"Config specifies " + std::to_string(temp_indices_.size())
+				"Config specifies " + std::to_string(temp_indices_->size())
 				+ " temperature inputs in " + path()
 				+ ", but there are only " + std::to_string(count) + "."
 			);
 
-		set_num_temps(static_cast<unsigned int>(temp_indices_.size()));
+		set_num_temps(static_cast<unsigned int>(temp_indices_->size()));
 
 		in_use_ = vector<bool>(count, false);
-		for (unsigned int i : temp_indices_)
+		for (unsigned int i : *temp_indices_)
 			in_use_[i] = true;
 	}
 	else {
@@ -285,10 +277,10 @@ string TpSensorDriver::lookup()
 AtasmartSensorDriver::AtasmartSensorDriver(
 	string path,
 	bool optional,
-	vector<int> correction,
-	unsigned int max_errors
+	opt<vector<int>> correction,
+	opt<unsigned int> max_errors
 )
-: SensorDriver(max_errors, path, optional, correction)
+: SensorDriver(path, optional, correction, max_errors)
 {}
 
 void AtasmartSensorDriver::init()
@@ -353,8 +345,8 @@ string AtasmartSensorDriver::lookup()
 | nVidia Management Library that is included with the proprietary driver.    |
 ----------------------------------------------------------------------------*/
 
-NvmlSensorDriver::NvmlSensorDriver(string bus_id, bool optional, vector<int> correction, unsigned int max_errors)
-: SensorDriver(max_errors, bus_id, optional),
+NvmlSensorDriver::NvmlSensorDriver(string bus_id, bool optional, opt<vector<int>> correction, opt<unsigned int> max_errors)
+: SensorDriver(bus_id, optional, correction, max_errors),
   dl_nvmlInit_v2(nullptr),
   dl_nvmlDeviceGetHandleByPciBusId_v2(nullptr),
   dl_nvmlDeviceGetName(nullptr),
@@ -380,8 +372,6 @@ NvmlSensorDriver::NvmlSensorDriver(string bus_id, bool optional, vector<int> cor
 	if (!(dl_nvmlDeviceGetHandleByPciBusId_v2 && dl_nvmlDeviceGetName &&
 			dl_nvmlDeviceGetTemperature && dl_nvmlInit_v2 && dl_nvmlShutdown))
 		throw SystemError("Incompatible NVML driver.");
-
-	set_correction(correction);
 }
 
 
@@ -442,10 +432,10 @@ LMSensorsDriver::LMSensorsDriver(
 	string chip_name,
 	vector<string> feature_names,
 	bool optional,
-	vector<int> correction,
-	unsigned int max_errors
+	opt<vector<int>> correction,
+	opt<unsigned int> max_errors
 )
-: SensorDriver(max_errors, chip_name, optional, correction),
+: SensorDriver(chip_name, optional, correction, max_errors),
   chip_name_(chip_name),
   chip_(nullptr),
   feature_names_(feature_names)
@@ -481,7 +471,6 @@ void LMSensorsDriver::init()
 		correction_.resize(feature_names_.size(), 0);
 
 	set_num_temps(feature_names_.size());
-	set_correction(correction_);
 }
 
 

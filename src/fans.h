@@ -33,7 +33,7 @@ class Level;
 
 class FanDriver : public Driver {
 protected:
-	FanDriver(unsigned int max_errors, opt<const string> &&path, bool optional, const unsigned int watchdog_timeout = 120);
+	FanDriver(opt<const string> path, bool optional, const unsigned int watchdog_timeout = 120, opt<unsigned int> max_errors = nullopt);
 
 public:
 	bool is_default() { return path().length() == 0; }
@@ -60,7 +60,7 @@ private:
 
 class TpFanDriver : public FanDriver {
 public:
-	TpFanDriver(const string &path, bool optional = false, unsigned int max_errors = 0);
+	TpFanDriver(const string &path, bool optional = false, opt<unsigned int> max_errors = nullopt);
 
 	virtual ~TpFanDriver() noexcept(false) override;
 	void set_watchdog(const unsigned int timeout);
@@ -76,14 +76,14 @@ protected:
 
 class HwmonFanDriver : public FanDriver, public HwmonInterface {
 public:
-	HwmonFanDriver(const string &path, unsigned int max_errors = 0);
+	HwmonFanDriver(const string &path, bool optional = false, opt<unsigned int> max_errors = nullopt);
 
 	HwmonFanDriver(
 		const string &base_path,
-		opt<const string> &&name,
+		opt<const string> name,
 		bool optional,
-		opt<unsigned int> &&index,
-		unsigned int max_errors
+		opt<unsigned int> index,
+		opt<unsigned int> max_errors = nullopt
 	);
 
 	virtual ~HwmonFanDriver() noexcept(false) override;

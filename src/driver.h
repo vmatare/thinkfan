@@ -31,7 +31,7 @@ namespace thinkfan {
 
 class Driver {
 protected:
-	Driver(unsigned int max_errors, opt<const string> &&path, bool optional);
+	Driver(opt<const string> path, bool optional, unsigned int max_errors);
 
 public:
 	void try_init();
