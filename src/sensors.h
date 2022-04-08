@@ -3,6 +3,7 @@
 /********************************************************************
  * config.h: Config data structures and consistency checking.
  * (C) 2015, Victor Mataré
+ *     2021, Koutheir Attouchi
  *
  * this file is part of thinkfan. See thinkfan.c for further information.
  *
@@ -23,6 +24,8 @@
 
 #include "thinkfan.h"
 #include "error.h"
+#include "driver.h"
+#include "hwmon.h"
 
 #ifdef USE_ATASMART
 #include <atasmart.h>
@@ -32,87 +35,109 @@
 #include <nvidia/gdk/nvml.h>
 #endif /* USE_NVML */
 
+#ifdef USE_LM_SENSORS
+#include <sensors/sensors.h>
+#include <sensors/error.h>
+#include <atomic>
+#include <mutex>
+#endif /* USE_LM_SENSORS */
+
+#include <functional>
+#include <optional>
+
 namespace thinkfan {
 
 class ExpectedError;
 
-class SensorDriver {
+template<class T>
+using optional = std::optional<T>;
+
+
+class SensorDriver : public Driver {
 protected:
-	SensorDriver(string path, bool optional, vector<int> correction = {});
-	SensorDriver(bool optional);
+	SensorDriver(opt<const string> path, bool optional, opt<vector<int>> correction = nullopt, opt<unsigned int> max_errors = nullopt);
+
 public:
 	virtual ~SensorDriver() noexcept(false);
 	unsigned int num_temps() const { return num_temps_; }
 	void set_correction(const vector<int> &correction);
-	void set_num_temps(unsigned int n);
 	bool operator == (const SensorDriver &other) const;
-	void set_optional(bool);
-	bool optional() const;
-	const string &path() const;
 
-	inline void read_temps(TemperatureState &global_temps) const
-	{
-		try {
-			read_temps_(global_temps);
-		} catch (SystemError &e) {
-			sensor_lost(e, global_temps);
-		} catch (IOerror &e) {
-			sensor_lost(e, global_temps);
-		} catch (std::ios_base::failure &e) {
-			sensor_lost(IOerror(e.what(), THINKFAN_IO_ERROR_CODE(e)), global_temps);
-		}
-	}
+	void read_temps();
+	void init_temp_state_ref(TemperatureState::Ref &&);
 
 protected:
-	virtual void read_temps_(TemperatureState &global_temps) const = 0;
+	virtual void init() override;
+	void set_num_temps(unsigned int n);
+	virtual void skip_io_error(const ExpectedError &e) override;
+	virtual void read_temps_() = 0;
 
-	string path_;
 	vector<int> correction_;
+	TemperatureState::Ref temp_state_;
 
+	/** @brief Protocol: Throw SensorLost(e) or nothing
+	 *  @param e The original error */
 private:
 	unsigned int num_temps_;
-	bool optional_;
 	void check_correction_length();
+};
 
-	inline void sensor_lost(const ExpectedError &e, TemperatureState &global_temps) const
-	{
-		if (this->optional() || tolerate_errors)
-			log(TF_INF) << SensorLost(e).what();
-		else
-			error<SensorLost>(e);
-		global_temps.add_temp(-128);
-	}
+
+class HwmonSensorDriver : public SensorDriver, public HwmonInterface {
+public:
+	HwmonSensorDriver(
+		const string &path,
+		bool optional,
+		opt<int> correction = nullopt,
+		opt<unsigned int> max_errors = nullopt
+	);
+	HwmonSensorDriver(
+		const string &base_path,
+		opt<const string> name,
+		bool optional,
+		opt<unsigned int> index,
+		opt<int> correction = nullopt,
+		opt<unsigned int> max_errors = nullopt
+	);
+
+protected:
+	virtual void read_temps_() override;
+	virtual string lookup() override;
 };
 
 
 class TpSensorDriver : public SensorDriver {
 public:
-	TpSensorDriver(string path, bool optional, vector<int> correction = {});
-	TpSensorDriver(string path, bool optional, const vector<unsigned int> &temp_indices, vector<int> correction = {});
+	TpSensorDriver(
+		string path,
+		bool optional,
+		opt<vector<unsigned int>> temp_indices = nullopt,
+		opt<vector<int>> correction = nullopt,
+		opt<unsigned int> max_errors = nullopt
+	);
+
 protected:
-	virtual void read_temps_(TemperatureState &global_temps) const override;
+	virtual void init() override;
+	virtual void read_temps_() override;
+	virtual string lookup() override;
+
 private:
 	std::char_traits<char>::off_type skip_bytes_;
 	static const string skip_prefix_;
 	vector<bool> in_use_;
-};
-
-
-class HwmonSensorDriver : public SensorDriver {
-public:
-	HwmonSensorDriver(string path, bool optional, vector<int> correction = {});
-protected:
-	virtual void read_temps_(TemperatureState &global_temps) const override;
+	const opt<vector<unsigned int>> temp_indices_;
 };
 
 
 #ifdef USE_ATASMART
 class AtasmartSensorDriver : public SensorDriver {
 public:
-	AtasmartSensorDriver(string device_path, bool optional, vector<int> correction = {});
+	AtasmartSensorDriver(string device_path, bool optional, opt<vector<int>> correction = nullopt, opt<unsigned int> max_errors = nullopt);
 	virtual ~AtasmartSensorDriver();
 protected:
-	virtual void read_temps_(TemperatureState &global_temps) const override;
+	virtual void init() override;
+	virtual void read_temps_() override;
+	virtual string lookup() override;
 private:
 	SkDisk *disk_;
 };
@@ -122,10 +147,12 @@ private:
 #ifdef USE_NVML
 class NvmlSensorDriver : public SensorDriver {
 public:
-	NvmlSensorDriver(string bus_id, bool optional, vector<int> correction = {});
+	NvmlSensorDriver(string bus_id, bool optional, opt<vector<int>> correction = nullopt, opt<unsigned int> max_errors = nullopt);
 	virtual ~NvmlSensorDriver() noexcept(false) override;
 protected:
-	virtual void read_temps_(TemperatureState &global_temps) const override;
+	virtual void init() override;
+	virtual void read_temps_() override;
+	virtual string lookup() override;
 private:
 	nvmlDevice_t device_;
 	void *nvml_so_handle_;
@@ -140,6 +167,53 @@ private:
 };
 #endif /* USE_NVML */
 
+
+#ifdef USE_LM_SENSORS
+
+class LMSensorsDriver : public SensorDriver {
+public:
+	LMSensorsDriver(
+		string chip_name,
+		std::vector<string> feature_names,
+		bool optional,
+		opt<vector<int>> correction = nullopt,
+		opt<unsigned int> max_errors = nullopt
+	);
+	virtual ~LMSensorsDriver();
+
+protected:
+	virtual void init() override;
+	virtual void read_temps_() override;
+	virtual string lookup() override;
+
+	// LM sensors helpers.
+	static void initialize_lm_sensors();
+	static const ::sensors_chip_name *find_chip_by_name(const string& chip_name);
+
+	static const ::sensors_feature *find_feature_by_name(
+		const ::sensors_chip_name &chip,
+		const string &feature_name
+	);
+
+	static string get_chip_name(const ::sensors_chip_name &chip);
+
+	// LM sensors call backs.
+	static void parse_error_callback(const char *err, int line_no);
+	static void parse_error_wfn_callback(const char *err, const char *file_name, int line_no);
+	static void fatal_error_callback(const char *proc, const char *err);
+
+private:
+	const string chip_name_;
+	const ::sensors_chip_name* chip_;
+
+	const std::vector<string> feature_names_;
+	std::vector<const ::sensors_feature*> features_;
+	std::vector<const ::sensors_subfeature*> sub_features_;
+
+	static std::once_flag lm_sensors_once_init_;
+};
+
+#endif /* USE_LM_SENSORS */
 
 }
 

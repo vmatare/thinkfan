@@ -28,6 +28,34 @@
 # sensor.
 
 sensors:
+  # LM Sensors
+  # ==========
+  # Temperatures can be read directly from Linux drivers through the LM sensors.
+  #
+  # To configure this, install "lm-sensors" and "libsensors", then
+  # run "sensors-detect", then run "sensors".
+  # To build thinkfan from sources, you'll also need to install "libsensors-dev"
+  # or equivalent package for your distribution.
+  #
+  # For example, the following output of "sensors":
+  # ...
+  # thinkpad-isa-0000
+  # Adapter: ISA adapter
+  # fan1:        2618 RPM
+  # fan2:        2553 RPM
+  # CPU:          +63.0 C  
+  # GPU 1:        +55.0 C  
+  # temp3:        +68.0 C  
+  # temp4:         +0.0 C  
+  # temp5:        +60.0 C  
+  # temp6:        +64.0 C  
+  # temp7:        +67.0 C  
+  # temp8:         +0.0 C  
+  # ...
+  # would result in the following configuration:
+  - chip: thinkpad-isa-0000
+    ids: [ CPU, "GPU 1", temp3, temp4, temp5, temp6, temp7, temp8 ]
+
   # hwmon: Full path to a temperature file (single sensor).
   # =======================================================
   # Disadvantage is that the index in "hwmon0" depends on the load order of

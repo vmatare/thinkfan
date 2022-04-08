@@ -53,6 +53,11 @@ To compile thinkfan, you will need to have the following things installed:
        this only when you really need it, since libatasmart is unreasonably
        CPU-intensive.
 
+   `USE_LM_SENSORS:BOOL` (default: `ON`)
+       Use LM sensors to read temperatures directly from Linux drivers.
+       The `libsensors` library needs to be installed for this feature, probably
+       with required headers and development files (e.g., `libsensors-dev`).
+
    `USE_YAML:BOOL` (default: `ON`)
        Support config file in the new, more flexible YAML format. The old
        config format will be deprecated after the thinkfan 1.0 release. New

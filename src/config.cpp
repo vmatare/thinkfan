@@ -269,7 +269,29 @@ void Config::add_fan_config(unique_ptr<FanConfig> &&fan_cfg)
 void Config::init_fans() const
 {
 	for (const unique_ptr<FanConfig> &fan_cfg : fan_configs())
-		fan_cfg->fan()->init();
+		try_init_driver(*fan_cfg->fan());
+}
+
+
+void Config::init_sensors(TemperatureState &tstate) const
+{
+	tstate.reset_refd_count();
+	for (const unique_ptr<SensorDriver> &sensor : sensors()) {
+		try_init_driver(*sensor);
+		sensor->init_temp_state_ref(tstate.ref(sensor->num_temps()));
+	}
+}
+
+
+void Config::try_init_driver(Driver &drv) const
+{
+	while (true) {
+		drv.try_init();
+		if (drv.initialized() || drv.optional())
+			return;
+		else
+			sleep(sleeptime);
+	}
 }
 
 

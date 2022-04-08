@@ -41,21 +41,32 @@ namespace thinkfan {
 | provided by its subclasses.                                                |
 ----------------------------------------------------------------------------*/
 
-FanDriver::FanDriver(const std::string &path, const unsigned int watchdog_timeout)
-: path_(path),
+FanDriver::FanDriver(opt<const string> path, bool optional, unsigned int watchdog_timeout, opt<unsigned int> max_errors)
+: Driver(path, optional, max_errors.value_or(0)),
+  current_speed_("_"),
   watchdog_(watchdog_timeout),
   depulse_(0)
 {}
 
+FanDriver::~FanDriver() noexcept(false)
+{}
+
 void FanDriver::set_speed(const string &level)
+{ robust_io(&FanDriver::set_speed_, level); }
+
+void FanDriver::skip_io_error(const ExpectedError &)
+{}
+
+
+void FanDriver::set_speed_(const string &level)
 {
-	std::ofstream f_out(path_);
+	std::ofstream f_out(path());
 	if(!(f_out << level << std::flush)) {
 		int err = errno;
 		if (err == EPERM)
-			throw SystemError(MSG_FAN_EPERM(path_));
+			throw SystemError(MSG_FAN_EPERM(path()));
 		else
-			throw IOerror(MSG_FAN_CTRL(level, path_), err);
+			throw IOerror(MSG_FAN_CTRL(level, path()), err);
 	}
 	current_speed_ = level;
 }
@@ -64,7 +75,7 @@ void FanDriver::set_speed(const string &level)
 bool FanDriver::operator == (const FanDriver &other) const
 {
 	return typeid(*this) == typeid(other)
-			&& this->path_ == other.path_
+			&& this->path() == other.path()
 			&& this->depulse_ == other.depulse_
 			&& this->watchdog_ == other.watchdog_;
 }
@@ -79,22 +90,23 @@ const string &FanDriver::current_speed() const
 | for noise oscillation with old & worn-out fans).                           |
 ----------------------------------------------------------------------------*/
 
-TpFanDriver::TpFanDriver(const std::string &path)
-: FanDriver(path, 120)
+TpFanDriver::TpFanDriver(const std::string &path, bool optional, opt<unsigned int> max_errors)
+: FanDriver(path, optional, 120, max_errors)
 {}
+
 
 TpFanDriver::~TpFanDriver() noexcept(false)
 {
-	std::ofstream f(path_);
+	std::ofstream f(path());
 	if (!(f.is_open() && f.good())) {
-		log(TF_ERR) << MSG_FAN_RESET(path_) << strerror(errno) << flush;
+		log(TF_ERR) << MSG_FAN_RESET(path()) << strerror(errno) << flush;
 		return;
 	}
 
 	if (!initial_state_.empty()) {
-		log(TF_DBG) << path_ << ": Restoring initial state: " << initial_state_ << "." << flush;
+		log(TF_DBG) << path() << ": Restoring initial state: " << initial_state_ << "." << flush;
 		if (!(f << "level " << initial_state_ << std::flush))
-			log(TF_ERR) << MSG_FAN_RESET(path_) << strerror(errno) << flush;
+			log(TF_ERR) << MSG_FAN_RESET(path()) << strerror(errno) << flush;
 	}
 }
 
@@ -131,9 +143,9 @@ void TpFanDriver::ping_watchdog_and_depulse(const Level &level)
 void TpFanDriver::init()
 {
 	bool ctrl_supported = false;
-	std::fstream f(path_);
+	std::fstream f(path());
 	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_FAN_INIT(path_), errno);
+		throw IOerror(MSG_FAN_INIT(path()), errno);
 
 	std::string line;
 	line.resize(256);
@@ -146,7 +158,7 @@ void TpFanDriver::init()
 				// Cut of at bogus \000 char that may occur before EOL
 				initial_state_ = line.substr(offs, line.find_first_of('\000') - offs);
 			}
-			log(TF_DBG) << path_ << ": Saved initial state: " << initial_state_ << "." << flush;
+			log(TF_DBG) << path() << ": Saved initial state: " << initial_state_ << "." << flush;
 		}
 		else if (line.rfind("commands:") != std::string::npos && line.rfind("level <level>") != std::string::npos) {
 			ctrl_supported = true;
@@ -157,13 +169,22 @@ void TpFanDriver::init()
 		throw SystemError(MSG_FAN_MODOPTS);
 
 	if (initial_state_.empty())
-		throw SystemError(MSG_FAN_INIT(path_) + "Failed to read initial state.");
+		throw SystemError(MSG_FAN_INIT(path()) + "Failed to read initial state.");
 
 	f.close();
-	f.open(path_);
+	f.open(path());
 
 	if (!(f << "watchdog " << watchdog_.count() << std::flush))
-		throw IOerror(MSG_FAN_INIT(path_), errno);
+		throw IOerror(MSG_FAN_INIT(path()), errno);
+}
+
+
+string TpFanDriver::lookup()
+{
+	std::fstream f(path());
+	if (!(f.is_open() && f.good()))
+		throw IOerror(MSG_FAN_INIT(path()), errno);
+	return path();
 }
 
 
@@ -171,45 +192,60 @@ void TpFanDriver::init()
 | HwmonFanDriver: Driver for PWM fans, typically somewhere in sysfs.         |
 ----------------------------------------------------------------------------*/
 
-HwmonFanDriver::HwmonFanDriver(const std::string &path)
-: FanDriver(path, 0)
+HwmonFanDriver::HwmonFanDriver(const std::string &path, bool optional, opt<unsigned int> max_errors)
+: FanDriver(path, optional, 0, max_errors)
+{}
+
+
+HwmonFanDriver::HwmonFanDriver(
+	const string &base_path,
+	opt<const string> name,
+	bool optional,
+	opt<unsigned int> index,
+	opt<unsigned int> max_errors
+)
+: FanDriver(nullopt, optional, 0, max_errors)
+, HwmonInterface(base_path, name, index)
 {}
 
 
 HwmonFanDriver::~HwmonFanDriver() noexcept(false)
 {
-	std::ofstream f(path_ + "_enable");
+	std::ofstream f(path() + "_enable");
 	if (!(f.is_open() && f.good())) {
-		log(TF_ERR) << MSG_FAN_RESET(path_) << strerror(errno) << flush;
+		log(TF_ERR) << MSG_FAN_RESET(path()) << strerror(errno) << flush;
 		return;
 	}
 
 	if (!initial_state_.empty()) {
-		log(TF_DBG) << path_ << ": Restoring initial state: " << initial_state_ << "." << flush;
+		log(TF_DBG) << path() << ": Restoring initial state: " << initial_state_ << "." << flush;
 		if (!(f << initial_state_ << std::flush))
-			log(TF_ERR) << MSG_FAN_RESET(path_) << strerror(errno) << flush;
+			log(TF_ERR) << MSG_FAN_RESET(path()) << strerror(errno) << flush;
 	}
 }
 
 
 void HwmonFanDriver::init()
 {
-	std::fstream f(path_ + "_enable");
+	std::fstream f(path() + "_enable");
 	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_FAN_INIT(path_), errno);
+		throw IOerror(MSG_FAN_INIT(path()), errno);
 
 	if (initial_state_.empty()) {
 		std::string line;
 		line.resize(64);
 		if (!f.getline(&*line.begin(), 63))
-			throw IOerror(MSG_FAN_INIT(path_), errno);
+			throw IOerror(MSG_FAN_INIT(path()), errno);
 		initial_state_ = line;
-		log(TF_DBG) << path_ << ": Saved initial state: " << initial_state_ << "." << flush;
+		log(TF_DBG) << path() << ": Saved initial state: " << initial_state_ << "." << flush;
 	}
 
 	if (!(f << "1" << std::flush))
-		throw IOerror(MSG_FAN_INIT(path_), errno);
+		throw IOerror(MSG_FAN_INIT(path()), errno);
 }
+
+string HwmonFanDriver::lookup()
+{ return HwmonInterface::lookup<HwmonFanDriver>(); }
 
 
 void HwmonFanDriver::set_speed(const Level &level)
@@ -223,7 +259,7 @@ void HwmonFanDriver::set_speed(const Level &level)
 			// In that case, we need to re-initialize and try once more.
 			init();
 			FanDriver::set_speed(std::to_string(level.num()));
-			log(TF_WRN) << path_ << ": WARNING: Userspace fan control had to be automatically re-initialized." << flush;
+			log(TF_WRN) << path() << ": WARNING: Userspace fan control had to be automatically re-initialized." << flush;
 #if defined(HAVE_SYSTEMD)
 			log(TF_WRN) << "This should have been taken care of when enabling the thinkfan systemd service." << flush
 			            << "If thinkfan.service is enabled, the following services should also have be enabled as a dependency:" << flush
@@ -237,4 +273,7 @@ void HwmonFanDriver::set_speed(const Level &level)
 	}
 }
 
-}
+
+
+
+} // namespace thinkfan

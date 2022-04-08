@@ -77,11 +77,11 @@ public:
 };
 
 
-class SensorLost : public ExpectedError {
+class DriverLost : public ExpectedError {
 public:
 	template<class CauseT>
-	SensorLost(const CauseT &cause) {
-		msg_ = string("Lost sensor ") + cause.what();
+	DriverLost(const CauseT &cause) {
+		msg_ = string("Lost driver ") + cause.what();
 	}
 };
 
@@ -132,9 +132,21 @@ class LimitLengthMismatch : public ExpectedError {};
 
 class SystemError : public ExpectedError {
 public:
-	SystemError(const string &reason)
-	: ExpectedError(reason) {}
+	using ExpectedError::ExpectedError;
 };
+
+
+class DriverInitError : public SystemError {
+public:
+	using SystemError::SystemError;
+};
+
+
+class DriverIOError : public SystemError {
+public:
+	using SystemError::SystemError;
+};
+
 
 class InvocationError : public ExpectedError {
 public:

@@ -28,6 +28,8 @@
 #include <atomic>
 #include <mutex>
 #include <condition_variable>
+#include <functional>
+#include <optional>
 
 #define DEFAULT_CONFIG "/etc/thinkfan.conf"
 #define DEFAULT_YAML_CONFIG "/etc/thinkfan.yaml"
@@ -75,28 +77,34 @@ using pair = std::pair<T1, T2>;
 template<typename T>
 using numeric_limits = std::numeric_limits<T>;
 
+template<typename T>
+using opt = std::optional<T>;
 
-class TemperatureState {
-public:
-	TemperatureState(unsigned int num_temps);
-	void restart();
-	void add_temp(int t);
+inline constexpr std::nullopt_t nullopt = std::nullopt;
 
-	const vector<int> &biased_temps() const;
-	const vector<int> &temps() const;
-	const vector<float> &biases() const;
-	bool complete() const;
-	void init();
-private:
-	vector<int> temps_;
-	vector<float> biases_;
-	vector<int> biased_temps_;
-	vector<int>::iterator temp_;
-	vector<float>::iterator bias_;
-	vector<int>::iterator biased_temp_;
-public:
-	vector<int>::const_iterator tmax;
-};
+using std::forward;
+
+class Config;
+class Level;
+class Driver;
+class FanDriver;
+class SensorDriver;
+class HwmonSensorDriver;
+class HwmonFanDriver;
+class TpSensorDriver;
+class TpFanDriver;
+
+#ifdef USE_NVML
+class NvmlSensorDriver;
+#endif
+
+#ifdef USE_ATASMART
+class AtasmartSensorDriver;
+#endif
+
+#ifdef USE_LM_SENSORS
+class LMSensorsDriver;
+#endif
 
 
 #if defined(PID_FILE)
@@ -123,6 +131,10 @@ public:
 
 #endif // defined(PID_FILE)
 
+
+void sleep(thinkfan::seconds duration);
+
+void noop();
 
 // Command line options
 extern bool chk_sanity;

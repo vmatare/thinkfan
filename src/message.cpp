@@ -23,6 +23,7 @@
 #include "thinkfan.h"
 #include "message.h"
 #include "config.h"
+#include "fans.h"
 #include <syslog.h>
 #include <iostream>
 

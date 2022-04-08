@@ -40,6 +40,9 @@
 #include "config.h"
 #include "message.h"
 #include "error.h"
+#include "sensors.h"
+#include "fans.h"
+#include "temperature_state.h"
 
 
 namespace thinkfan {
@@ -71,6 +74,64 @@ bool dnd_disk = false;
 #endif /* USE_ATASMART */
 
 
+#if defined(PID_FILE)
+
+PidFileHolder *PidFileHolder::instance_ = nullptr;
+
+PidFileHolder::PidFileHolder(::pid_t pid)
+: pid_file_(PID_FILE, std::ios_base::in)
+{
+	if (!pid_file_.fail())
+		error<SystemError>(MSG_RUNNING);
+	if (instance_)
+		throw Bug("Attempt to initialize PID file twice");
+	pid_file_.close();
+	pid_file_.open(PID_FILE, std::ios_base::out | std::ios_base::trunc);
+	if (!(pid_file_ << pid << std::flush))
+		error<IOerror>("Writing to " PID_FILE ": ", errno);
+	instance_ = this;
+}
+
+PidFileHolder::~PidFileHolder()
+{ remove_file(); }
+
+bool PidFileHolder::file_exists()
+{ return !ifstream(PID_FILE).fail(); }
+
+
+void PidFileHolder::remove_file()
+{
+	if (pid_file_.is_open()) {
+		pid_file_.close();
+		if (::unlink(PID_FILE) == -1)
+			log(TF_ERR) << "Deleting " PID_FILE ": " << errno << "." << flush;
+	}
+}
+
+
+void PidFileHolder::cleanup()
+{
+	if (instance_)
+		instance_->remove_file();
+}
+
+#else
+
+void PidFileHolder::cleanup()
+{}
+
+#endif // defined(PID_FILE)
+
+
+void sleep(thinkfan::seconds duration) {
+	auto until = std::chrono::steady_clock::now() + duration;
+
+	std::unique_lock<std::mutex> sleep_locked(sleep_mutex);
+	sleep_cond.wait_until(sleep_locked, until, [] () {
+		return interrupted != 0;
+	} );
+}
+
 
 void sig_handler(int signum) {
 	switch(signum) {
@@ -101,20 +162,12 @@ void sig_handler(int signum) {
 }
 
 
-static inline void read_temps(const vector<unique_ptr<SensorDriver>> &sensors)
-{
-	temp_state.restart();
-	for (const unique_ptr<SensorDriver> &sensor : sensors)
-		sensor->read_temps(temp_state);
-}
-
-
 void run(const Config &config)
 {
 	tmp_sleeptime = sleeptime;
 
-	read_temps(config.sensors());
-	temp_state.init();
+	for (const unique_ptr<SensorDriver> &sensor : config.sensors())
+		sensor->read_temps();
 
 	// Set initial fan level
 	for (auto &fan_config : config.fan_configs())
@@ -123,22 +176,16 @@ void run(const Config &config)
 
 	bool did_something = false;
 	while (likely(!interrupted)) {
-		auto until = std::chrono::steady_clock::now() + tmp_sleeptime;
+		sleep(tmp_sleeptime);
 
-		std::unique_lock<std::mutex> sleep_locked(sleep_mutex);
-		sleep_cond.wait_until(sleep_locked, until, [] () {
-			return interrupted != 0;
-		} );
 		if (unlikely(interrupted))
 			break;
 
-		read_temps(config.sensors());
+		for (const unique_ptr<SensorDriver> &sensor : config.sensors())
+			sensor->read_temps();
 
 		if (unlikely(tolerate_errors) > 0)
 			tolerate_errors--;
-
-		if (unlikely(!temp_state.complete()))
-			throw SystemError(MSG_SENSOR_LOST);
 
 		for (auto &fan_config : config.fan_configs())
 			did_something |= fan_config->set_fanspeed(temp_state);
@@ -254,146 +301,10 @@ int set_options(int argc, char **argv)
 }
 
 
-
-#if defined(PID_FILE)
-
-PidFileHolder *PidFileHolder::instance_ = nullptr;
-
-PidFileHolder::PidFileHolder(::pid_t pid)
-: pid_file_(PID_FILE, std::ios_base::in)
-{
-	if (!pid_file_.fail())
-		error<SystemError>(MSG_RUNNING);
-	if (instance_)
-		throw Bug("Attempt to initialize PID file twice");
-	pid_file_.close();
-	pid_file_.open(PID_FILE, std::ios_base::out | std::ios_base::trunc);
-	if (!(pid_file_ << pid << std::flush))
-		error<IOerror>("Writing to " PID_FILE ": ", errno);
-	instance_ = this;
-}
-
-PidFileHolder::~PidFileHolder()
-{ remove_file(); }
-
-bool PidFileHolder::file_exists()
-{ return !ifstream(PID_FILE).fail(); }
-
-
-void PidFileHolder::remove_file()
-{
-	if (pid_file_.is_open()) {
-		pid_file_.close();
-		if (::unlink(PID_FILE) == -1)
-			log(TF_ERR) << "Deleting " PID_FILE ": " << errno << "." << flush;
-	}
-}
-
-
-void PidFileHolder::cleanup()
-{
-	if (instance_)
-		instance_->remove_file();
-}
-
-#else
-
-void PidFileHolder::cleanup()
-{}
-
-#endif // defined(PID_FILE)
-
-
-TemperatureState::TemperatureState(unsigned int num_temps)
-: temps_(num_temps, 0),
-  biases_(num_temps, 0),
-  biased_temps_(num_temps, 0),
-  temp_(temps_.begin()),
-  bias_(biases_.begin()),
-  biased_temp_(biased_temps_.begin()),
-  tmax(biased_temps_.begin())
+void noop()
 {}
 
 
-void TemperatureState::restart()
-{
-	temp_ = temps_.begin();
-	bias_ = biases_.begin();
-	biased_temp_ = biased_temps_.begin();
-	tmax = biased_temps_.begin();
-}
-
-
-void TemperatureState::add_temp(int t)
-{
-	int diff = *temp_ >= 0 ?
-		t - *temp_
-		: 0;
-	*temp_ = t;
-
-	if (unlikely(diff > 2)) {
-		// Apply bias_ if temperature changed quickly
-		float tmp_bias = float(diff) * bias_level;
-
-		*bias_ = int(tmp_bias);
-		if (tmp_sleeptime > seconds(2))
-			tmp_sleeptime = seconds(2);
-	}
-	else {
-		if (unlikely(diff < 0)) {
-			// Return to normal operation if temperature dropped
-			tmp_sleeptime = sleeptime;
-			*bias_ = 0;
-		}
-		else {
-			// Slowly return to normal sleeptime
-			if (unlikely(tmp_sleeptime < sleeptime)) tmp_sleeptime++;
-			// slowly reduce the bias_
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wfloat-equal" // bias is set to 0 explicitly
-			if (unlikely(*bias_ != 0)) {
-#pragma GCC diagnostic pop
-				if (std::abs(*bias_) < 0.5f)
-					*bias_ = 0;
-				else
-					*bias_ -= 1 + *bias_/5 ;
-			}
-		}
-	}
-
-	*biased_temp_ = *temp_ + int(*bias_);
-
-	if (*biased_temp_ > *tmax)
-		tmax = biased_temp_;
-
-	++temp_;
-	++bias_;
-	++biased_temp_;
-}
-
-
-bool TemperatureState::complete() const
-{ return temp_ == temps_.end(); }
-
-
-const vector<int> & TemperatureState::biased_temps() const
-{ return biased_temps_; }
-
-
-const vector<int> & TemperatureState::temps() const
-{ return temps_; }
-
-
-const vector<float> & TemperatureState::biases() const
-{ return biases_; }
-
-
-void TemperatureState::init()
-{
-	biases_.clear();
-	biases_.resize(temps_.size(), 0);
-	biased_temps_ = temps_;
-}
 
 } // namespace thinkfan
 
@@ -455,9 +366,10 @@ int main(int argc, char **argv) {
 				Logger::instance().log_lvl() = TF_ERR;
 				unique_ptr<const Config> test_cfg(Config::read_config(config_files));
 				temp_state = TemperatureState(test_cfg->num_temps());
-				temp_state.init();
+				test_cfg->init_sensors(temp_state);
 				test_cfg->init_fans();
-				read_temps(test_cfg->sensors());
+				for (auto &sensor : test_cfg->sensors())
+					sensor->read_temps();
 				Logger::instance().log_lvl() = old_lvl;
 				// Own scope so the config gets destroyed before forking
 			}
@@ -488,11 +400,11 @@ int main(int argc, char **argv) {
 
 		// Load the config for real after forking & enabling syslog
 		unique_ptr<const Config> config(Config::read_config(config_files));
-
 		temp_state = TemperatureState(config->num_temps());
 
 		do {
 			config->init_fans();
+			config->init_sensors(temp_state);
 			run(*config);
 
 			if (interrupted == SIGHUP) {
