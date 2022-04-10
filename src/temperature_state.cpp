@@ -20,6 +20,7 @@
  * ******************************************************************/
 
 #include "temperature_state.h"
+#include <cmath>
 
 namespace thinkfan {
 
@@ -57,38 +58,31 @@ void TemperatureState::Ref::restart()
 
 void TemperatureState::Ref::add_temp(int t)
 {
-	int diff = *temp_ >= 0 ?
+	int diff = *temp_ > 0 ?
 		t - *temp_
 		: 0;
 	*temp_ = t;
 
 	if (unlikely(diff > 2)) {
 		// Apply bias_ if temperature changed quickly
-		float tmp_bias = float(diff) * bias_level;
+		*bias_ = int(float(diff) * bias_level);
 
-		*bias_ = int(tmp_bias);
 		if (tmp_sleeptime > seconds(2))
 			tmp_sleeptime = seconds(2);
 	}
 	else {
-		if (unlikely(diff < 0)) {
-			// Return to normal operation if temperature dropped
-			tmp_sleeptime = sleeptime;
-			*bias_ = 0;
-		}
-		else {
-			// Slowly return to normal sleeptime
-			if (unlikely(tmp_sleeptime < sleeptime)) tmp_sleeptime++;
-			// slowly reduce the bias_
+		// Slowly return to normal sleeptime
+		if (unlikely(tmp_sleeptime < sleeptime))
+			tmp_sleeptime++;
+		// slowly reduce the bias_
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wfloat-equal" // bias is set to 0 explicitly
-			if (unlikely(*bias_ != 0)) {
+		if (unlikely(*bias_ != 0)) {
 #pragma GCC diagnostic pop
-				if (std::abs(*bias_) < 0.5f)
-					*bias_ = 0;
-				else
-					*bias_ -= 1 + *bias_/5 ;
-			}
+			if (std::abs(*bias_) < 0.5f)
+				*bias_ = 0;
+			else
+				*bias_ -= std::copysign(1 + std::abs(*bias_)/5, *bias_);
 		}
 	}
 
