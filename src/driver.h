@@ -47,7 +47,6 @@ public:
 	template<class DriverT, typename... ArgTs>
 	void robust_io(void (DriverT::*io_func)(ArgTs...), ArgTs &&... args);
 
-
 	bool initialized() const;
 	bool available() const;
 

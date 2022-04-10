@@ -97,6 +97,9 @@ TpFanDriver::TpFanDriver(const std::string &path, bool optional, opt<unsigned in
 
 TpFanDriver::~TpFanDriver() noexcept(false)
 {
+	if (!initialized())
+		return;
+
 	std::ofstream f(path());
 	if (!(f.is_open() && f.good())) {
 		log(TF_ERR) << MSG_FAN_RESET(path()) << strerror(errno) << flush;
@@ -211,6 +214,9 @@ HwmonFanDriver::HwmonFanDriver(
 
 HwmonFanDriver::~HwmonFanDriver() noexcept(false)
 {
+	if (!initialized())
+		return;
+
 	std::ofstream f(path() + "_enable");
 	if (!(f.is_open() && f.good())) {
 		log(TF_ERR) << MSG_FAN_RESET(path()) << strerror(errno) << flush;
