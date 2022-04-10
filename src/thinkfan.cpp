@@ -52,7 +52,7 @@ bool quiet(false);
 bool daemonize(true);
 seconds sleeptime(5);
 seconds tmp_sleeptime = sleeptime;
-float bias_level(1.5);
+float bias_level(0);
 float depulse = 0;
 TemperatureState temp_state(0);
 std::atomic<unsigned char> tolerate_errors(0);
