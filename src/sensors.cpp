@@ -356,9 +356,9 @@ NvmlSensorDriver::NvmlSensorDriver(string bus_id, bool optional, opt<vector<int>
   dl_nvmlDeviceGetTemperature(nullptr),
   dl_nvmlShutdown(nullptr)
 {
-	if (!(nvml_so_handle_ = dlopen("libnvidia-ml.so", RTLD_LAZY))) {
+	if (!(nvml_so_handle_ = dlopen("libnvidia-ml.so.1", RTLD_LAZY))) {
 		string msg = strerror(errno);
-		throw SystemError("Failed to load NVML driver: " + msg);
+		throw SystemError("Failed to load libnvidia-ml.so.1: " + msg);
 	}
 
 	/* Apparently GCC doesn't want to cast to function pointers, so we have to do
