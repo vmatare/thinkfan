@@ -154,7 +154,7 @@ void sig_handler(int signum) {
 		sleep_cond.notify_all();
 		log(TF_NFY) << "Received SIGUSR2: Re-initializing fan control." << flush;
 		break;
-	case SIGWINCH:
+	case SIGPWR:
 		tolerate_errors = 4;
 		log(TF_NFY) << "Going to sleep: Will allow sensor read errors for the next "
 			<< std::to_string(tolerate_errors) << " loops." << flush;
@@ -332,7 +332,7 @@ int main(int argc, char **argv) {
 	 || sigaction(SIGINT, &handler, nullptr)
 	 || sigaction(SIGTERM, &handler, nullptr)
 	 || sigaction(SIGUSR1, &handler, nullptr)
-	 || sigaction(SIGWINCH, &handler, nullptr)
+	 || sigaction(SIGPWR, &handler, nullptr)
 #if not defined(DISABLE_BUGGER)
 	 || sigaction(SIGSEGV, &handler, nullptr)
 #endif
