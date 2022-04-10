@@ -1,4 +1,4 @@
-.TH THINKFAN "5" "December 2021" "thinkfan @THINKFAN_VERSION@" "thinkfan"
+.TH THINKFAN "5" "April 2022" "thinkfan @THINKFAN_VERSION@" "thinkfan"
 .SH NAME
 thinkfan \- A simple fan control program
 .SH SYNOPSIS
@@ -14,63 +14,100 @@ thinkfan \- A simple fan control program
 
 .SH DESCRIPTION
 
-Thinkfan sets the fan speed according to temperature limits set in the config
-file.
-It can read temperatures from a number of sources:
+Thinkfan reads temperatures from a configured set of sensors and then sets fan
+speeds according to temperature limits set in the config file.
 
-.IP "/proc/acpi/ibm/thermal"
-Which is provided by the thinkpad_acpi kernel module on older Thinkpads,
+.SS Supported sensors
 
-.IP "temp*_input files in sysfs"
-Which may be provided by any hwmon drivers, including thinkpad_acpi on modern
-Thinkpads,
+.TP
+\(bu /proc/acpi/ibm/thermal
+This is provided by the thinkpad_acpi kernel module on older Thinkpads.
 
-.IP "Hard disks with S.M.A.R.T. support"
-With the help of libatasmart, if thinkfan was compiled with
-.B \-DUSE_ATASMART=ON
+.TP
+\(bu temp*_input files in sysfs (hwmon interface)
+May be provided by any hwmon drivers, including thinkpad_acpi on modern
+Thinkpads.
 
-.IP "From the proprietary nVidia driver"
+.TP
+\(bu Hard disks with S.M.A.R.T. support (libatasmart)
+Available if thinkfan was compiled with
+.B \-DUSE_ATASMART=ON.
+Note that modern Linux kernels can also expose S.M.A.R.T. hard disk
+temperatures via the hwmon interface in sysfs (and therefore also via
+lm_sensors), which is generally preferrable because it is more efficient.
+
+.TP
+\(bu From the proprietary nVidia driver
 When the proprietary nVidia driver is used, no hwmon for the card will be
 available. In this situation, thinkfan can use the proprietary NVML API to get
 temperatures.
 
+.TP
+\(bu Via lm_sensors (libsensors interface)
+This is a modern and more reliable alternative to the sysfs hwmon interface
+mentioned above. It's basically a standardized abstraction for sysfs hwmon
+where sensors can always be identified uniquely, even when the load order of
+kernel modules changes.
+
+.SS Supported fans
 .P
-The fan can be /proc/acpi/ibm/fan or some PWM file in 
-/sys/class/hwmon. See
-.BR thinkfan.conf (5)
-for a detailed explanation of the config syntax.
+Thinkfan can control any number of fans, which can be specified in two ways:
+
+.TP
+\(bu /proc/acpi/ibm/fan
+Provided by the thinkpad_acpi kernel module. Note that the kernel module needs
+to be loaded with the option "fan_control=1" to enable userspace fan control.
+On some models, "experimental=1" may also be required. See the
+.B SEE ALSO
+section at the bottom of this manpage for a link to the official thinkpad_acpi
+documentation.
+
+.TP
+\(bu pwm*_enable and pwm? files in sysfs
+Provided by all modern hardware monitoring drivers, including thinkpad_acpi.
 
 .HP
 \fBWARNING\fR: This program does only very basic sanity checking on the
 configuration. That means that you can set your temperature limits as insane
 as you like.
 .P
+
+
+.SS Mapping temperatures to fan speeds
+
 There are two general modes of operation:
 
-
-.SS COMPLEX MODE
-In complex mode, temperature limits are defined for each sensor thinkfan knows
+.TP
+\(bu Detailed mode
+In detailed mode, temperature limits are defined for each sensor thinkfan knows
 about. Setting suitable limits for each sensor in your system will probably
 require a bit of experimentation and good knowledge about your hardware, but
 it's the safest way of keeping each component within its specified temperature
-range. See http://www.thinkwiki.org/wiki/Thermal_Sensors for details on
-which sensor measures what temperature in a Thinkpad. On other systems you'll
-have to find out on your own. See the example configs to learn about the
-syntax.
+range. See the example configs to learn about the syntax.
 
-
-.SS SIMPLE MODE
-In simple mode, Thinkfan uses only the highest temperature found in the
-system. That may be dangerous, e.g. for hard disks.  That's why you should
-provide a correction value (i.e. add 10\-15 \[char176]C) for the sensor that has the
-temperature of your hard disk (or battery...). See the example config files
-for details about that.
+.TP
+\(bu Simple mode
+In simple mode, thinkfan uses only the highest temperature found in the
+system. That may be dangerous, e.g. for hard disks.
+That's why you should provide a correction value (i.e. add 10\-15 \[char176]C)
+for the sensor that has the temperature of your hard disk (or battery...).
+See the example config files for details about that.
 
 
 
 .SH CONFIGURATION
-Some example configurations are provided with the source package. For a detailed
-see the config man page
+All of the features described above are configured in the thinkfan config
+file. Its default location is
+.B /etc/thinkfan.conf
+or
+.BR /etc/thinkfan.yaml
+(see also the
+.B -c
+option below).
+An example configuration is provided with the source package. It is intended
+purely for illustration of various scenarios and is not suitable as a basis
+for actually functional config. For a complete reference see the config man
+page
 .BR thinkfan.conf (5).
 
 
@@ -87,15 +124,27 @@ Maximum seconds between temperature updates (default: 5)
 
 .TP
 .BI \-b " BIAS"
-Floating point number (\-10 to 30) to control rising temperature exaggeration.
-If the temperature increases by more than 2 \[char176]C during one cycle, this number
-is used to calculate a bias, which is added to the current highest temperature
-seen in the system:
+Floating point number (\-10 to 30) to smooth out or amplify quick temperature
+changes.
+If a sensor's temperature increases by more than 2 \[char176]C during one
+cycle, we calculate an offset value as follows:
 
- current_tmax = current_tmax + delta_t * \fIBIAS\fR / 10
+    \fBoffset\fR = \fBdelta_t\fR * \fIBIAS\fR / 10
 
-This means that negative numbers can be used to even out short and sudden
-temperature spikes like those seen on some on\-DIE sensors. Use DANGEROUS mode
+This offset is then added to the actual temperature:
+
+    \fBbiased_t\fR = \fBcurrent_t\fR + \fBoffset\fR
+
+If \fBdelta_t\fR stays below 2 \[char176]C in subsequent loops, \fBoffset\fR
+will be reduced back to 0 in increments of sgn(\fIBIAS\fR) * (1 +
+abs(\fIBIAS\fR/5)).
+
+This means that a negative \fIBIAS\fR will even out short and sudden
+temperature spikes like those seen on some on\-DIE sensors, while positive
+values will exaggerate increasing temperatures to compensate e.g. for sensors
+that respond slowly because they are attached to heavy heatsinks.
+
+Use DANGEROUS mode
 to remove the \-10 to +30 limit. Note that you can't have a space between \-b
 and a negative argument, because otherwise getopt will interpret things like
 \-10 as an option and fail (i.e. write
@@ -103,7 +152,7 @@ and a negative argument, because otherwise getopt will interpret things like
 instead of
 .BR "\-b \-10" ).
 
-Default is 15.0
+The default is 0.
 
 .TP
 .BI \-c " FILE"
@@ -152,6 +201,9 @@ NOTE: This option is only available if thinkfan was built with \-D USE_ATASMART.
 .TP
 .B \-D
 DANGEROUS mode: Disable all sanity checks. May damage your hardware!!
+
+
+
 .SH SIGNALS
 SIGINT and SIGTERM simply interrupt operation and should cause thinkfan to
 terminate cleanly.
@@ -161,6 +213,24 @@ config, we keep the old one.
 .P
 SIGUSR1 causes thinkfan to dump all currently known temperatures either to
 syslog, or to the console (if running with the \-n option).
+.P
+SIGPWR tells thinkfan that the system is about to go to sleep. Thinkfan will
+then allow sensor read errors for the next 4 loops because many sensors will
+take a few seconds before they are available again after waking up from a
+sleep state (suspend or hibernate). If the shipped systemd service file
+.B thinkfan-sleep.service
+is installed, it should take care of sending this singal when going to sleep.
+On non-systemd distributions, other mechanisms may have to be used.
+.P
+SIGUSR2 tells thinkfan to re-initialize fan control. This is required by most
+fan drivers after waking up from suspend because they tend to reset fan
+control to automatic mode on wakeup. Similar to SIGPWR, the systemd service
+file
+.B thinkfan-wakeup.service
+should take care of sending this signal on wakeup on systemd systems. On
+non-systemd distributions, other mechanisms may have to be used.
+
+
 .SH RETURN VALUE
 
 .TP
