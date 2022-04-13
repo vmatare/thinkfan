@@ -488,10 +488,8 @@ void LMSensorsDriver::initialize_lm_sensors()
 	::sensors_fatal_error = LMSensorsDriver::fatal_error_callback;
 
 	int err;
-	if ((err = ::sensors_init(nullptr))) {
-		const char *msg = ::sensors_strerror(err);
-		throw SystemError(string("Failed to initialize LM sensors driver: ") + msg);
-	}
+	if ((err = ::sensors_init(nullptr)))
+		throw SystemError(string("Failed to initialize LM sensors driver: ") + sensors_strerror(err));
 
 	atexit(::sensors_cleanup);
 	log(TF_DBG) << "Initialized LM sensors." << flush;

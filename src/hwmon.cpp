@@ -177,7 +177,6 @@ template<class HwmonT>
 static vector<string> find_hwmons_by_indices_(const string &path, const vector<unsigned int> &indices, unsigned char depth)
 {
 	vector<string> rv;
-#include <functional>
 
 	const unsigned char max_depth = 3;
 
@@ -280,32 +279,41 @@ template string HwmonInterface::lookup<HwmonFanDriver>();
 template string HwmonInterface::lookup<HwmonSensorDriver>();
 
 
-template<class Arg2T>
-static inline string pick_first(std::function<vector<string>(const string &, Arg2T)> fn, const string &path, Arg2T &&arg2)
+
+string HwmonInterface::find_hwmon_by_name(const string &path, const string &name)
 {
-	vector<string> paths = fn(path, arg2);
+	vector<string> paths = find_hwmons_by_name(path, name);
 	if (paths.size() != 1) {
-		string msg;
+		string msg(path + ": ");
 		if (paths.size() == 0) {
-			msg = MSG_HWMON_NOT_FOUND;
+			msg += "Could not find a hwmon with this name: " + name;
 		} else {
-			msg = MSG_MULTIPLE_HWMONS_FOUND;
-			for (string hwmon_path : paths) {
+			msg += MSG_MULTIPLE_HWMONS_FOUND;
+			for (string hwmon_path : paths)
 				msg += " " + hwmon_path;
-			}
 		}
-		throw DriverInitError(path + ": " + msg);
+		throw DriverInitError(msg);
 	}
 	return paths[0];
 }
 
-
-string HwmonInterface::find_hwmon_by_name(const string &path, const string &name)
-{ return pick_first(std::function(find_hwmons_by_name), path, name); }
-
 template<class HwmonT>
 string HwmonInterface::find_hwmon_by_index(const string &path, unsigned int index)
-{ return pick_first(std::function(find_hwmons_by_indices<HwmonT>), path, { index }); }
+{
+	vector<string> paths = find_hwmons_by_indices<HwmonT>(path, { index });
+	if (paths.size() != 1) {
+		string msg(path + ": ");
+		if (paths.size() == 0) {
+			msg += "Could not find a hwmon with index " + std::to_string(index) + ": ";
+		} else {
+			msg += "Found multiple hwmons with the index " + std::to_string(index) + ": ";
+			for (string hwmon_path : paths)
+				msg += " " + hwmon_path;
+		}
+		throw DriverInitError(msg);
+	}
+	return paths[0];
+}
 
 
 
