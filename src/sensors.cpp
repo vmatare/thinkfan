@@ -43,7 +43,7 @@ namespace thinkfan {
 ----------------------------------------------------------------------------*/
 
 SensorDriver::SensorDriver(opt<const string> path, bool optional, opt<vector<int>> correction, opt<unsigned int> max_errors)
-: Driver(std::forward<opt<const string>>(path), optional, max_errors.value_or(0))
+: Driver(path, optional, max_errors.value_or(0))
 , correction_(correction.value_or(vector<int>()))
 , num_temps_(0)
 {}
@@ -438,7 +438,7 @@ LMSensorsDriver::LMSensorsDriver(
 	opt<vector<int>> correction,
 	opt<unsigned int> max_errors
 )
-: SensorDriver(chip_name, optional, correction, max_errors),
+: SensorDriver(nullopt, optional, correction, max_errors),
   chip_name_(chip_name),
   chip_(nullptr),
   feature_names_(feature_names)
@@ -448,10 +448,31 @@ LMSensorsDriver::LMSensorsDriver(
 }
 
 
+LMSensorsDriver::~LMSensorsDriver()
+{}
+
 void LMSensorsDriver::init()
+{}
+
+
+void LMSensorsDriver::initialize_lm_sensors()
+{
+	::sensors_parse_error = LMSensorsDriver::parse_error_callback;
+	::sensors_parse_error_wfn = LMSensorsDriver::parse_error_wfn_callback;
+	::sensors_fatal_error = LMSensorsDriver::fatal_error_callback;
+
+	int err;
+	if ((err = ::sensors_init(nullptr)))
+		throw SystemError(string("Failed to initialize LM sensors driver: ") + sensors_strerror(err));
+
+	atexit(::sensors_cleanup);
+	log(TF_DBG) << "Initialized LM sensors." << flush;
+}
+
+
+string LMSensorsDriver::lookup()
 {
 	chip_ = LMSensorsDriver::find_chip_by_name(chip_name_);
-	set_path(chip_->path);
 
 	for (const string& feature_name : feature_names_) {
 		auto feature = LMSensorsDriver::find_feature_by_name(*chip_, feature_name);
@@ -474,25 +495,7 @@ void LMSensorsDriver::init()
 	if (correction_.empty())
 		correction_.resize(feature_names_.size(), 0);
 
-}
-
-
-LMSensorsDriver::~LMSensorsDriver()
-{}
-
-
-void LMSensorsDriver::initialize_lm_sensors()
-{
-	::sensors_parse_error = LMSensorsDriver::parse_error_callback;
-	::sensors_parse_error_wfn = LMSensorsDriver::parse_error_wfn_callback;
-	::sensors_fatal_error = LMSensorsDriver::fatal_error_callback;
-
-	int err;
-	if ((err = ::sensors_init(nullptr)))
-		throw SystemError(string("Failed to initialize LM sensors driver: ") + sensors_strerror(err));
-
-	atexit(::sensors_cleanup);
-	log(TF_DBG) << "Initialized LM sensors." << flush;
+	return chip_->path;
 }
 
 
@@ -614,9 +617,6 @@ void LMSensorsDriver::read_temps_()
 		}
 	}
 }
-
-string LMSensorsDriver::lookup()
-{ return path(); }
 
 
 #endif /* USE_LM_SENSORS */
