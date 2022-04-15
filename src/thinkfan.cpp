@@ -402,9 +402,10 @@ int main(int argc, char **argv) {
 		unique_ptr<const Config> config(Config::read_config(config_files));
 		temp_state = TemperatureState(config->num_temps());
 
+		config->init_sensors(temp_state);
+
 		do {
 			config->init_fans();
-			config->init_sensors(temp_state);
 			run(*config);
 
 			if (interrupted == SIGHUP) {
