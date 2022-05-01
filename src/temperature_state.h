@@ -36,9 +36,6 @@ public:
 		Ref();
 		void add_temp(int t);
 		void skip_temp();
-		inline int temp() const;
-		float bias() const;
-		int biased_temp() const;
 		void restart();
 
 	private:
