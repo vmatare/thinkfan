@@ -31,15 +31,17 @@ namespace thinkfan {
 
 class Driver {
 protected:
-	Driver(opt<const string> path, bool optional, unsigned int max_errors);
+	Driver(bool optional, unsigned int max_errors);
 
 public:
 	void try_init();
 	unsigned int errors() const;
 	unsigned int max_errors() const;
 	virtual bool optional() const;
+
+	/** @return The identifier returned by @a lookup(). Calling this method before @a lookup() has completed
+	 *  will result in an exception. */
 	const string &path() const;
-	void set_path(const string &path);
 
 	template<typename OpFnT, typename SkipFnT>
 	void robust_op(OpFnT op_fn, SkipFnT skip_fn);
@@ -62,7 +64,14 @@ private:
 
 protected:
 	virtual void init() = 0;
+
+	/** @brief Identify the hardware resource to be associated with this config entry
+	 *  @return A string that represents a valid identifier (e.g. a hwmon path) for the driver IFF
+	 *  the driver's resource has been found and is ready to be initialized. Otherwise, throw an instance of
+	 *  @a thinkfan::ExpectedError.
+	 *  The string returned by this will be accessible via the @a path() method. */
 	virtual string lookup() = 0;
+
 	virtual void skip_io_error(const ExpectedError &);
 };
 

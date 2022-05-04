@@ -24,34 +24,36 @@
 #include "thinkfan.h"
 #include "wtf_ptr.h"
 
+#include <dirent.h>
+
 namespace thinkfan {
 
 
-vector<string> find_hwmons_by_name(const string &path, const string &name);
+class HwmonSensorDriver;
+class HwmonFanDriver;
 
 
 template<class HwmonT>
-vector<string> find_hwmons_by_indices(const string &path, const vector<unsigned int> &indices);
-
-
 class HwmonInterface {
 public:
 	HwmonInterface();
-	HwmonInterface(const string &base_path, opt<const string> name, opt<unsigned int> index);
+	HwmonInterface(const string &base_path, opt<const string> name, opt<vector<unsigned int>> indices);
 
-	template<class HwmonT>
 	string lookup();
 
 private:
-	static string find_hwmon_by_name(const string &path, const string &name);
+	static vector<string> find_files(const string &path, const vector<unsigned int> &indices);
+	static string filename(int index);
 
-	template<class HwmonT>
-	static string find_hwmon_by_index(const string &path, unsigned int index);
+	static vector<string> find_hwmons_by_name(const string &path, const string &name, unsigned char depth);
+	static vector<string> find_hwmons_by_indices(const string &path, const vector<unsigned int> &indices, unsigned char depth);
 
 protected:
 	opt<const string> base_path_;
 	opt<const string> name_;
-	opt<unsigned int> index_;
+	opt<vector<unsigned int>> indices_;
+	vector<string> found_paths_;
+	opt<vector<string>::const_iterator> paths_it_;
 };
 
 

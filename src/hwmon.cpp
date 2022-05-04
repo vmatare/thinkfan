@@ -23,7 +23,6 @@
 #include "wtf_ptr.h"
 #include "error.h"
 
-#include <dirent.h>
 #include <fnmatch.h>
 #include <cstdio>
 #include <cassert>
@@ -36,63 +35,12 @@
 namespace thinkfan {
 
 
-static int get_index(const string &fname, const string &pfx, const string &sfx)
-{
-	int rv = -1;
-	string::size_type i = fname.rfind(sfx);
-	if (fname.substr(0, pfx.length()) == pfx && i != string::npos) {
-		try {
-			size_t idx_len;
-			rv = stoi(fname.substr(pfx.length()), &idx_len, 10);
-			if (fname.substr(pfx.length() + idx_len) != sfx)
-				return -1;
-		} catch (...)
-		{}
-	}
-
-	return rv;
-}
-
-template<class T> static int get_index(const string &fname);
-
-template<> int get_index<HwmonSensorDriver>(const string &fname)
-{ return get_index(fname, "temp", "_input"); }
-
-template<> int get_index<HwmonFanDriver>(const string &fname)
-{ return get_index(fname, "pwm", ""); }
-
-
-static vector<unsigned int> filter_indices;
-
-static int file_filter(const struct dirent *entry, const string &pfx, const string &sfx)
-{
-	if (entry->d_type == DT_REG) {
-		int idx = get_index(entry->d_name, pfx, sfx);
-		if (
-			idx >= 0
-			&& std::find(
-				filter_indices.begin(), filter_indices.end(), idx
-			) != filter_indices.end()
-		)
-			return 1;
-	}
-	return 0;
-}
-
-static int filter_temp_inputs(const struct dirent *entry)
-{ return file_filter(entry, "temp", "_input"); }
-
-static int filter_pwms(const struct dirent *entry)
-{ return file_filter(entry, "pwm", ""); }
-
-
 static int filter_hwmon_dirs(const struct dirent *entry)
 {
-	if ((entry->d_type == DT_DIR || entry->d_type == DT_LNK)	 && (
-	            !strncmp("hwmon", entry->d_name, 5) || !strcmp("device", entry->d_name)))
-		return 1;
-	return 0;
+	return (entry->d_type == DT_DIR || entry->d_type == DT_LNK)
+		&& (!strncmp("hwmon", entry->d_name, 5) || !strcmp("device", entry->d_name));
 }
+
 
 static int filter_subdirs(const struct dirent *entry)
 {
@@ -102,19 +50,46 @@ static int filter_subdirs(const struct dirent *entry)
 }
 
 
-template<class T>
-static int scandir(const string &path, struct dirent ***entries);
+template<class HwmonT>
+vector<string> HwmonInterface<HwmonT>::find_files(const string &path, const vector<unsigned int> &indices)
+{
+	vector<string> rv;
+	for (unsigned int idx : indices) {
+		const string fpath(path + "/" + filename(idx));
+		std::ifstream f(fpath);
+		if (f.is_open() && f.good())
+			rv.push_back(fpath);
+		else
+			throw IOerror("Can't find hwmon file: " + fpath, errno);
+	}
+	return rv;
+}
+
 
 template<>
-int scandir< HwmonSensorDriver > (const string &path, struct dirent ***entries)
-{ return ::scandir(path.c_str(), entries, filter_temp_inputs, alphasort); }
+string HwmonInterface<SensorDriver>::filename(int index)
+{ return "temp" + std::to_string(index) + "_input"; }
 
 template<>
-int scandir< HwmonFanDriver > (const string &path, struct dirent ***entries)
-{ return ::scandir(path.c_str(), entries, filter_pwms, alphasort); }
+string HwmonInterface<FanDriver>::filename(int index)
+{ return "pwm" + std::to_string(index); }
 
 
-static vector<string> find_hwmons_by_name_(
+
+template<class HwmonT>
+HwmonInterface<HwmonT>::HwmonInterface()
+{}
+
+template<class HwmonT>
+HwmonInterface<HwmonT>::HwmonInterface(const string &base_path, opt<const string> name, opt<vector<unsigned int>> indices)
+: base_path_(base_path)
+, name_(name)
+, indices_(indices)
+{}
+
+
+template<class HwmonT>
+vector<string> HwmonInterface<HwmonT>::find_hwmons_by_name(
 	const string &path,
 	const string &name,
 	unsigned char depth
@@ -148,7 +123,7 @@ static vector<string> find_hwmons_by_name_(
 		if (err || (statbuf.st_mode & S_IFMT) != S_IFDIR)
 			continue;
 
-		auto found = find_hwmons_by_name_(subdir, name, depth + 1);
+		auto found = find_hwmons_by_name(subdir, name, depth + 1);
 		result.insert(result.end(), found.begin(), found.end());
 	}
 	free(entries);
@@ -156,164 +131,94 @@ static vector<string> find_hwmons_by_name_(
 	return result;
 }
 
-vector<string> find_hwmons_by_name(const string &path, const string &name)
-{ return find_hwmons_by_name_(path, name, 1); }
-
-
-
-template<class T>
-string hwmon_filename(int index);
-
-template<>
-string hwmon_filename<HwmonSensorDriver>(int index)
-{ return "temp" + std::to_string(index) + "_input"; }
-
-template<>
-string hwmon_filename<HwmonFanDriver>(int index)
-{ return "pwm" + std::to_string(index); }
-
 
 template<class HwmonT>
-static vector<string> find_hwmons_by_indices_(const string &path, const vector<unsigned int> &indices, unsigned char depth)
-{
+vector<string> HwmonInterface<HwmonT>::find_hwmons_by_indices(
+	const string &path,
+	const vector<unsigned int> &indices,
+	unsigned char depth
+) {
+	constexpr unsigned char max_depth = 3;
+
 	vector<string> rv;
-
-	const unsigned char max_depth = 3;
-
-	filter_indices = indices;
-
-	while (depth <= max_depth) {
-		struct dirent **entries;
-		int nentries = scandir<HwmonT>(path, &entries);
-
-		if (nentries < 0)
-			throw IOerror("Error scanning " + path + ": ", errno);
-
-		int temp_idx = -1;
-
-		if (nentries > 0) {
-			for (int i = 0; i < nentries; i++) {
-				temp_idx = get_index<HwmonT>(entries[i]->d_name);
-				if (temp_idx < 0)
-					break; // no index found in file name
-
-				auto it = std::find(filter_indices.begin(), filter_indices.end(), temp_idx);
-
-				rv.push_back(path + "/" + entries[i]->d_name);
-				filter_indices.erase(it);
-				// stop crawling at this level
-				depth = std::numeric_limits<unsigned char>::max();
-			}
-			if (!filter_indices.empty()) {
-				string list;
-				for (int i : filter_indices)
-					list += hwmon_filename<HwmonT>(i) + ", ";
-				list = list.substr(0, list.length() - 2);
-				throw DriverInitError("Could not find the following files at " + path + ": " + list);
-			}
-		}
-
-		if (nentries == 0 || temp_idx < 0) {
-			nentries = ::scandir(path.c_str(), &entries, filter_hwmon_dirs, alphasort);
+	try {
+		return find_files(path, indices);
+	}
+	catch (IOerror &) {
+		if (depth <= max_depth) {
+			struct dirent **entries;
+			int nentries = ::scandir(path.c_str(), &entries, filter_hwmon_dirs, alphasort);
 			if (nentries < 0)
 				throw IOerror("Error scanning " + path + ": ", errno);
 
-			if (nentries > 0 && depth <= max_depth) {
-				for (int i = 0; i < nentries && rv.empty(); i++)
-					rv = find_hwmons_by_indices_<HwmonT>(
-						path + "/" + entries[i]->d_name,
-						indices,
-						depth + 1
-					);
+			vector<string> rv;
+			for (int i = 0; i < nentries; i++) {
+				rv = HwmonInterface<HwmonT>::find_hwmons_by_indices(
+					path + "/" + entries[i]->d_name,
+					indices,
+					depth + 1
+				);
+				if (rv.size())
+					break;
 			}
-			else
-				throw DriverInitError("Could not find an `hwmon*' directory or `temp*_input' file in " + path + ".");
+			for (int i = 0; i < nentries; i++)
+				free(entries[i]);
+			free(entries);
+
+			return rv;
 		}
-
-		for (int i = 0; i < nentries; i++)
-			free(entries[i]);
-		free(entries);
+		else
+			throw DriverInitError("Could not find an `hwmon*' directory or `temp*_input' file in " + path + ".");
 	}
-
-	return rv;
 }
 
-template<class HwmonT>
-vector<string> find_hwmons_by_indices(const string &path, const vector<unsigned int> &indices)
-{ return find_hwmons_by_indices_<HwmonT>(path, indices, 0); }
-
-
-
-
-HwmonInterface::HwmonInterface()
-{}
-
-HwmonInterface::HwmonInterface(const string &base_path, opt<const string> name, opt<unsigned int> index)
-: base_path_(base_path)
-, name_(name)
-, index_(index)
-{}
 
 
 template<class HwmonT>
-string HwmonInterface::lookup()
+string HwmonInterface<HwmonT>::lookup()
 {
-	if (!base_path_)
-		throw Bug("Can't lookup sensor because it has no base path");
+	if (!paths_it_) {
+		if (!base_path_)
+			throw Bug("Can't lookup sensor because it has no base path");
 
-	string path = base_path_.value();
+		string path = *base_path_;
 
-	if (name_)
-		path = find_hwmon_by_name(path, name_.value());
-	if (index_)
-		path = find_hwmon_by_index<HwmonT>(path, index_.value());
-
-	base_path_.reset();
-	name_.reset();
-	index_.reset();
-
-	return path;
-}
-
-template string HwmonInterface::lookup<HwmonFanDriver>();
-template string HwmonInterface::lookup<HwmonSensorDriver>();
-
-
-
-string HwmonInterface::find_hwmon_by_name(const string &path, const string &name)
-{
-	vector<string> paths = find_hwmons_by_name(path, name);
-	if (paths.size() != 1) {
-		string msg(path + ": ");
-		if (paths.size() == 0) {
-			msg += "Could not find a hwmon with this name: " + name;
-		} else {
-			msg += MSG_MULTIPLE_HWMONS_FOUND;
-			for (string hwmon_path : paths)
-				msg += " " + hwmon_path;
+		if (name_) {
+			vector<string> paths = find_hwmons_by_name(path, name_.value(), 1);
+			if (paths.size() != 1) {
+				string msg(path + ": ");
+				if (paths.size() == 0) {
+					msg += "Could not find a hwmon with this name: " + name_.value();
+				} else {
+					msg += MSG_MULTIPLE_HWMONS_FOUND;
+					for (string hwmon_path : paths)
+						msg += " " + hwmon_path;
+				}
+				throw DriverInitError(msg);
+			}
+			path = paths[0];
 		}
-		throw DriverInitError(msg);
+		if (indices_) {
+			found_paths_ = find_hwmons_by_indices(path, indices_.value(), 0);
+			if (found_paths_.size() == 0)
+				throw DriverInitError(path + ": " + "Could not find any hwmons in " + path);
+		}
+		else
+			found_paths_.push_back(path);
+
+		paths_it_.emplace(found_paths_.begin());
 	}
-	return paths[0];
+
+	if (*paths_it_ >= found_paths_.end())
+		throw Bug(string(__func__) + ": found_paths_ iterator out of bounds");
+
+	return *paths_it_.value()++;
 }
 
-template<class HwmonT>
-string HwmonInterface::find_hwmon_by_index(const string &path, unsigned int index)
-{
-	vector<string> paths = find_hwmons_by_indices<HwmonT>(path, { index });
-	if (paths.size() != 1) {
-		string msg(path + ": ");
-		if (paths.size() == 0) {
-			msg += "Could not find a hwmon with index " + std::to_string(index) + ": ";
-		} else {
-			msg += "Found multiple hwmons with the index " + std::to_string(index) + ": ";
-			for (string hwmon_path : paths)
-				msg += " " + hwmon_path;
-		}
-		throw DriverInitError(msg);
-	}
-	return paths[0];
-}
+
+
+template class HwmonInterface<FanDriver>;
+template class HwmonInterface<SensorDriver>;
 
 
 

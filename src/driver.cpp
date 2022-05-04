@@ -23,12 +23,11 @@
 
 namespace thinkfan {
 
-Driver::Driver(opt<const string> path, bool optional, unsigned int max_errors)
+Driver::Driver(bool optional, unsigned int max_errors)
 : max_errors_(max_errors)
 , errors_(0)
 , optional_(optional)
 , initialized_(false)
-, path_(path)
 {}
 
 
@@ -63,9 +62,6 @@ bool Driver::optional() const
 
 const string &Driver::path() const
 { return path_.value(); }
-
-void Driver::set_path(const string &path)
-{ path_.emplace(path); }
 
 bool Driver::initialized() const
 { return initialized_; }

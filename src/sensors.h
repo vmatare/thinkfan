@@ -55,7 +55,7 @@ using optional = std::optional<T>;
 
 class SensorDriver : public Driver {
 protected:
-	SensorDriver(opt<const string> path, bool optional, opt<vector<int>> correction = nullopt, opt<unsigned int> max_errors = nullopt);
+	SensorDriver(bool optional, opt<vector<int>> correction = nullopt, opt<unsigned int> max_errors = nullopt);
 
 public:
 	virtual ~SensorDriver() noexcept(false);
@@ -83,19 +83,13 @@ private:
 };
 
 
-class HwmonSensorDriver : public SensorDriver, public HwmonInterface {
+class HwmonSensorDriver : public SensorDriver {
 public:
+	HwmonSensorDriver(const string &path, bool optional);
+
 	HwmonSensorDriver(
-		const string &path,
+		shared_ptr<HwmonInterface<SensorDriver>> hwmon_interface,
 		bool optional,
-		opt<int> correction = nullopt,
-		opt<unsigned int> max_errors = nullopt
-	);
-	HwmonSensorDriver(
-		const string &base_path,
-		opt<const string> name,
-		bool optional,
-		opt<unsigned int> index,
 		opt<int> correction = nullopt,
 		opt<unsigned int> max_errors = nullopt
 	);
@@ -103,13 +97,16 @@ public:
 protected:
 	virtual void read_temps_() override;
 	virtual string lookup() override;
+
+private:
+	shared_ptr<HwmonInterface<SensorDriver>> hwmon_interface_;
 };
 
 
 class TpSensorDriver : public SensorDriver {
 public:
 	TpSensorDriver(
-		string path,
+		string conf_path,
 		bool optional,
 		opt<vector<unsigned int>> temp_indices = nullopt,
 		opt<vector<int>> correction = nullopt,
@@ -126,6 +123,7 @@ private:
 	static const string skip_prefix_;
 	vector<bool> in_use_;
 	const opt<vector<unsigned int>> temp_indices_;
+	const string conf_path_;
 };
 
 
@@ -140,6 +138,7 @@ protected:
 	virtual string lookup() override;
 private:
 	SkDisk *disk_;
+	const string device_path_;
 };
 #endif /* USE_ATASMART */
 
@@ -154,6 +153,7 @@ protected:
 	virtual void read_temps_() override;
 	virtual string lookup() override;
 private:
+	const string bus_id_;
 	nvmlDevice_t device_;
 	void *nvml_so_handle_;
 

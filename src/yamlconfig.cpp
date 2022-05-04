@@ -103,30 +103,16 @@ bool convert_driver<vector<wtf_ptr<HwmonSensorDriver>>>(
 	opt<const string> name = decode_opt<string>(node[kw_name]);
 	bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
 	opt<unsigned int> max_errors = decode_opt<unsigned int>(node[kw_max_errors]);
+	opt<vector<unsigned int>> indices = decode_opt<vector<unsigned int>>(node[kw_indices]);
 
-	if (node[kw_indices]) {
-		vector<unsigned int> indices = node[kw_indices].as<vector<unsigned int>>();
+	auto hwmon_iface = std::make_shared<HwmonInterface<SensorDriver>>(path, name, indices);
 
-		if (correction) {
-			if (correction->size() != indices.size())
-				throw YamlError(
-					get_mark_compat(node[kw_indices]),
-					MSG_CONF_CORRECTION_LEN(path, correction->size(), indices.size())
-				);
-		}
-
-		vector<int>::size_type i = 0;
-		for (unsigned int index : indices) {
-			wtf_ptr<HwmonSensorDriver> drv(new HwmonSensorDriver(
-				path,
-				name,
-				optional,
-				index,
-				correction ? opt<int>(correction.value()[i++]) : nullopt,
-				max_errors
-			));
-			sensors.push_back(drv);
-		}
+	if (indices) {
+		if (correction && correction->size() != indices->size())
+			throw YamlError(
+				get_mark_compat(node[kw_indices]),
+				MSG_CONF_CORRECTION_LEN(path, correction->size(), indices->size())
+			);
 	}
 	else {
 		if (optional)
@@ -140,15 +126,16 @@ bool convert_driver<vector<wtf_ptr<HwmonSensorDriver>>>(
 				"If no indices are specified, the '"+kw_hwmon+"' path must refer to a specific temp*_input file "
 				"and therefore the length of '"+kw_correction+"' must be 1"
 			);
-		wtf_ptr<HwmonSensorDriver> h(new HwmonSensorDriver(
-			path,
-			name,
+	}
+
+	for (unsigned int i = 0; i < (indices ? indices->size() : 1); ++i) {
+		wtf_ptr<HwmonSensorDriver> drv(new HwmonSensorDriver(
+			hwmon_iface,
 			optional,
-			nullopt,
-			correction ? opt<int>(correction.value()[0]) : nullopt,
+			correction ? opt<int>(correction.value()[i++]) : nullopt,
 			max_errors
 		));
-		sensors.push_back(h);
+		sensors.push_back(drv);
 	}
 
 	return true;
@@ -277,19 +264,18 @@ bool convert_driver<vector<wtf_ptr<HwmonFanDriver>>>(const Node &node, vector<wt
 	opt<vector<unsigned int>> indices = decode_opt<vector<unsigned int>>(node[kw_indices]);
 	opt<unsigned int> max_errors = decode_opt<unsigned int>(node[kw_max_errors]);
 
-	if (indices) {
-		for (unsigned int idx : *indices)
-			fans.push_back(wtf_ptr<HwmonFanDriver>(new HwmonFanDriver(path, name, optional, idx, max_errors)));
-	}
-	else {
-		if (optional)
-			throw YamlError(
-				get_mark_compat(node),
-				"An optional hwmon fan must have an \"indices\" entry so thinkfan knows how many temperatures to expect."
-			);
+	shared_ptr<HwmonInterface<FanDriver>> hwmon_iface = std::make_shared<HwmonInterface<FanDriver>>(
+		path, name, indices
+	);
 
-		fans.push_back(wtf_ptr<HwmonFanDriver>(new HwmonFanDriver(node[kw_hwmon].as<string>(), optional, max_errors)));
-	}
+	if (!indices && optional)
+		throw YamlError(
+			get_mark_compat(node),
+			"An optional hwmon fan must have an \"indices\" entry so thinkfan knows how many temperatures to expect."
+		);
+
+	for (unsigned int i = 0; i < (indices ? indices->size() : 1); ++i)
+		fans.push_back(wtf_ptr<HwmonFanDriver>(new HwmonFanDriver(hwmon_iface, optional, max_errors)));
 
 	return true;
 }

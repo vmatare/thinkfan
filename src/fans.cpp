@@ -41,8 +41,8 @@ namespace thinkfan {
 | provided by its subclasses.                                                |
 ----------------------------------------------------------------------------*/
 
-FanDriver::FanDriver(opt<const string> path, bool optional, unsigned int watchdog_timeout, opt<unsigned int> max_errors)
-: Driver(path, optional, max_errors.value_or(0)),
+FanDriver::FanDriver(bool optional, unsigned int watchdog_timeout, opt<unsigned int> max_errors)
+: Driver(optional, max_errors.value_or(0)),
   current_speed_("_"),
   watchdog_(watchdog_timeout),
   depulse_(0)
@@ -91,7 +91,8 @@ const string &FanDriver::current_speed() const
 ----------------------------------------------------------------------------*/
 
 TpFanDriver::TpFanDriver(const std::string &path, bool optional, opt<unsigned int> max_errors)
-: FanDriver(path, optional, 120, max_errors)
+: FanDriver(optional, 120, max_errors)
+, path_(path)
 {}
 
 
@@ -195,20 +196,21 @@ string TpFanDriver::lookup()
 | HwmonFanDriver: Driver for PWM fans, typically somewhere in sysfs.         |
 ----------------------------------------------------------------------------*/
 
-HwmonFanDriver::HwmonFanDriver(const std::string &path, bool optional, opt<unsigned int> max_errors)
-: FanDriver(path, optional, 0, max_errors)
+HwmonFanDriver::HwmonFanDriver(const string &path)
+: HwmonFanDriver(
+	std::make_shared<HwmonInterface<FanDriver>>(path, nullopt, nullopt),
+	false,
+	0
+)
 {}
 
-
 HwmonFanDriver::HwmonFanDriver(
-	const string &base_path,
-	opt<const string> name,
+	shared_ptr<HwmonInterface<FanDriver>> hwmon_interface,
 	bool optional,
-	opt<unsigned int> index,
 	opt<unsigned int> max_errors
 )
-: FanDriver(nullopt, optional, 0, max_errors)
-, HwmonInterface(base_path, name, index)
+: FanDriver(optional, 0, max_errors)
+, hwmon_interface_(hwmon_interface)
 {}
 
 
@@ -251,7 +253,7 @@ void HwmonFanDriver::init()
 }
 
 string HwmonFanDriver::lookup()
-{ return HwmonInterface::lookup<HwmonFanDriver>(); }
+{ return hwmon_interface_->lookup(); }
 
 
 void HwmonFanDriver::set_speed(const Level &level)

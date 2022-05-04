@@ -42,8 +42,8 @@ namespace thinkfan {
 | SensorDriver: The superclass of all hardware-specific sensor drivers       |
 ----------------------------------------------------------------------------*/
 
-SensorDriver::SensorDriver(opt<const string> path, bool optional, opt<vector<int>> correction, opt<unsigned int> max_errors)
-: Driver(path, optional, max_errors.value_or(0))
+SensorDriver::SensorDriver(bool optional, opt<vector<int>> correction, opt<unsigned int> max_errors)
+: Driver(optional, max_errors.value_or(0))
 , correction_(correction.value_or(vector<int>()))
 , num_temps_(0)
 {}
@@ -134,26 +134,23 @@ void SensorDriver::skip_io_error(const ExpectedError &e)
 | typically somewhere in sysfs.                                              |
 ----------------------------------------------------------------------------*/
 
-HwmonSensorDriver::HwmonSensorDriver(
-	const string &path,
-	bool optional,
-	opt<int> correction,
-	opt<unsigned int> max_errors
+HwmonSensorDriver::HwmonSensorDriver(const string &path, bool optional)
+: HwmonSensorDriver(
+	std::make_shared<HwmonInterface<SensorDriver>>(path, nullopt, nullopt),
+	optional,
+	nullopt,
+	0
 )
-: SensorDriver(path, optional, correction ? vector<int>{*correction} : vector<int>{}, max_errors)
-, HwmonInterface(path, nullopt, nullopt)
-{ set_num_temps(1); }
+{}
 
 HwmonSensorDriver::HwmonSensorDriver(
-	const string &base_path,
-	opt<const string> name,
+	shared_ptr<HwmonInterface<SensorDriver>> hwmon_interface,
 	bool optional,
-	opt<unsigned int> index,
 	opt<int> correction,
 	opt<unsigned int> max_errors
 )
-: SensorDriver(std::nullopt, optional, correction ? vector<int>{*correction} : vector<int>{}, max_errors)
-, HwmonInterface(base_path, name, index)
+: SensorDriver(optional, correction ? vector<int>{*correction} : vector<int>{}, max_errors)
+, hwmon_interface_(hwmon_interface)
 { set_num_temps(1); }
 
 
@@ -170,7 +167,7 @@ void HwmonSensorDriver::read_temps_()
 
 
 string HwmonSensorDriver::lookup()
-{ return HwmonInterface::lookup<HwmonSensorDriver>(); }
+{ return hwmon_interface_->lookup(); }
 
 
 /*----------------------------------------------------------------------------
@@ -181,14 +178,15 @@ string HwmonSensorDriver::lookup()
 const string TpSensorDriver::skip_prefix_("temperatures:");
 
 TpSensorDriver::TpSensorDriver(
-	std::string path,
+	string conf_path,
 	bool optional,
 	opt<vector<unsigned int>> temp_indices,
 	opt<vector<int>> correction,
 	opt<unsigned int> max_errors
 )
-: SensorDriver(path, optional, correction, max_errors)
+: SensorDriver(optional, correction, max_errors)
 , temp_indices_(temp_indices)
+, conf_path_(conf_path)
 {
 	if (temp_indices_)
 		set_num_temps(static_cast<unsigned int>(temp_indices_->size()));
@@ -197,15 +195,15 @@ TpSensorDriver::TpSensorDriver(
 
 void TpSensorDriver::init()
 {
-	std::ifstream f(path());
-	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_SENSOR_INIT(path()), errno);
-
 	int tmp;
 	unsigned int count = 0;
 
 	string skip;
 	skip.resize(skip_prefix_.size());
+
+	std::ifstream f(path());
+	if (!(f.is_open() && f.good()))
+		throw IOerror(MSG_SENSOR_INIT(path()), errno);
 
 	if (!f.get(&*skip.begin(), static_cast<std::streamsize>(skip_prefix_.size() + 1)))
 		throw IOerror(MSG_SENSOR_INIT(path()), errno);
@@ -267,7 +265,13 @@ void TpSensorDriver::read_temps_()
 
 
 string TpSensorDriver::lookup()
-{ return path(); }
+{
+	std::ifstream f(conf_path_);
+	if (f.is_open() && f.good())
+		return conf_path_;
+	else
+		throw IOerror(MSG_SENSOR_INIT(path()), errno);
+}
 
 
 #ifdef USE_ATASMART
@@ -277,12 +281,13 @@ string TpSensorDriver::lookup()
 ----------------------------------------------------------------------------*/
 
 AtasmartSensorDriver::AtasmartSensorDriver(
-	string path,
+	string device_path,
 	bool optional,
 	opt<vector<int>> correction,
 	opt<unsigned int> max_errors
 )
-: SensorDriver(path, optional, correction, max_errors)
+: SensorDriver(optional, correction, max_errors)
+, device_path_(device_path)
 {
 	set_num_temps(1);
 }
@@ -337,7 +342,7 @@ void AtasmartSensorDriver::read_temps_()
 }
 
 string AtasmartSensorDriver::lookup()
-{ return path(); }
+{ return device_path_; }
 
 #endif /* USE_ATASMART */
 
@@ -349,7 +354,8 @@ string AtasmartSensorDriver::lookup()
 ----------------------------------------------------------------------------*/
 
 NvmlSensorDriver::NvmlSensorDriver(string bus_id, bool optional, opt<vector<int>> correction, opt<unsigned int> max_errors)
-: SensorDriver(bus_id, optional, correction, max_errors),
+: SensorDriver(optional, correction, max_errors),
+  bus_id_(bus_id),
   dl_nvmlInit_v2(nullptr),
   dl_nvmlDeviceGetHandleByPciBusId_v2(nullptr),
   dl_nvmlDeviceGetName(nullptr),
@@ -414,7 +420,7 @@ void NvmlSensorDriver::read_temps_()
 }
 
 string NvmlSensorDriver::lookup()
-{ return path(); }
+{ return bus_id_; }
 
 #endif /* USE_NVML */
 
@@ -438,7 +444,7 @@ LMSensorsDriver::LMSensorsDriver(
 	opt<vector<int>> correction,
 	opt<unsigned int> max_errors
 )
-: SensorDriver(nullopt, optional, correction, max_errors),
+: SensorDriver(optional, correction, max_errors),
   chip_name_(chip_name),
   chip_(nullptr),
   feature_names_(feature_names)
