@@ -185,10 +185,10 @@ void TpFanDriver::init()
 
 string TpFanDriver::lookup()
 {
-	std::fstream f(path());
+	std::fstream f(path_);
 	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_FAN_INIT(path()), errno);
-	return path();
+		throw IOerror(MSG_FAN_INIT(path_), errno);
+	return path_;
 }
 
 
