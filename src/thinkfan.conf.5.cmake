@@ -57,7 +57,6 @@ Under each of these sections, there must be a list of key-value maps, each of
 which configures a sensor driver, fan driver or fan speed mapping.
 
 
-
 .SH SENSOR & FAN DRIVERS
 
 For thinkfan to work, it first needs to know which temperature sensor drivers
@@ -67,18 +66,13 @@ separate config section (see the
 .B FAN SPEEDS
 section below).
 
-
 .SS Sensor Syntax
 
 The entries under the
 .B sensors:
-section can specify
-.BR hwmon,
-.BR thinkpad_acpi,
-.BR NVML
-or
-.BR atasmart
-drivers, where the latter two must be enabled at compile-time.
+section can specify sysfs/hwmon, lm_sensors, thinkpad_acpi, NVML or atasmart drivers.
+Support for lm_sensors, NVML and atasmart requires the appropriate libraries
+and must have been enabled at compile time.
 There can be any number (greater than zero) and combination of
 .BR hwmon ,
 .BR tpacpi ,
@@ -90,55 +84,59 @@ However there may be at most one instance of the
 .BR tpacpi
 entry.
 
+The syntax for identifying each type of sensors looks as follows:
+
 .nf
 .B  "sensors:"
-.BI "  \- hwmon: " hwmon-path
-.BI "    name: " hwmon-name
-.BI "    indices: " index-list
-.BI "    correction: " correction-list
-.BI "    optional: " bool-allow-errors
+.BI "  \- hwmon: " hwmon-path "    \fR# A path to a sysfs/hwmon sensor"
+.BI "    name: " hwmon-name "     \fR# optional"
+.BI "    indices: " index-list "  \fR# optional"
 
-.B  "  \- tpacpi: /proc/acpi/ibm/thermal"
-.BI "    indices: " index-list
-.BI "    correction: " correction-list
-.BI "    optional: " bool-allow-errors
+.BI "  \- chip: " chip-name "      \fR# An lm_sensors/libsensors chip..."
+.BI "    ids: " id-list "         \fR# ... with some feature IDs"
 
-.BI "  \- nvml: " nvml-bus-id
-.BI "    correction: " correction-list
-.BI "    optional: " bool-allow-errors
+.B  "  \- tpacpi: /proc/acpi/ibm/thermal" " \fR# Provided by the thinkpad_acpi kernel module"
+.BI "    indices: " index-list "  \fR# optional"
 
-.BI "  \- atasmart: " disk-device-file
-.BI "    correction: " correction-list
-.BI "    optional: " bool-allow-errors
+.BI "  \- nvml: " nvml-bus-id "    \fR# Uses the proprietary nVidia driver"
+
+.BI "  \- atasmart: " disk-device-file " \fR# Requires libatasmart support"
 
 .BR "  \- " ...
+.fi
+
+Additionally, each sensor entry can have a number of settings that modify its
+behavior:
+
+.nf
+.B  "sensors:"
+.BR "  \- " ... : " ... (any sensor specification as shown above)"
+.BI "    correction: " correction-list " \fR(optional)"
+.BI "    optional: " bool-allow-errors " \fR(optional)"
+.BI "    max_errors: " num-max-errors " \fR(optional)"
 .fi
 
 
 .SS Fan Syntax
 
-Currently, thinkfan supports only one fan, so there can be only one entry in the
-list.
-Support for multiple fans is currently in development and planned for a future
-release.
-The fan is either an
+Since version 2.0, thinkfan can control multiple fans.
+So any number of
 .B hwmon
-fan:
+fan sections can be specified.
+Note however that the thinkpad_acpi kernel module only supports one fan, so
+there can be at most one
+.B tpacpi
+section:
 
 .nf
 .B  "fans:"
+.B  "  \- tpacpi: /proc/acpi/ibm/fan"
+
 .BI "  \- hwmon: " hwmon-path
 .BI "    name: " hwmon-name
 .BI "    indices: " index-list
-.fi
 
-or a
-.B tpacpi
-fan:
-
-.nf
-.B  "fans:"
-.B "  \- tpacpi: /proc/acpi/ibm/fan"
+.BR "  \- " ...
 .fi
 
 
@@ -326,7 +324,7 @@ sensor individually:
 
 .nf
 .B  "levels:"
-.BI "  \- speed: " fan-speed
+.BI "  \- speed: [ " fan1-speed ", " fan2-speed ", " "\fR..." " ]"
 .BI "    lower_limit: [ " l1 ", " l2 ", " "\fR..." " ]"
 .BI "    upper_limit: [ " u1 ", " u2 ", " "\fR..." " ]"
 .BR "  \- " ...
@@ -336,19 +334,40 @@ sensor individually:
 .SS Values
 
 .TP 12m
+.IB fan1-speed ", " fan2-speed ", " \fR...
+.TP
 .I fan-speed
-The possible speed values are different depending on which fan driver is used.
+When multiple fans are specified under the
+.B fans:
+section, value of the
+.B speed:
+keyword must be a list of as many
+.I fanX-speed
+values.
+They are applied to the fans by their order of appearance, i.e. the first
+speed value applies to the fan that has been specified first, the second value
+to the second fan, and so on.
+If there is just one fan, instead of a list with just one element, the speed
+value can be given as a scalar.
 
+The possible speed values for
+.B fanX-speed
+are different depending on which fan driver is used:
+
+.TP
+\h'9m'\(bu
 For a
 .B hwmon
 fan,
-.I fan-speed
+.I fanX-speed
 is a numeric value ranging from
 .B 0
 to
 .BR 255 ,
 corresponding to the PWM values accepted by the various kernel drivers.
 
+.TP
+\h'9m'\(bu
 For a
 .B tpacpi
 fan on Lenovo/IBM ThinkPads and some other Lenovo laptops (see \fBSENSORS & FAN
@@ -379,8 +398,8 @@ though it may be helpful to combat thermal throttling.
 .IB l1 ", " l2 ", " \fR...
 .TP
 .IB u1 ", " u2 ", " \fR...
-The lower and upper limits refer to the sensors in the same order in which they
-were found when processing the
+The lower and upper temperature limits refer to the sensors in the same order
+in which they were found when processing the
 .B sensors:
 section (see
 .B SENSOR & FAN DRIVERS
@@ -393,6 +412,10 @@ may be omitted.
 For all levels in between, the lower limits must overlap with the upper limits
 of the previous level, to make sure the entire temperature range is covered and
 that there is some hysteresis between speed levels.
+
+Instead of a temperature, an underscore (\fB_\fR) can be given.
+An underscore means that the temperature of that sensor should be ignored at
+the given speed level.
 
 
 .SH SEE ALSO
