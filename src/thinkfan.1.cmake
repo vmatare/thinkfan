@@ -17,6 +17,12 @@ thinkfan \- A simple fan control program
 Thinkfan reads temperatures from a configured set of sensors and then sets fan
 speeds according to temperature limits set in the config file.
 
+.HP
+\fBWARNING\fR: Thinkfan does only very basic sanity checking on the
+configuration. This means that a bad configuration can increase thermal wear
+on the hardware or even cause destruction from overheating!
+
+
 .SS Supported sensors
 
 .TP
@@ -50,7 +56,6 @@ where sensors can always be identified uniquely, even when the load order of
 kernel modules changes.
 
 .SS Supported fans
-.P
 Thinkfan can control any number of fans, which can be specified in two ways:
 
 .TP
@@ -65,12 +70,6 @@ documentation.
 .TP
 \(bu pwm*_enable and pwm? files in sysfs
 Provided by all modern hardware monitoring drivers, including thinkpad_acpi.
-
-.HP
-\fBWARNING\fR: This program does only very basic sanity checking on the
-configuration. That means that you can set your temperature limits as insane
-as you like.
-.P
 
 
 .SS Mapping temperatures to fan speeds
@@ -92,6 +91,7 @@ system. That may be dangerous, e.g. for hard disks.
 That's why you should provide a correction value (i.e. add 10\-15 \[char176]C)
 for the sensor that has the temperature of your hard disk (or battery...).
 See the example config files for details about that.
+
 
 
 
