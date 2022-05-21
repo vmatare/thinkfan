@@ -10,10 +10,10 @@ cmake_policy(SET CMP0015 NEW)
 
 find_package(PkgConfig)
 find_package(Threads)
+find_package(yaml-cpp)
+
 pkg_check_modules(SYSTEMD "systemd")
 pkg_check_modules(OPENRC "openrc")
-
-pkg_check_modules(YAML_CPP "yaml-cpp")
 
 if(YAML_CPP_FOUND AND YAML_CPP_VERSION VERSION_LESS "0.5.3")
 	message(WARNING "yaml-cpp version ${YAML_CPP_VERSION} is very old, buggy and lacks some features. Thinkfan will not always be able to point out the location of errors in the YAML config.")
@@ -52,7 +52,7 @@ option(USE_LM_SENSORS "Get temperatures from LM sensors" ON)
 #
 # The shiny new YAML config parser. Depends on yaml-cpp.
 #
-option(USE_YAML "Enable the new YAML-based config format" ON)
+option(USE_YAML "Enable YAML-based config format" ON)
 
 
 option(DISABLE_BUGGER "Disable bug detection, i.e. dont't catch segfaults and unhandled exceptions" OFF)
@@ -128,8 +128,7 @@ endif(USE_LM_SENSORS)
 
 if(USE_YAML)
 	target_compile_definitions(thinkfan PRIVATE -DUSE_YAML)
-	target_include_directories(thinkfan PRIVATE ${YAML_CPP_INCLUDE_DIRS})
-	target_link_libraries(thinkfan PRIVATE ${YAML_CPP_LIBRARIES})
+	target_link_libraries(thinkfan PRIVATE yaml-cpp)
 endif(USE_YAML)
 
 if(SYSTEMD_FOUND)
