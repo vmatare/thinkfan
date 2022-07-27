@@ -57,7 +57,6 @@ private:
 	unsigned int errors_;
 	bool optional_;
 	bool initialized_;
-	opt<const string> path_;
 
 	template<class SkipFnT>
 	void handle_io_error_(const ExpectedError &e, SkipFnT skip_fn);
@@ -73,6 +72,8 @@ protected:
 	virtual string lookup() = 0;
 
 	virtual void skip_io_error(const ExpectedError &);
+
+	opt<const string> path_;
 };
 
 
@@ -81,7 +82,7 @@ void Driver::robust_io(void (DriverT::*io_func)(ArgTs...), ArgTs &&... args)
 {
 	using namespace std::placeholders;
 
-	if (!initialized())
+	if (!available() || !initialized())
 		try_init();
 
 	if (initialized())

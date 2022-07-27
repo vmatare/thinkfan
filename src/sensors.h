@@ -26,6 +26,7 @@
 #include "error.h"
 #include "driver.h"
 #include "hwmon.h"
+#include "libsensors.h"
 
 #ifdef USE_ATASMART
 #include <atasmart.h>
@@ -35,12 +36,6 @@
 #include <nvidia/gdk/nvml.h>
 #endif /* USE_NVML */
 
-#ifdef USE_LM_SENSORS
-#include <sensors/sensors.h>
-#include <sensors/error.h>
-#include <atomic>
-#include <mutex>
-#endif /* USE_LM_SENSORS */
 
 #include <functional>
 #include <optional>
@@ -181,36 +176,19 @@ public:
 	);
 	virtual ~LMSensorsDriver();
 
+	const string &chip_name() const;
+	const vector<string> &feature_names() const;
+	void set_unavailable();
+
 protected:
 	virtual void init() override;
 	virtual void read_temps_() override;
 	virtual string lookup() override;
 
-	// LM sensors helpers.
-	static void initialize_lm_sensors();
-	static const ::sensors_chip_name *find_chip_by_name(const string& chip_name);
-
-	static const ::sensors_feature *find_feature_by_name(
-		const ::sensors_chip_name &chip,
-		const string &feature_name
-	);
-
-	static string get_chip_name(const ::sensors_chip_name &chip);
-
-	// LM sensors call backs.
-	static void parse_error_callback(const char *err, int line_no);
-	static void parse_error_wfn_callback(const char *err, const char *file_name, int line_no);
-	static void fatal_error_callback(const char *proc, const char *err);
-
 private:
 	const string chip_name_;
-	const ::sensors_chip_name* chip_;
-
 	const std::vector<string> feature_names_;
-	std::vector<const ::sensors_feature*> features_;
-	std::vector<const ::sensors_subfeature*> sub_features_;
-
-	static std::once_flag lm_sensors_once_init_;
+	shared_ptr<LibsensorsInterface> libsensors_iface_;
 };
 
 #endif /* USE_LM_SENSORS */

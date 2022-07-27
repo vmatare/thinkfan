@@ -80,6 +80,9 @@ using numeric_limits = std::numeric_limits<T>;
 template<typename T>
 using opt = std::optional<T>;
 
+template<typename T>
+using ref = std::reference_wrapper<T>;
+
 inline constexpr std::nullopt_t nullopt = std::nullopt;
 
 using std::forward;
