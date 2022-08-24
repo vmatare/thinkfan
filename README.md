@@ -22,6 +22,11 @@ To compile thinkfan, you will need to have the following things installed:
 - cmake (and optionally a cmake GUI if you want to configure interactively)
 - optional: libyaml-cpp for YAML support (the -dev or -devel package)
 
+E.g. on a debian-based system that usually boils down to:
+```bash
+sudo apt install -y cmake g++ libyaml-cpp-dev pkgconfig libsensors-dev
+```
+
 1. In the thinkfan main directory, do
    ```bash
    mkdir build && cd build
