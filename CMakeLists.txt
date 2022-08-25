@@ -1,4 +1,4 @@
-project(thinkfan)
+project(thinkfan LANGUAGES CXX)
 include(GNUInstallDirs)
 
 set(THINKFAN_VERSION 2.0.0)
