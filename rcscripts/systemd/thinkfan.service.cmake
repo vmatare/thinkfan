@@ -8,6 +8,8 @@ Type=forking
 ExecStart=@CMAKE_INSTALL_PREFIX@/sbin/thinkfan $THINKFAN_ARGS
 PIDFile=/run/thinkfan.pid
 ExecReload=/bin/kill -HUP $MAINPID
+CPUSchedulingPolicy=fifo
+CPUSchedulingPriority=20
 
 [Install]
 WantedBy=multi-user.target
