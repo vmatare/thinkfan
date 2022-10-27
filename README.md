@@ -27,6 +27,11 @@ E.g. on a debian-based system that usually boils down to:
 sudo apt install -y cmake g++ libyaml-cpp-dev pkgconfig libsensors-dev
 ```
 
+on EL/Fedora based system, usually :
+```bash
+sudo dnf install -y cmake g++ pkgconfig yaml-cpp-devel lm_sensors-devel
+```
+
 1. In the thinkfan main directory, do
    ```bash
    mkdir build && cd build
