@@ -161,7 +161,10 @@ template<class ErrT, class... ArgTs> void error(const ArgTs &... args) {
 
 
 #define MSG_FAN_MODOPTS \
- "Module thinkpad_acpi doesn't seem to support fan_control"
+ "Kernel module thinkpad_acpi: Fan_control seems disabled. See this link:\n" \
+ "https://www.kernel.org/doc/html/latest/admin-guide/laptops/thinkpad-acpi.html?highlight=thinkpad_acpi#fan-control-and-monitoring-fan-speed-fan-enable-disable\n" \
+ "Or execute the following as root:\n" \
+ "echo \"options thinkpad_acpi fan_control=1\" > /etc/modprobe.d/99-thinkfan.conf"
 #define MSG_FAN_CTRL(str, fan) string(__func__) + ": Writing \"" + str + "\" to " + fan + ": "
 #define MSG_FAN_INIT(fan) string(__func__) + ": Initializing fan control in " + fan + ": "
 #define MSG_FAN_RESET(fan) string(__func__) + ": Resetting fan control in " + fan + ": "
