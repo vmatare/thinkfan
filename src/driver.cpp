@@ -51,6 +51,31 @@ void Driver::try_init()
 }
 
 
+void Driver::robust_op(FN<void ()> op_fn, FN<void (const ExpectedError &)> skip_fn)
+{
+	try {
+		errors_++;
+		op_fn();
+		errors_ = 0;
+	} catch (SystemError &e) {
+		handle_io_error_(e, skip_fn);
+	} catch (IOerror &e) {
+		handle_io_error_(e, skip_fn);
+	} catch (std::ios_base::failure &e) {
+		handle_io_error_(IOerror(e.what(), THINKFAN_IO_ERROR_CODE(e)), skip_fn);
+	}
+}
+
+
+void Driver::handle_io_error_(const ExpectedError &e, FN<void (const ExpectedError &)> skip_fn)
+{
+	if (optional() || tolerate_errors || errors() < max_errors() || !chk_sanity)
+		skip_fn(e);
+	else
+		throw e;
+}
+
+
 unsigned int Driver::errors() const
 { return errors_; }
 

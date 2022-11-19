@@ -33,6 +33,9 @@ class Driver {
 protected:
 	Driver(bool optional, unsigned int max_errors);
 
+	template<typename FnSignatureT>
+	using FN = std::function<FnSignatureT>;
+
 public:
 	void try_init();
 	unsigned int errors() const;
@@ -43,8 +46,7 @@ public:
 	 *  will result in an exception. */
 	const string &path() const;
 
-	template<typename OpFnT, typename SkipFnT>
-	void robust_op(OpFnT op_fn, SkipFnT skip_fn);
+	void robust_op(FN<void ()> op_fn, FN<void (const ExpectedError &)> skip_fn);
 
 	template<class DriverT, typename... ArgTs>
 	void robust_io(void (DriverT::*io_func)(ArgTs...), ArgTs &&... args);
@@ -58,8 +60,7 @@ private:
 	bool optional_;
 	bool initialized_;
 
-	template<class SkipFnT>
-	void handle_io_error_(const ExpectedError &e, SkipFnT skip_fn);
+	void handle_io_error_(const ExpectedError &e, FN<void (const ExpectedError &)> skip_fn);
 
 protected:
 	virtual void init() = 0;
@@ -96,32 +97,6 @@ void Driver::robust_io(void (DriverT::*io_func)(ArgTs...), ArgTs &&... args)
 		);
 }
 
-
-template<typename OpFnT, typename SkipFnT>
-void Driver::robust_op(OpFnT op_fn, SkipFnT skip_fn)
-{
-	try {
-		errors_++;
-		op_fn();
-		errors_ = 0;
-	} catch (SystemError &e) {
-		handle_io_error_(e, skip_fn);
-	} catch (IOerror &e) {
-		handle_io_error_(e, skip_fn);
-	} catch (std::ios_base::failure &e) {
-		handle_io_error_(IOerror(e.what(), THINKFAN_IO_ERROR_CODE(e)), skip_fn);
-	}
-}
-
-
-template<class SkipFnT>
-void Driver::handle_io_error_(const ExpectedError &e, SkipFnT skip_fn)
-{
-	if (optional() || tolerate_errors || errors() < max_errors() || !chk_sanity)
-		skip_fn(e);
-	else
-		throw e;
-}
 
 
 
