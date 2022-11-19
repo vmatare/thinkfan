@@ -140,7 +140,6 @@ vector<string> HwmonInterface<HwmonT>::find_hwmons_by_indices(
 ) {
 	constexpr unsigned char max_depth = 3;
 
-	vector<string> rv;
 	try {
 		return find_files(path, indices);
 	}
@@ -198,6 +197,7 @@ string HwmonInterface<HwmonT>::lookup()
 			}
 			path = paths[0];
 		}
+
 		if (indices_) {
 			found_paths_ = find_hwmons_by_indices(path, indices_.value(), 0);
 			if (found_paths_.size() == 0)

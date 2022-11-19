@@ -19,7 +19,6 @@
  *
  * ******************************************************************/
 
-#include "error.h"
 #include "thinkfan.h"
 #include "message.h"
 #include "config.h"
@@ -114,7 +113,7 @@ Logger &Logger::flush()
 #pragma GCC diagnostic ignored "-Wformat-security"
 			// I think we can safely do this because thinkfan doesn't receive
 			// any data from unprivileged processes.
-			syslog(msg_lvl_, msg_pfx_.c_str());
+			syslog(msg_lvl_, "%s", msg_pfx_.c_str());
 #pragma GCC diagnostic pop
 		}
 		else {

@@ -1,6 +1,5 @@
 #include "yamlconfig.h"
 #include "error.h"
-#include "driver.h"
 #include "config.h"
 #include "fans.h"
 #include "sensors.h"
@@ -15,18 +14,6 @@
 namespace YAML {
 
 using namespace thinkfan;
-
-
-/*
-#ifdef HAVE_OLD_YAMLCPP
-Mark get_mark_compat(const Node &);
-BadConversion get_bad_conversion_compat(const Node &);
-#else
-Mark get_mark_compat(const Node &node);
-BadConversion get_bad_conversion_compat(const Node &node);
-#endif
-*/
-
 
 
 #ifdef HAVE_OLD_YAMLCPP
