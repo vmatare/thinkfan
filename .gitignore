@@ -1,0 +1,8 @@
+# Ignore the build directory
+build/
+
+# Ignore cppcheck artifacts
+*.ctu-info
+
+# Ignore ctags file
+tags

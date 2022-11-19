@@ -1,0 +1,36 @@
+name: cppcheck-action-test
+on:
+  pull_request:
+
+jobs:
+  build:
+    name: cppcheck-test
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      checks: write
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install-deps
+        run: sudo apt install libyaml-cpp-dev libatasmart-dev cmake libsensors4-dev cppcheck
+      - name: build
+        run: |
+          mkdir build
+          cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE:STRING=Debug -DUSE_ATASMART:BOOL=ON
+          cmake --build build
+
+      - name: cppcheck
+        uses: deep5050/cppcheck-action@main
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # enable: all
+          # other_options: --addon=threadsafety.py --project=build/compile_commands.json -ibuild
+
+      - name: publish report
+        uses: mikeal/publish-to-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH_NAME: 'master'
