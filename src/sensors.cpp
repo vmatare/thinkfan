@@ -1,7 +1,6 @@
 /********************************************************************
  * drivers.cpp: Interface to the kernel drivers.
  * (C) 2015, Victor Mataré
- *     2021, Koutheir Attouchi
  *
  * this file is part of thinkfan. See thinkfan.c for further information.
  *

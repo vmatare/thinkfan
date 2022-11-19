@@ -20,6 +20,7 @@
  * ******************************************************************/
 
 #include "driver.h"
+#include "message.h"
 
 namespace thinkfan {
 

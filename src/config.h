@@ -22,7 +22,7 @@
 #ifndef THINKFAN_CONFIG_H_
 #define THINKFAN_CONFIG_H_
 
-#include "error.h"
+#include "temperature_state.h"
 
 #include <string>
 #include <vector>

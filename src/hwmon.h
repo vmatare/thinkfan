@@ -22,7 +22,6 @@
  * ******************************************************************/
 
 #include "thinkfan.h"
-#include "wtf_ptr.h"
 
 #include <dirent.h>
 

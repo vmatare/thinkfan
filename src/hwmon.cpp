@@ -20,7 +20,7 @@
  * ******************************************************************/
 
 #include "hwmon.h"
-#include "wtf_ptr.h"
+#include "message.h"
 #include "error.h"
 
 #include <fnmatch.h>

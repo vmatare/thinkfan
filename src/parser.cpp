@@ -22,6 +22,7 @@
 #include "error.h"
 #include "parser.h"
 #include "config.h"
+#include "message.h"
 #include <memory>
 
 namespace thinkfan {

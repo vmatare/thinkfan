@@ -27,6 +27,7 @@
 #include "driver.h"
 #include "hwmon.h"
 #include "libsensors.h"
+#include "temperature_state.h"
 
 #ifdef USE_ATASMART
 #include <atasmart.h>

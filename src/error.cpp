@@ -20,6 +20,7 @@
  * ******************************************************************/
 
 #include "error.h"
+#include "message.h"
 
 #include <features.h>
 #if defined(__GLIBC__)

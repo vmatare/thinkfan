@@ -25,7 +25,6 @@
 #include <exception>
 #include <string>
 
-#include "message.h"
 #include "thinkfan.h"
 
 #ifdef USE_YAML
