@@ -93,6 +93,7 @@ public:
 protected:
 	virtual void read_temps_() override;
 	virtual string lookup() override;
+	virtual string type_name() const override;
 
 private:
 	shared_ptr<HwmonInterface<SensorDriver>> hwmon_interface_;
@@ -113,6 +114,7 @@ protected:
 	virtual void init() override;
 	virtual void read_temps_() override;
 	virtual string lookup() override;
+	virtual string type_name() const override;
 
 private:
 	std::char_traits<char>::off_type skip_bytes_;
@@ -128,10 +130,13 @@ class AtasmartSensorDriver : public SensorDriver {
 public:
 	AtasmartSensorDriver(string device_path, bool optional, opt<vector<int>> correction = nullopt, opt<unsigned int> max_errors = nullopt);
 	virtual ~AtasmartSensorDriver();
+
 protected:
 	virtual void init() override;
 	virtual void read_temps_() override;
 	virtual string lookup() override;
+	virtual string type_name() const override;
+
 private:
 	SkDisk *disk_;
 	const string device_path_;
@@ -144,10 +149,13 @@ class NvmlSensorDriver : public SensorDriver {
 public:
 	NvmlSensorDriver(string bus_id, bool optional, opt<vector<int>> correction = nullopt, opt<unsigned int> max_errors = nullopt);
 	virtual ~NvmlSensorDriver() noexcept(false) override;
+
 protected:
 	virtual void init() override;
 	virtual void read_temps_() override;
 	virtual string lookup() override;
+	virtual string type_name() const override;
+
 private:
 	const string bus_id_;
 	nvmlDevice_t device_;
@@ -185,6 +193,7 @@ protected:
 	virtual void init() override;
 	virtual void read_temps_() override;
 	virtual string lookup() override;
+	virtual string type_name() const override;
 
 private:
 	const string chip_name_;

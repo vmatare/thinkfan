@@ -60,6 +60,23 @@ LogLevel &operator++(LogLevel &l)
 }
 
 
+Logger &log(LogLevel lvl)
+{
+	Logger::instance().level(lvl);
+	return Logger::instance();
+}
+
+
+Logger &flush(Logger &l)
+{ return l.flush(); }
+
+Logger &log()
+{ return Logger::instance(); }
+
+
+
+
+
 Logger::Logger()
 : syslog_(false),
   log_lvl_(DEFAULT_LOG_LVL),
@@ -76,16 +93,6 @@ Logger &Logger::instance()
 
 LogLevel &Logger::log_lvl()
 { return log_lvl_; }
-
-
-Logger &flush(Logger &l) { return l.flush(); }
-
-
-Logger &log(LogLevel lvl)
-{
-	Logger::instance().level(lvl);
-	return Logger::instance();
-}
 
 
 Logger::~Logger()
@@ -106,19 +113,13 @@ void Logger::enable_syslog()
 
 Logger &Logger::flush()
 {
-	if (msg_pfx_.length() == 0) return *this;
+	if (msg_pfx_.length() == 0)
+		return *this;
 	if (msg_lvl_ <= log_lvl_) {
-		if (syslog_) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-security"
-			// I think we can safely do this because thinkfan doesn't receive
-			// any data from unprivileged processes.
+		if (syslog_)
 			syslog(msg_lvl_, "%s", msg_pfx_.c_str());
-#pragma GCC diagnostic pop
-		}
-		else {
+		else
 			std::cerr << msg_pfx_ << std::endl;
-		}
 	}
 	msg_pfx_ = "";
 
@@ -193,6 +194,7 @@ Logger &Logger::operator<< (const vector<unique_ptr<FanConfig>> &fan_configs)
 	msg_pfx_.pop_back(); msg_pfx_.pop_back();
 	return *this;
 }
+
 
 
 

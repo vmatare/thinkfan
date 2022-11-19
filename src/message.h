@@ -94,7 +94,9 @@ private:
 	std::exception_ptr exception_;
 };
 
+
 Logger &flush(Logger &l);
+Logger &log();
 Logger &log(LogLevel lvl);
 
 template<class ErrT, class... ArgTs> void error(const ArgTs &... args) {
@@ -104,7 +106,9 @@ template<class ErrT, class... ArgTs> void error(const ArgTs &... args) {
 		log(TF_ERR) << ErrT(args...).what() << flush;
 }
 
-}
+
+} // namespace thinkfan
+
 
 #ifdef USE_ATASMART
 #define DND_DISK_HELP \

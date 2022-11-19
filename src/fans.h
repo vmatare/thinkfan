@@ -71,6 +71,7 @@ public:
 protected:
 	virtual void init() override;
 	virtual string lookup() override;
+	virtual string type_name() const override;
 
 private:
 	const string path_;
@@ -93,6 +94,7 @@ public:
 protected:
 	virtual void init() override;
 	virtual string lookup() override;
+	virtual string type_name() const override;
 
 private:
 	shared_ptr<HwmonInterface<FanDriver>> hwmon_interface_;

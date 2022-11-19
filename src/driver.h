@@ -72,6 +72,9 @@ protected:
 	 *  The string returned by this will be accessible via the @a path() method. */
 	virtual string lookup() = 0;
 
+	/// @return A user-friendly name for the type of driver represented by the implementor
+	virtual string type_name() const = 0;
+
 	virtual void skip_io_error(const ExpectedError &);
 
 	opt<const string> path_;

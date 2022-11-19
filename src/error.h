@@ -138,12 +138,8 @@ public:
 class DriverInitError : public SystemError {
 public:
 	using SystemError::SystemError;
-};
 
-
-class DriverIOError : public SystemError {
-public:
-	using SystemError::SystemError;
+	void set_context(const string &context);
 };
 
 

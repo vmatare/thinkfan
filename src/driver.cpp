@@ -35,18 +35,17 @@ Driver::Driver(bool optional, unsigned int max_errors)
 void Driver::try_init()
 {
 	robust_op(
-		[&] () {
+		[&]/* op_fn */() {
 			if (!available())
 				path_.emplace(lookup());
 			init();
 			initialized_ = true;
 		},
-		[&] (const ExpectedError &e) { /* skip_fn */
-			if (!optional())
-				log(TF_WRN)
-					<< "Error " << errors() << "/" << max_errors()
-					<< " while initializing driver: " << e.what() << flush
-				;
+		[&]/* skip_fn */(const ExpectedError &e) {
+			log(optional() ? TF_DBG : TF_INF) << "Ignoring error ";
+			if (max_errors() && !optional())
+				log() << errors() << "/" << max_errors() << " ";
+			log() << "while initializing " << type_name() << ": " << e.what() << flush;
 		}
 	);
 }
@@ -58,6 +57,9 @@ void Driver::robust_op(FN<void ()> op_fn, FN<void (const ExpectedError &)> skip_
 		errors_++;
 		op_fn();
 		errors_ = 0;
+	} catch (DriverInitError &e) {
+		e.set_context(type_name());
+		handle_io_error_(e, skip_fn);
 	} catch (SystemError &e) {
 		handle_io_error_(e, skip_fn);
 	} catch (IOerror &e) {

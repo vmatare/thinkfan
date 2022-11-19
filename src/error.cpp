@@ -222,5 +222,8 @@ MissingEntry::MissingEntry(const string &entry)
 InvocationError::InvocationError(const string &message)
 : ExpectedError("Invalid command line: " + message) {}
 
+void DriverInitError::set_context(const string &context)
+{ msg_ = context + ": " + msg_; }
+
 
 }

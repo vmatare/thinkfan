@@ -191,6 +191,9 @@ string TpFanDriver::lookup()
 	return path_;
 }
 
+string TpFanDriver::type_name() const
+{ return "tpacpi fan driver"; }
+
 
 /*----------------------------------------------------------------------------
 | HwmonFanDriver: Driver for PWM fans, typically somewhere in sysfs.         |
@@ -254,6 +257,9 @@ void HwmonFanDriver::init()
 
 string HwmonFanDriver::lookup()
 { return hwmon_interface_->lookup(); }
+
+string HwmonFanDriver::type_name() const
+{ return "hwmon fan driver"; }
 
 
 void HwmonFanDriver::set_speed(const Level &level)

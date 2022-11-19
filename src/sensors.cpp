@@ -168,6 +168,9 @@ void HwmonSensorDriver::read_temps_()
 string HwmonSensorDriver::lookup()
 { return hwmon_interface_->lookup(); }
 
+string HwmonSensorDriver::type_name() const
+{ return "hwmon sensor driver"; }
+
 
 /*----------------------------------------------------------------------------
 | TpSensorDriver: A driver for sensors provided by thinkpad_acpi, typically  |
@@ -272,6 +275,9 @@ string TpSensorDriver::lookup()
 		throw IOerror(MSG_SENSOR_INIT(path()), errno);
 }
 
+string TpSensorDriver::type_name() const
+{ return "tpacpi sensor driver"; }
+
 
 #ifdef USE_ATASMART
 /*----------------------------------------------------------------------------
@@ -342,6 +348,9 @@ void AtasmartSensorDriver::read_temps_()
 
 string AtasmartSensorDriver::lookup()
 { return device_path_; }
+
+string AtasmartSensorDriver::type_name() const
+{ return "atasmart sensor driver"; }
 
 #endif /* USE_ATASMART */
 
@@ -421,6 +430,9 @@ void NvmlSensorDriver::read_temps_()
 string NvmlSensorDriver::lookup()
 { return bus_id_; }
 
+string NvmlSensorDriver::type_name() const
+{ return "NVML sensor driver"; }
+
 #endif /* USE_NVML */
 
 
@@ -469,7 +481,6 @@ void LMSensorsDriver::set_unavailable()
 { path_.reset(); }
 
 
-
 string LMSensorsDriver::lookup()
 {
 	if (!libsensors_iface_)
@@ -481,8 +492,8 @@ string LMSensorsDriver::lookup()
 }
 
 
-
-
+string LMSensorsDriver::type_name() const
+{ return "libsensors sensor driver"; }
 
 
 void LMSensorsDriver::read_temps_()
