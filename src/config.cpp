@@ -202,6 +202,11 @@ const Config *Config::try_read_config(const string &filename)
 			} );
 			if (ext == ".YAML")
 				throw ConfigError(filename, e.mark, f_data, e.what());
+			else {
+				log(TF_INF) << "Config file " << filename << " could not be parsed as YAML." << flush;
+				log(TF_DBG) << ConfigError(filename, e.mark, f_data, e.what()).what() << flush;
+				log(TF_INF) << "Attempting to parse with legacy syntax because filename does not end in .yaml..." << flush;
+			}
 		}
 #endif //USE_YAML
 
