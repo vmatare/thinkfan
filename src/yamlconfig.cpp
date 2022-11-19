@@ -119,7 +119,7 @@ bool convert_driver<vector<wtf_ptr<HwmonSensorDriver>>>(
 		wtf_ptr<HwmonSensorDriver> drv(new HwmonSensorDriver(
 			hwmon_iface,
 			optional,
-			correction ? opt<int>(correction.value()[i++]) : nullopt,
+			correction ? opt<int>(correction.value()[i]) : nullopt,
 			max_errors
 		));
 		sensors.push_back(drv);
