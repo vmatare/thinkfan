@@ -1,4 +1,4 @@
-.TH THINKFAN.CONF 5 "December 2021" "thinkfan @THINKFAN_VERSION@"
+.TH THINKFAN.CONF 5 "November 2022" "thinkfan @THINKFAN_VERSION@"
 .SH NAME
 thinkfan.conf \- YAML-formatted config for
 .BR thinkfan (1)
@@ -18,7 +18,7 @@ We recommend using two spaces for indentation, like it is shown below.
 
 The thinkfan config has three main sections:
 
-.TP 11m
+.TP
 .B sensors:
 Where temperatures should be read from. All
 .BR hwmon -style
@@ -87,33 +87,39 @@ entry.
 The syntax for identifying each type of sensors looks as follows:
 
 .nf
-.B  "sensors:"
-.BI "  \- hwmon: " hwmon-path "    \fR# A path to a sysfs/hwmon sensor"
-.BI "    name: " hwmon-name "     \fR# optional"
-.BI "    indices: " index-list "  \fR# optional"
+\f[C]
+########
+\f[CB]sensors:
+\f[CB]  \- hwmon: \f[CI]hwmon-path\f[CR]         # A path to a sysfs/hwmon sensor
+\f[CB]    name: \f[CI]hwmon-name\f[CR]          # optional
+\f[CB]    indices: \f[CI]index-list\f[CR]       # optional
 
-.BI "  \- chip: " chip-name "      \fR# An lm_sensors/libsensors chip..."
-.BI "    ids: " id-list "         \fR# ... with some feature IDs"
+\f[CB]  \- chip: \f[CI]chip-name\f[CR]           # An lm_sensors/libsensors chip...
+\f[CB]    ids: \f[CI]id-list\f[CR]              # ... with some feature IDs
 
-.B  "  \- tpacpi: /proc/acpi/ibm/thermal" " \fR# Provided by the thinkpad_acpi kernel module"
-.BI "    indices: " index-list "  \fR# optional"
+\f[CB]  \- tpacpi: /proc/acpi/ibm/thermal\f[CR] # Provided by the thinkpad_acpi kernel module
+\f[CB]    indices: \f[CI]index-list\f[CR]       # optional
 
-.BI "  \- nvml: " nvml-bus-id "    \fR# Uses the proprietary nVidia driver"
+\f[CB]  \- nvml: \f[CI]nvml-bus-id\f[CR]         # Uses the proprietary nVidia driver
 
-.BI "  \- atasmart: " disk-device-file " \fR# Requires libatasmart support"
+\f[CB]  \- atasmart: \f[CI]disk-device-file\f[CR] # Requires libatasmart support"
 
-.BR "  \- " ...
+\f[CB]  \- \f[CR]...
+\fR
 .fi
 
 Additionally, each sensor entry can have a number of settings that modify its
 behavior:
 
 .nf
-.B  "sensors:"
-.BR "  \- " ... : " ... (any sensor specification as shown above)"
-.BI "    correction: " correction-list " \fR(optional)"
-.BI "    optional: " bool-allow-errors " \fR(optional)"
-.BI "    max_errors: " num-max-errors " \fR(optional)"
+\fC
+########
+\f[CB]sensors:
+\f[CB]  \- \f[CR]...\f[CB] : \f[CR]... # any sensor specification as shown above)
+\f[CB]    correction: \f[CI]correction-list\f[CR]  # optional
+\f[CB]    optional: \f[CI]bool-allow-errors\f[CR]  # optional
+\f[CB]    max_errors: \f[CI]num-max-errors\f[CR]   # optional
+\fR
 .fi
 
 
@@ -129,25 +135,28 @@ there can be at most one
 section:
 
 .nf
-.B  "fans:"
-.B  "  \- tpacpi: /proc/acpi/ibm/fan"
+\fC
+# ...
+\f[CB]fans:
+\f[CB]  \- tpacpi: /proc/acpi/ibm/fan
 
-.BI "  \- hwmon: " hwmon-path
-.BI "    name: " hwmon-name
-.BI "    indices: " index-list
+\f[CB]  \- hwmon: \f[CI]hwmon-path
+\f[CB]    name: \f[CI]hwmon-name
+\f[CB]    indices: \f[CI]index-list
 
-.BR "  \- " ...
+\f[CB]  \- \f[CR]...
+\fR
 .fi
 
 
 .SS Values
 
-.TP 12m
+.TP
 .I hwmon-path
 There are three ways of specifying hwmon fans or sensors:
 
-.TP
-\h'8m'1)
+.RS
+.IP 1) 3
 A full path of a \*(lqtemp*_input\*(rq or \*(lqpwm*\*(rq file, like
 \*(lq/sys/class/hwmon/hwmon0/pwm1\*(rq or
 \*(lq/sys/class/hwmon/hwmon0/temp1_input\*(rq.
@@ -158,14 +167,15 @@ In this case, the \*(lq\c
 \*(rq entries are unnecessary since the path uniquely identifies a specific fan or
 sensor.
 
+.RS
 Note that this method may lead to problems when the load order of the drivers
 changes across bootups, because in the \*(lqhwmon\fIX\fR\*(rq folder name, the
 .I X
 actually corresponds to the load order.
 Use method 2) or 3) to avoid this problem.
+.RE
 
-.TP
-\h'8m'2)
+.IP 2) 3
 A directory that contains a specific hwmon driver, for example
 \*(lq/sys/devices/platform/nct6775.2592\*(rq.
 Note that this path does not contain the load-order dependent
@@ -182,9 +192,8 @@ The
 \*(rq
 entry is unnecessary.
 
-
-.TP
-\h'8m'3)
+.P
+.IP 3) 3
 A directory that contains multiple or all of the hwmon drivers, for example
 \*(lq/sys/class/hwmon\*(rq.
 Here, both the \*(lq\c
@@ -194,6 +203,7 @@ Here, both the \*(lq\c
 \*(rq entries are required to tell thinkfan which interface to select below that
 path, and which sensors or which fan to use from that interface.
 
+.RE
 .TP
 .I hwmon-name
 The name of a hwmon interface, typically found in a file called \*(lqname\*(rq.
@@ -215,8 +225,8 @@ Both
 and also many hwmon interfaces contain multiple sensors, and not
 all of them may be relevant for fan control.
 
-.TP
-\h'9m'\(bu
+.RS
+.IP \(bu 2
 For
 .B hwmon
 entries, this is required if
@@ -232,14 +242,14 @@ A hwmon interface may also contain multiple PWM controls for fans, so in that ca
 .I index-list
 must contain exactly one entry.
 
-.TP
-\h'9m'\(bu
+.IP \(bu
 For
 .B tpacpi
 sensors, this entry is optional.
 If it is omitted, all temperatures found in
 .B /proc/acpi/ibm/thermal
 will be used.
+.RE
 
 .TP
 .I nvml-bus-id
@@ -307,9 +317,12 @@ device (e.g. the CPU) whose temperature needs to be controlled, or where the
 required fan behaviour is similar enough for all heat-generating devices.
 
 .nf
-.B "levels:"
-.BI "  \- [ " fan-speed ", " lower-bound ", " upper-bound " ]"
-.BR "  \- " ...
+\fC
+# ...
+\f[CB]levels:
+\f[CB]  \- [ \f[CI]fan-speed\f[CB], \f[CI]lower-bound\f[CB], \f[CI]upper-bound\f[CB] ]
+\f[CB]  \- \f[CR]...
+\fR
 .fi
 
 
@@ -323,17 +336,20 @@ In detailed mode, upper and lower temperature limits are specified for each
 sensor individually:
 
 .nf
-.B  "levels:"
-.BI "  \- speed: [ " fan1-speed ", " fan2-speed ", " "\fR..." " ]"
-.BI "    lower_limit: [ " l1 ", " l2 ", " "\fR..." " ]"
-.BI "    upper_limit: [ " u1 ", " u2 ", " "\fR..." " ]"
-.BR "  \- " ...
+\fC
+# ...
+\f[CB]levels:
+\f[CB]  \- speed: [ \f[CI]fan1-speed\f[CB], \f[CI]fan2-speed\f[CB], \f[CR]...\f[CB] ]
+\f[CB]    lower_limit: [ \f[CI]l1\f[CB], \f[CI]l2\f[CB], \f[CR]...\f[CB] ]
+\f[CB]    upper_limit: [ \f[CI]u1\f[CB], \f[CI]u2\f[CB], \f[CR]...\f[CB] ]
+\f[CB]  \- \f[CR]...\f[CB]
+\fR
 .fi
 
 
 .SS Values
 
-.TP 12m
+.TP
 .IB fan1-speed ", " fan2-speed ", " \fR...
 .TP
 .I fan-speed
@@ -354,8 +370,8 @@ The possible speed values for
 .B fanX-speed
 are different depending on which fan driver is used:
 
-.TP
-\h'9m'\(bu
+.RS
+.IP \(bu 3
 For a
 .B hwmon
 fan,
@@ -366,8 +382,7 @@ to
 .BR 255 ,
 corresponding to the PWM values accepted by the various kernel drivers.
 
-.TP
-\h'9m'\(bu
+.IP \(bu
 For a
 .B tpacpi
 fan on Lenovo/IBM ThinkPads and some other Lenovo laptops (see \fBSENSORS & FAN
@@ -393,6 +408,7 @@ speed control away from the firmware, causing the fan to slowly ramp up to an
 absolute maximum that can be achieved within electrical limits.
 Note that this will run the fan out of specification and cause increased wear,
 though it may be helpful to combat thermal throttling.
+.RE
 
 .TP
 .IB l1 ", " l2 ", " \fR...
@@ -419,25 +435,32 @@ the given speed level.
 
 
 .SH SEE ALSO
-.nf
 The thinkfan manpage:
 .BR thinkfan (1)
 
+.nf
 Example configs shipped with the source distribution, also available at:
-.hy 0
-https://github.com/vmatare/thinkfan/tree/master/examples
+.UR https://github.com/vmatare/thinkfan/tree/master/examples
+.UE
+.fi
 
+.nf
 The Linux hwmon user interface documentation:
-https://www.kernel.org/doc/html/latest/hwmon/sysfs\-interface.html
+.UR https://www.kernel.org/doc/html/latest/hwmon/sysfs\-interface.html
+.UE
+.fi
 
+.nf
 The thinkpad_acpi interface documentation:
-https://www.kernel.org/doc/html/latest/admin\-guide/laptops/thinkpad\-acpi.html
-
+.UR https://www.kernel.org/doc/html/latest/admin\-guide/laptops/thinkpad\-acpi.html
+.UE
+.fi
 
 .SH BUGS
 
-.hy 0
 .nf
 Report bugs on the github issue tracker:
-https://github.com/vmatare/thinkfan/issues
+.UR https://github.com/vmatare/thinkfan/issues
+.UE
+.fi
 
