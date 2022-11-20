@@ -90,17 +90,17 @@ The syntax for identifying each type of sensors looks as follows:
 \f[C]
 ########
 \f[CB]sensors:
-\f[CB]  \- hwmon: \f[CI]hwmon-path\f[CR]         # A path to a sysfs/hwmon sensor
-\f[CB]    name: \f[CI]hwmon-name\f[CR]          # optional
-\f[CB]    indices: \f[CI]index-list\f[CR]       # optional
+\f[CB]  \- hwmon: \f[CI]hwmon-path\f[CR]          # A path to a sysfs/hwmon sensor
+\f[CB]    name: \f[CI]hwmon-name\f[CR]           # Optional entry
+\f[CB]    indices: \f[CI]index-list\f[CR]        # Optional entry
 
-\f[CB]  \- chip: \f[CI]chip-name\f[CR]           # An lm_sensors/libsensors chip...
-\f[CB]    ids: \f[CI]id-list\f[CR]              # ... with some feature IDs
+\f[CB]  \- chip: \f[CI]chip-name\f[CR]            # An lm_sensors/libsensors chip...
+\f[CB]    ids: \f[CI]id-list\f[CR]               # ... with some feature IDs
 
-\f[CB]  \- tpacpi: /proc/acpi/ibm/thermal\f[CR] # Provided by the thinkpad_acpi kernel module
-\f[CB]    indices: \f[CI]index-list\f[CR]       # optional
+\f[CB]  \- tpacpi: /proc/acpi/ibm/thermal\f[CR]  # Provided by the thinkpad_acpi kernel module
+\f[CB]    indices: \f[CI]index-list\f[CR]        # Optional entry
 
-\f[CB]  \- nvml: \f[CI]nvml-bus-id\f[CR]         # Uses the proprietary nVidia driver
+\f[CB]  \- nvml: \f[CI]nvml-bus-id\f[CR]          # Uses the proprietary nVidia driver
 
 \f[CB]  \- atasmart: \f[CI]disk-device-file\f[CR] # Requires libatasmart support"
 
@@ -115,10 +115,10 @@ behavior:
 \fC
 ########
 \f[CB]sensors:
-\f[CB]  \- \f[CR]...\f[CB] : \f[CR]... # any sensor specification as shown above)
-\f[CB]    correction: \f[CI]correction-list\f[CR]  # optional
-\f[CB]    optional: \f[CI]bool-allow-errors\f[CR]  # optional
-\f[CB]    max_errors: \f[CI]num-max-errors\f[CR]   # optional
+\f[CB]  \- \f[CR]...\f[CB] : \f[CR]... # A sensor specification as shown above
+\f[CB]    correction: \f[CI]correction-list\f[CR]  # Optional entry
+\f[CB]    optional: \f[CI]bool-ignore-errors\f[CR] # Optional entry
+\f[CB]    max_errors: \f[CI]num-max-errors\f[CR]   # Optional entry
 \fR
 .fi
 
@@ -147,6 +147,17 @@ section:
 \f[CB]  \- \f[CR]...
 \fR
 .fi
+
+The error handling behavior of any fan can be controlled with the \fBoptional\fR
+and \fBmax_errors\fR keywords:
+
+.nf
+\fC
+# ...
+\f[CB]fans:
+\f[CB]  \- \f[CR]... \f[CB]: \f[CR] ... # A fan specification as shown above
+\f[CB]    optional: \f[CI]bool-ignore-errors\f[CR] # Optional entry
+\f[CB]    max_errors: \f[CI]num-max-errors\f[CR]   # Optional entry
 
 
 .SS Values
@@ -274,7 +285,7 @@ that prevents thinkfan from waking up sleeping (mechanical) disks to read their
 temperature.
 
 .TP
-.IR correction-list " (always optional)"
+.IR correction-list " (optional, zeroes by default)"
 A YAML list that specifies temperature offsets for each sensor in use by the
 given driver. Use this if you want to use the \*(lqsimple\*(rq level syntax,
 but need to compensate for devices with a lower heat tolerance.
@@ -282,16 +293,34 @@ Note however that the detailed level syntax is usually the better (i.e. more
 fine-grained) choice.
 
 .TP
-.IR bool-allow-errors " (always optional, \fBfalse\fR by default)"
+.IR bool-ignore-errors " (optional, \fBfalse\fR by default)"
 A truth value
 .RB ( yes / no / true / false )
-that specifies whether thinkfan should accept errors when reading from this
-sensor.
-Normally, thinkfan will exit with an error message if reading the temperature
-from any configured sensor fails.
-Marking a sensor as optional may be useful for removable hardware or devices
+that specifies whether thinkfan should ignore all errors when using a given
+sensor or fan.
+Normally, thinkfan will exit with an error message if it fails reading
+temperatures from a sensor or writing to a fan.
+
+An optional device will not delay startup.
+Instead, thinkfan will commence normal operation with the remaining devices and
+re-try initializing unavailable optional devices in every loop until all are
+found.
+
+Marking a sensor/fan as optional may be useful for removable hardware or devices
 that may get switched off entirely to save power.
 
+.TP
+.IR num-max-errors " (optional, \fB0\fR by default)"
+A positive integer that specifies how often thinkfan is allowed to re-try if
+if fails to initialize, read from or write to a given sensor or fan.
+On startup, thinkfan will attempt to initialize the device \fInum-max-errors\fR
+times before commencing normal operation.
+If the device cannot be initialized after the given number of attempts,
+thinkfan will fail.
+
+When a device with a positive \fInum-max-errors\fR fails during runtime,
+thinkfan will likewise attempt to re-initialize it the given number of times
+before failing.
 
 
 .SH FAN SPEEDS
