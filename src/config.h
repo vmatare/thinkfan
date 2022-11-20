@@ -119,23 +119,20 @@ private:
 
 class Config {
 public:
-	Config();
-	// Not trivially copyable since it holds raw pointers to levels, drivers and fans.
-	Config(const Config &) = delete;
+	Config() = default;
 	~Config() = default;
+
 	static const Config *read_config(const vector<string> &filenames);
 	void add_sensor(unique_ptr<SensorDriver> &&sensor);
 	void add_fan_config(unique_ptr<FanConfig> &&fan_cfg);
 	void ensure_consistency() const;
 	void init_fans() const;
-	void init_sensors(TemperatureState &) const;
+	TemperatureState init_sensors() const;
+	void init_temperature_refs(TemperatureState &tstate) const;
 
 	unsigned int num_temps() const;
 	const vector<unique_ptr<SensorDriver>> &sensors() const;
 	const vector<unique_ptr<FanConfig>> &fan_configs() const;
-
-	// No copy assignment operator either (not required).
-	Config &operator = (const Config &) = delete;
 
 	string src_file;
 private:
@@ -143,7 +140,6 @@ private:
 	void try_init_driver(Driver &drv) const;
 	vector<unique_ptr<SensorDriver>> sensors_;
 	vector<unique_ptr<FanConfig>> temp_mappings_;
-	unsigned int num_temps_;
 };
 
 

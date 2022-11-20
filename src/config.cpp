@@ -134,10 +134,6 @@ void StepwiseMapping::add_level(unique_ptr<Level> &&level)
 
 
 
-Config::Config()
-: num_temps_(0)
-{}
-
 
 const Config *Config::read_config(const vector<string> &filenames)
 {
@@ -253,13 +249,17 @@ void Config::ensure_consistency() const
 
 
 void Config::add_sensor(unique_ptr<SensorDriver> &&sensor)
-{
-	num_temps_ += sensor->num_temps();
-	sensors_.push_back(std::move(sensor));
-}
+{ sensors_.push_back(std::move(sensor)); }
+
 
 unsigned int Config::num_temps() const
-{ return num_temps_; }
+{
+	unsigned int count = 0;
+	for (auto &sensor : sensors())
+		count += sensor->num_temps();
+	return count;
+}
+
 
 const vector<unique_ptr<SensorDriver>> &Config::sensors() const
 { return sensors_; }
@@ -278,13 +278,19 @@ void Config::init_fans() const
 }
 
 
-void Config::init_sensors(TemperatureState &tstate) const
+TemperatureState Config::init_sensors() const
+{
+	for (const unique_ptr<SensorDriver> &sensor : sensors())
+		try_init_driver(*sensor);
+	return TemperatureState(num_temps());
+}
+
+
+void Config::init_temperature_refs(TemperatureState &tstate) const
 {
 	tstate.reset_refd_count();
-	for (const unique_ptr<SensorDriver> &sensor : sensors()) {
-		try_init_driver(*sensor);
+	for (auto &sensor : sensors())
 		sensor->init_temp_state_ref(tstate.ref(sensor->num_temps()));
-	}
 }
 
 

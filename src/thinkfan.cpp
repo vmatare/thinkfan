@@ -367,9 +367,10 @@ int main(int argc, char **argv) {
 
 				Logger::instance().log_lvl() = TF_ERR;
 
-				temp_state = TemperatureState(test_cfg->num_temps());
-				test_cfg->init_sensors(temp_state);
+				temp_state = test_cfg->init_sensors();
+				test_cfg->init_temperature_refs(temp_state);
 				test_cfg->init_fans();
+
 				for (auto &sensor : test_cfg->sensors())
 					sensor->read_temps();
 
@@ -404,9 +405,9 @@ int main(int argc, char **argv) {
 
 		// Load the config for real after forking & enabling syslog
 		unique_ptr<const Config> config(Config::read_config(config_files));
-		temp_state = TemperatureState(config->num_temps());
 
-		config->init_sensors(temp_state);
+		temp_state = config->init_sensors();
+		config->init_temperature_refs(temp_state);
 
 		do {
 			config->init_fans();

@@ -20,6 +20,7 @@
  * ******************************************************************/
 
 #include "temperature_state.h"
+#include "error.h"
 #include <cmath>
 
 namespace thinkfan {
@@ -118,6 +119,9 @@ void TemperatureState::reset_refd_count()
 
 TemperatureState::Ref TemperatureState::ref(unsigned int num_temps)
 {
+	if (refd_temps_ + num_temps > temps_.size())
+		throw Bug("Attempting to reference uninitialized temperature state");
+
 	auto ref = TemperatureState::Ref(*this, refd_temps_);
 	refd_temps_ += num_temps;
 	return ref;
