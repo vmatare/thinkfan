@@ -65,7 +65,6 @@ vector<string> HwmonInterface<HwmonT>::find_files(const string &path, const vect
 	return rv;
 }
 
-
 template<>
 string HwmonInterface<SensorDriver>::filename(int index)
 { return "temp" + std::to_string(index) + "_input"; }
@@ -81,12 +80,12 @@ HwmonInterface<HwmonT>::HwmonInterface()
 {}
 
 template<class HwmonT>
-HwmonInterface<HwmonT>::HwmonInterface(const string &base_path, opt<const string> name, opt<vector<unsigned int>> indices)
+HwmonInterface<HwmonT>::HwmonInterface(const string &base_path, opt<const string> name, opt<const string> model, opt<vector<unsigned int>> indices)
 : base_path_(base_path)
 , name_(name)
+, model_(model)
 , indices_(indices)
 {}
-
 
 template<class HwmonT>
 vector<string> HwmonInterface<HwmonT>::find_hwmons_by_name(
@@ -131,6 +130,51 @@ vector<string> HwmonInterface<HwmonT>::find_hwmons_by_name(
 	return result;
 }
 
+template<class HwmonT>
+vector<string> HwmonInterface<HwmonT>::find_hwmons_by_model(
+	const string &path,
+	const string &model,
+	unsigned char depth
+) {
+	const unsigned char max_depth = 5;
+	vector<string> result;
+
+	ifstream f(path + "/model");
+	if (f.is_open() && f.good()) {
+		string tmp;
+		if (getline(f, tmp)) {
+			tmp = tmp.erase(tmp.find_last_not_of(" \t\n\r\f\v") + 1);
+			if (tmp == model) {
+				result.push_back(path);
+				return result;
+			}
+		}
+	}
+	if (depth >= max_depth) {
+		return result; // don't recurse to subdirs
+	}
+
+	struct dirent **entries;
+	int nentries = ::scandir(path.c_str(), &entries, filter_subdirs, nullptr);
+	if (nentries == -1) {
+		return result;
+	}
+	for (int i = 0; i < nentries; i++) {
+		auto subdir = path + "/" + entries[i]->d_name;
+		free(entries[i]);
+
+		struct stat statbuf;
+		int err = stat(path.c_str(), &statbuf);
+		if (err || (statbuf.st_mode & S_IFMT) != S_IFDIR)
+			continue;
+
+		auto found = find_hwmons_by_model(subdir, model, depth + 1);
+		result.insert(result.end(), found.begin(), found.end());
+	}
+	free(entries);
+
+	return result;
+}
 
 template<class HwmonT>
 vector<string> HwmonInterface<HwmonT>::find_hwmons_by_indices(
@@ -197,7 +241,21 @@ string HwmonInterface<HwmonT>::lookup()
 			}
 			path = paths[0];
 		}
-
+		if (model_) {
+			vector<string> paths = find_hwmons_by_model(path, model_.value(), 1);
+			if (paths.size() != 1) {
+				string msg(path + ": ");
+				if (paths.size() == 0) {
+					msg += "Could not find a hwmon with this model: " + model_.value();
+				} else {
+					msg += MSG_MULTIPLE_HWMONS_FOUND;
+					for (string hwmon_path : paths)
+						msg += " " + hwmon_path;
+				}
+				throw DriverInitError(msg);
+			}
+			path = paths[0];
+		}
 		if (indices_) {
 			found_paths_ = find_hwmons_by_indices(path, indices_.value(), 0);
 			if (found_paths_.size() == 0)

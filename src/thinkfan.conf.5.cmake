@@ -92,6 +92,7 @@ The syntax for identifying each type of sensors looks as follows:
 \f[CB]sensors:
 \f[CB]  \- hwmon: \f[CI]hwmon-path\f[CR]          # A path to a sysfs/hwmon sensor
 \f[CB]    name: \f[CI]hwmon-name\f[CR]           # Optional entry
+\f[CB]    model: \f[CI]hwmon-model\f[CR]         # Optional entry for nvme
 \f[CB]    indices: \f[CI]index-list\f[CR]        # Optional entry
 
 \f[CB]  \- chip: \f[CI]chip-name\f[CR]            # An lm_sensors/libsensors chip...
@@ -224,6 +225,14 @@ is a base path that contains multiple hwmons.
 This method of specifying sensors is particularly useful if the full path to a
 particular hwmon keeps changing between bootups, e.g. due to changing load order
 of the driver modules.
+
+.TP
+.I hwmon-model
+The model of a device in a hwmon interface usually found for NVME devices in a 
+file under \*(lqdevice\*(rq called \*(lqmodel\*(rq.
+For example, you might have an NVME \*(lq/sys/class/hwmon/hwmon3/device/model\*(rq
+and you might have an external NVME over USB or Thunderbolt that you don't want
+to monitor or you might have two NVME's.
 
 .TP
 .I index-list

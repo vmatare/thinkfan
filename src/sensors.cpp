@@ -135,7 +135,7 @@ void SensorDriver::skip_io_error(const ExpectedError &e)
 
 HwmonSensorDriver::HwmonSensorDriver(const string &path, bool optional)
 : HwmonSensorDriver(
-	std::make_shared<HwmonInterface<SensorDriver>>(path, nullopt, nullopt),
+	std::make_shared<HwmonInterface<SensorDriver>>(path, nullopt, nullopt, nullopt),
 	optional,
 	nullopt,
 	0
