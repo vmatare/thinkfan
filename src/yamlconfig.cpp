@@ -6,6 +6,7 @@
 
 #include <tuple>
 #include <memory>
+#include <unordered_set>
 
 #include "message.h"
 #include "hwmon.h"
@@ -48,6 +49,15 @@ struct convert_base {
 };
 
 
+void allowed_keywords(const Node &node, const std::unordered_set<string> &keywords)
+{
+	for (auto entry : node) {
+		if (keywords.find(entry.first.as<string>()) == keywords.end())
+			throw YamlError(get_mark_compat(entry.first), "Invalid keyword");
+	}
+}
+
+
 // Have to explicitly specialize these because libyaml-cpp comes with a vector<T> specialization
 // that would be used otherwise
 template<>
@@ -81,6 +91,10 @@ bool convert_driver<vector<wtf_ptr<HwmonSensorDriver>>>(
 	const Node &node,
 	vector<wtf_ptr<HwmonSensorDriver>> &sensors
 ) {
+	allowed_keywords(node, {
+		kw_hwmon, kw_correction, kw_name, kw_optional, kw_max_errors, kw_indices
+	});
+
 	if (!node[kw_hwmon])
 		return false;
 
@@ -132,6 +146,10 @@ bool convert_driver<vector<wtf_ptr<HwmonSensorDriver>>>(
 template<>
 bool convert_driver<wtf_ptr<TpSensorDriver>>(const Node &node, wtf_ptr<TpSensorDriver> &sensor)
 {
+	allowed_keywords(node, {
+		kw_tpacpi, kw_correction, kw_indices, kw_optional, kw_max_errors
+	});
+
 	if (!node[kw_tpacpi])
 		return false;
 
@@ -162,6 +180,10 @@ bool convert_driver<wtf_ptr<TpSensorDriver>>(const Node &node, wtf_ptr<TpSensorD
 template<>
 bool convert_driver<wtf_ptr<NvmlSensorDriver>>(const Node &node, wtf_ptr<NvmlSensorDriver> &sensor)
 {
+	allowed_keywords(node, {
+		kw_nvidia, kw_correction, kw_optional, kw_max_errors
+	});
+
 	if (!node[kw_nvidia])
 		return false;
 
@@ -180,6 +202,10 @@ bool convert_driver<wtf_ptr<NvmlSensorDriver>>(const Node &node, wtf_ptr<NvmlSen
 template<>
 bool convert_driver<wtf_ptr<AtasmartSensorDriver>>(const Node &node, wtf_ptr<AtasmartSensorDriver> &sensor)
 {
+	allowed_keywords(node, {
+		kw_atasmart, kw_correction, kw_optional, kw_max_errors
+	});
+
 	if (!node[kw_atasmart])
 		return false;
 
@@ -198,6 +224,10 @@ bool convert_driver<wtf_ptr<AtasmartSensorDriver>>(const Node &node, wtf_ptr<Ata
 template<>
 bool convert_driver<wtf_ptr<LMSensorsDriver>>(const Node &node, wtf_ptr<LMSensorsDriver> &sensor)
 {
+	allowed_keywords(node, {
+		kw_chip, kw_ids, kw_correction, kw_optional, kw_max_errors
+	});
+
 	if (!node[kw_chip])
 		return false;
 
@@ -228,6 +258,10 @@ bool convert_driver<wtf_ptr<LMSensorsDriver>>(const Node &node, wtf_ptr<LMSensor
 template<>
 bool convert_driver<wtf_ptr<TpFanDriver>>(const Node &node, wtf_ptr<TpFanDriver> &fan)
 {
+	allowed_keywords(node, {
+		kw_tpacpi, kw_optional, kw_max_errors, kw_levels
+	});
+
 	if (!node[kw_tpacpi])
 		return false;
 
@@ -242,6 +276,10 @@ bool convert_driver<wtf_ptr<TpFanDriver>>(const Node &node, wtf_ptr<TpFanDriver>
 template<>
 bool convert_driver<vector<wtf_ptr<HwmonFanDriver>>>(const Node &node, vector<wtf_ptr<HwmonFanDriver>> &fans)
 {
+	allowed_keywords(node, {
+		kw_hwmon, kw_name, kw_indices, kw_optional, kw_max_errors, kw_levels
+	});
+
 	if (!node[kw_hwmon])
 		return false;
 
@@ -512,7 +550,6 @@ struct convert<wtf_ptr<SimpleLevel>> {
 		return true;
 	}
 };
-
 
 
 bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
