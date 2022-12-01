@@ -91,12 +91,12 @@ bool convert_driver<vector<wtf_ptr<HwmonSensorDriver>>>(
 	const Node &node,
 	vector<wtf_ptr<HwmonSensorDriver>> &sensors
 ) {
+	if (!node[kw_hwmon])
+		return false;
+
 	allowed_keywords(node, {
 		kw_hwmon, kw_correction, kw_name, kw_optional, kw_max_errors, kw_indices
 	});
-
-	if (!node[kw_hwmon])
-		return false;
 
 	string path = node[kw_hwmon].as<string>();
 
@@ -146,12 +146,12 @@ bool convert_driver<vector<wtf_ptr<HwmonSensorDriver>>>(
 template<>
 bool convert_driver<wtf_ptr<TpSensorDriver>>(const Node &node, wtf_ptr<TpSensorDriver> &sensor)
 {
+	if (!node[kw_tpacpi])
+		return false;
+
 	allowed_keywords(node, {
 		kw_tpacpi, kw_correction, kw_indices, kw_optional, kw_max_errors
 	});
-
-	if (!node[kw_tpacpi])
-		return false;
 
 	opt<vector<int>> correction = decode_opt<vector<int>>(node[kw_correction]);
 	opt<vector<unsigned int>> indices = decode_opt<vector<unsigned int>>(node[kw_indices]);
@@ -180,12 +180,12 @@ bool convert_driver<wtf_ptr<TpSensorDriver>>(const Node &node, wtf_ptr<TpSensorD
 template<>
 bool convert_driver<wtf_ptr<NvmlSensorDriver>>(const Node &node, wtf_ptr<NvmlSensorDriver> &sensor)
 {
+	if (!node[kw_nvidia])
+		return false;
+
 	allowed_keywords(node, {
 		kw_nvidia, kw_correction, kw_optional, kw_max_errors
 	});
-
-	if (!node[kw_nvidia])
-		return false;
 
 	opt<vector<int>> correction = decode_opt<vector<int>>(node[kw_correction]);
 	bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
@@ -202,12 +202,12 @@ bool convert_driver<wtf_ptr<NvmlSensorDriver>>(const Node &node, wtf_ptr<NvmlSen
 template<>
 bool convert_driver<wtf_ptr<AtasmartSensorDriver>>(const Node &node, wtf_ptr<AtasmartSensorDriver> &sensor)
 {
+	if (!node[kw_atasmart])
+		return false;
+
 	allowed_keywords(node, {
 		kw_atasmart, kw_correction, kw_optional, kw_max_errors
 	});
-
-	if (!node[kw_atasmart])
-		return false;
 
 	opt<vector<int>> correction = decode_opt<vector<int>>(node[kw_correction]);
 	bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
@@ -224,12 +224,12 @@ bool convert_driver<wtf_ptr<AtasmartSensorDriver>>(const Node &node, wtf_ptr<Ata
 template<>
 bool convert_driver<wtf_ptr<LMSensorsDriver>>(const Node &node, wtf_ptr<LMSensorsDriver> &sensor)
 {
+	if (!node[kw_chip])
+		return false;
+
 	allowed_keywords(node, {
 		kw_chip, kw_ids, kw_correction, kw_optional, kw_max_errors
 	});
-
-	if (!node[kw_chip])
-		return false;
 
 	if (!node[kw_ids]) {
 		throw YamlError(get_mark_compat(node), "No temperature inputs were specified.");
@@ -258,12 +258,12 @@ bool convert_driver<wtf_ptr<LMSensorsDriver>>(const Node &node, wtf_ptr<LMSensor
 template<>
 bool convert_driver<wtf_ptr<TpFanDriver>>(const Node &node, wtf_ptr<TpFanDriver> &fan)
 {
+	if (!node[kw_tpacpi])
+		return false;
+
 	allowed_keywords(node, {
 		kw_tpacpi, kw_optional, kw_max_errors, kw_levels
 	});
-
-	if (!node[kw_tpacpi])
-		return false;
 
 	bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
 	opt<unsigned int> max_errors = decode_opt<unsigned int>(node[kw_max_errors]);
@@ -276,12 +276,12 @@ bool convert_driver<wtf_ptr<TpFanDriver>>(const Node &node, wtf_ptr<TpFanDriver>
 template<>
 bool convert_driver<vector<wtf_ptr<HwmonFanDriver>>>(const Node &node, vector<wtf_ptr<HwmonFanDriver>> &fans)
 {
+	if (!node[kw_hwmon])
+		return false;
+
 	allowed_keywords(node, {
 		kw_hwmon, kw_name, kw_indices, kw_optional, kw_max_errors, kw_levels
 	});
-
-	if (!node[kw_hwmon])
-		return false;
 
 	string path = node[kw_hwmon].as<string>();
 	opt<string> name = decode_opt<string>(node[kw_name]);
