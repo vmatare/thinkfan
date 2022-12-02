@@ -24,7 +24,7 @@ To compile thinkfan, you will need to have the following things installed:
 
 E.g. on a debian-based system that usually boils down to:
 ```bash
-sudo apt install -y cmake g++ libyaml-cpp-dev pkgconfig libsensors-dev
+sudo apt install -y cmake-curses-gui build-essential cmake g++ libyaml-cpp-dev pkgconfig libsensors-dev
 ```
 
 1. In the thinkfan main directory, do
