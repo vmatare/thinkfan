@@ -69,7 +69,7 @@ set(SRC_FILES src/thinkfan.cpp src/config.cpp src/fans.cpp src/sensors.cpp
 
 if(USE_YAML)
 	if(NOT YAML_CPP_FOUND)
-		message(FATAL_ERROR "USE_YAML enabled but yaml-cpp not found. Please install yaml-cpp[-devel]!")
+		message(FATAL_ERROR "USE_YAML enabled but yaml-cpp not found. Please install yaml-cpp-devel (RedHat) or libyaml-cpp-dev (Debian)!")
 	endif()
 	set(SRC_FILES ${SRC_FILES} src/yamlconfig.cpp)
 endif(USE_YAML)
