@@ -406,10 +406,10 @@ int main(int argc, char **argv) {
 		// Load the config for real after forking & enabling syslog
 		unique_ptr<const Config> config(Config::read_config(config_files));
 
-		temp_state = config->init_sensors();
-		config->init_temperature_refs(temp_state);
-
 		do {
+			temp_state = config->init_sensors();
+			config->init_temperature_refs(temp_state);
+
 			config->init_fans();
 			run(*config);
 
