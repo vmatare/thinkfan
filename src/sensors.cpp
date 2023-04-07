@@ -71,7 +71,7 @@ void SensorDriver::set_num_temps(unsigned int n)
 {
 	num_temps_ = n;
 	if (correction_.empty())
-		correction_.resize(num_temps_, 0);
+		correction_.resize(num_temps(), 0);
 	else
 		check_correction_length();
 }

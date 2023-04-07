@@ -55,7 +55,7 @@ protected:
 
 public:
 	virtual ~SensorDriver() noexcept(false);
-	unsigned int num_temps() const { return num_temps_; }
+	unsigned int num_temps() const { return *num_temps_; }
 	void set_correction(const vector<int> &correction);
 	bool operator == (const SensorDriver &other) const;
 
@@ -74,7 +74,7 @@ protected:
 	/** @brief Protocol: Throw SensorLost(e) or nothing
 	 *  @param e The original error */
 private:
-	unsigned int num_temps_;
+	opt<unsigned int> num_temps_;
 	void check_correction_length();
 };
 
