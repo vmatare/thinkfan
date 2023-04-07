@@ -1,5 +1,6 @@
 [Unit]
 Description=thinkfan @THINKFAN_VERSION@
+Documentation=man:thinkfan
 After=sysinit.target
 After=systemd-modules-load.service
 
