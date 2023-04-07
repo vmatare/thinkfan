@@ -29,14 +29,17 @@
 #include <cstring>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <filesystem>
 
 namespace thinkfan {
+
+namespace filesystem = std::filesystem;
 
 
 static int filter_hwmon_dirs(const struct dirent *entry)
 {
 	return (entry->d_type == DT_DIR || entry->d_type == DT_LNK)
-		&& (!strncmp("hwmon", entry->d_name, 5) || !strcmp("device", entry->d_name));
+		&& (string(entry->d_name) == "hwmon" || string(entry->d_name) == "device");
 }
 
 
@@ -45,6 +48,43 @@ static int filter_subdirs(const struct dirent *entry)
 	return (entry->d_type & DT_DIR || entry->d_type == DT_LNK)
 		&& string(entry->d_name) != "." && string(entry->d_name) != ".."
 		&& string(entry->d_name) != "subsystem";
+}
+
+
+template<>
+int HwmonInterface<SensorDriver>::filter_driver_file(const struct dirent *entry)
+{
+	int idx;
+	return (entry->d_type == DT_REG || entry->d_type == DT_LNK)
+		&& !::sscanf(entry->d_name, "temp%d_input", &idx)
+	;
+}
+
+template<>
+int HwmonInterface<FanDriver>::filter_driver_file(const struct dirent *entry)
+{
+	int idx;
+	return (entry->d_type == DT_REG || entry->d_type == DT_LNK)
+		&& !::sscanf(entry->d_name, "pwm%d", &idx)
+	;
+}
+
+
+template<int (* filter_fn)(const struct dirent *)>
+vector<filesystem::path> dir_entries(const filesystem::path &dir)
+{
+	struct dirent **entries;
+	int nentries = ::scandir(dir.c_str(), &entries, filter_fn, nullptr);
+	if (nentries == -1)
+		return {};
+
+	vector<filesystem::path> rv;
+	for (int i = 0; i < nentries; ++i) {
+		rv.emplace_back(dir / entries[i]->d_name);
+		::free(entries[i]);
+	}
+	::free(entries);
+	return rv;
 }
 
 
@@ -85,6 +125,7 @@ HwmonInterface<HwmonT>::HwmonInterface(const string &base_path, opt<const string
 , indices_(indices)
 {}
 
+
 template<class HwmonT>
 vector<string> HwmonInterface<HwmonT>::find_hwmons_by_name(
 	const string &path,
@@ -106,15 +147,7 @@ vector<string> HwmonInterface<HwmonT>::find_hwmons_by_name(
 		return result;  // don't recurse to subdirs
 	}
 
-	struct dirent **entries;
-	int nentries = ::scandir(path.c_str(), &entries, filter_subdirs, nullptr);
-	if (nentries == -1) {
-		return result;
-	}
-	for (int i = 0; i < nentries; i++) {
-		auto subdir = path + "/" + entries[i]->d_name;
-		free(entries[i]);
-
+	for (const filesystem::path &subdir : dir_entries<filter_subdirs>(path)) {
 		struct stat statbuf;
 		int err = stat(path.c_str(), &statbuf);
 		if (err || (statbuf.st_mode & S_IFMT) != S_IFDIR)
@@ -123,10 +156,10 @@ vector<string> HwmonInterface<HwmonT>::find_hwmons_by_name(
 		auto found = find_hwmons_by_name(subdir, name, depth + 1);
 		result.insert(result.end(), found.begin(), found.end());
 	}
-	free(entries);
 
 	return result;
 }
+
 
 template<class HwmonT>
 vector<string> HwmonInterface<HwmonT>::find_hwmons_by_model(
@@ -152,15 +185,7 @@ vector<string> HwmonInterface<HwmonT>::find_hwmons_by_model(
 		return result; // don't recurse to subdirs
 	}
 
-	struct dirent **entries;
-	int nentries = ::scandir(path.c_str(), &entries, filter_subdirs, nullptr);
-	if (nentries == -1) {
-		return result;
-	}
-	for (int i = 0; i < nentries; i++) {
-		auto subdir = path + "/" + entries[i]->d_name;
-		free(entries[i]);
-
+	for (const filesystem::path &subdir : dir_entries<filter_subdirs>(path)) {
 		struct stat statbuf;
 		int err = stat(path.c_str(), &statbuf);
 		if (err || (statbuf.st_mode & S_IFMT) != S_IFDIR)
@@ -169,10 +194,10 @@ vector<string> HwmonInterface<HwmonT>::find_hwmons_by_model(
 		auto found = find_hwmons_by_model(subdir, model, depth + 1);
 		result.insert(result.end(), found.begin(), found.end());
 	}
-	free(entries);
 
 	return result;
 }
+
 
 template<class HwmonT>
 vector<string> HwmonInterface<HwmonT>::find_hwmons_by_indices(
@@ -187,24 +212,20 @@ vector<string> HwmonInterface<HwmonT>::find_hwmons_by_indices(
 	}
 	catch (IOerror &) {
 		if (depth <= max_depth) {
-			struct dirent **entries;
-			int nentries = ::scandir(path.c_str(), &entries, filter_hwmon_dirs, alphasort);
-			if (nentries < 0)
+			vector<filesystem::path> hwmon_dirs = dir_entries<filter_hwmon_dirs>(path);
+			if (hwmon_dirs.empty())
 				throw IOerror("Error scanning " + path + ": ", errno);
 
 			vector<string> rv;
-			for (int i = 0; i < nentries; i++) {
+			for (const filesystem::path &hwmon_dir : hwmon_dirs) {
 				rv = HwmonInterface<HwmonT>::find_hwmons_by_indices(
-					path + "/" + entries[i]->d_name,
+					hwmon_dir,
 					indices,
 					depth + 1
 				);
 				if (rv.size())
 					break;
 			}
-			for (int i = 0; i < nentries; i++)
-				free(entries[i]);
-			free(entries);
 
 			return rv;
 		}
@@ -212,7 +233,6 @@ vector<string> HwmonInterface<HwmonT>::find_hwmons_by_indices(
 			throw DriverInitError("Could not find an `hwmon*' directory or `temp*_input' file in " + path + ".");
 	}
 }
-
 
 
 template<class HwmonT>
@@ -229,7 +249,7 @@ string HwmonInterface<HwmonT>::lookup()
 			if (paths.size() != 1) {
 				string msg(path + ": ");
 				if (paths.size() == 0) {
-					msg += "Could not find a hwmon with this name: " + name_.value();
+					msg += "Could not find an hwmon with this name: " + name_.value();
 				} else {
 					msg += MSG_MULTIPLE_HWMONS_FOUND;
 					for (string hwmon_path : paths)
@@ -259,8 +279,10 @@ string HwmonInterface<HwmonT>::lookup()
 			if (found_paths_.size() == 0)
 				throw DriverInitError(path + ": " + "Could not find any hwmons in " + path);
 		}
-		else
-			found_paths_.push_back(path);
+		else {
+			vector<filesystem::path> paths = dir_entries<filter_driver_file>(path);
+			found_paths_.assign(paths.begin(), paths.end());
+		}
 
 		paths_it_.emplace(found_paths_.begin());
 	}

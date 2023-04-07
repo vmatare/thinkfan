@@ -41,12 +41,14 @@ public:
 	string lookup();
 
 private:
+	static int filter_driver_file(const struct dirent *entry);
 	static vector<string> find_files(const string &path, const vector<unsigned int> &indices);
 	static string filename(unsigned int index);
 
 	static vector<string> find_hwmons_by_model(const string &path, const string &model, unsigned char depth);
 	static vector<string> find_hwmons_by_name(const string &path, const string &name, unsigned char depth);
 	static vector<string> find_hwmons_by_indices(const string &path, const vector<unsigned int> &indices, unsigned char depth);
+
 
 protected:
 	opt<const string> base_path_;
