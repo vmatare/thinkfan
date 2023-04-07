@@ -367,9 +367,7 @@ int main(int argc, char **argv) {
 
 				Logger::instance().log_lvl() = TF_ERR;
 
-				temp_state = test_cfg->init_sensors();
-				test_cfg->init_temperature_refs(temp_state);
-				test_cfg->init_fans();
+				test_cfg->init(temp_state);
 
 				for (auto &sensor : test_cfg->sensors())
 					sensor->read_temps();
@@ -407,10 +405,7 @@ int main(int argc, char **argv) {
 		unique_ptr<const Config> config(Config::read_config(config_files));
 
 		do {
-			temp_state = config->init_sensors();
-			config->init_temperature_refs(temp_state);
-
-			config->init_fans();
+			config->init(temp_state);
 			run(*config);
 
 			if (interrupted == SIGHUP) {

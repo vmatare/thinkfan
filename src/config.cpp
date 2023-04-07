@@ -221,7 +221,6 @@ const Config *Config::try_read_config(const string &filename)
 #endif //USE_YAML
 
 	rv->src_file = filename;
-	rv->ensure_consistency();
 
 	return rv;
 }
@@ -291,6 +290,15 @@ void Config::init_temperature_refs(TemperatureState &tstate) const
 	tstate.reset_refd_count();
 	for (auto &sensor : sensors())
 		sensor->init_temp_state_ref(tstate.ref(sensor->num_temps()));
+}
+
+
+void Config::init(TemperatureState &ts) const
+{
+	ts = init_sensors();
+	init_fans();
+	ensure_consistency();
+	init_temperature_refs(ts);
 }
 
 

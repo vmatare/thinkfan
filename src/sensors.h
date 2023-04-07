@@ -65,6 +65,7 @@ public:
 protected:
 	virtual void init() override;
 	void set_num_temps(unsigned int n);
+	static inline int readstream(const string &path);
 	virtual void skip_io_error(const ExpectedError &e) override;
 	virtual void read_temps_() = 0;
 
@@ -91,6 +92,7 @@ public:
 	);
 
 protected:
+	virtual void init() override;
 	virtual void read_temps_() override;
 	virtual string lookup() override;
 	virtual string type_name() const override;

@@ -22,7 +22,6 @@
 #include "sensors.h"
 #include "error.h"
 #include "message.h"
-#include "config.h"
 
 #include <fstream>
 #include <cstring>
@@ -48,16 +47,23 @@ SensorDriver::SensorDriver(bool optional, opt<vector<int>> correction, opt<unsig
 {}
 
 void SensorDriver::init()
-{
-	std::ifstream f(path());
-	if (!(f.is_open() && f.good()))
-		throw IOerror(path() + ": ", errno);
-}
-
-
+{ readstream(path()); }
 
 SensorDriver::~SensorDriver() noexcept(false)
 {}
+
+
+inline int SensorDriver::readstream(const string &path) {
+	std::ifstream f(path);
+	if (!(f.is_open() && f.good()))
+		throw IOerror(MSG_T_GET(path), errno);
+
+	int tmp;
+	if (!(f >> tmp))
+		throw IOerror(MSG_T_GET(path), errno);
+
+	return tmp;
+}
 
 
 void SensorDriver::set_correction(const vector<int> &correction)
@@ -127,7 +133,6 @@ void SensorDriver::skip_io_error(const ExpectedError &e)
 
 
 
-
 /*----------------------------------------------------------------------------
 | HwmonSensorDriver: A driver for sensors provided by other kernel drivers,  |
 | typically somewhere in sysfs.                                              |
@@ -150,19 +155,21 @@ HwmonSensorDriver::HwmonSensorDriver(
 )
 : SensorDriver(optional, correction ? vector<int>{*correction} : vector<int>{}, max_errors)
 , hwmon_interface_(hwmon_interface)
-{ set_num_temps(1); }
+{}
 
+void HwmonSensorDriver::init()
+{
+	SensorDriver::init();
+	set_num_temps(1);
+}
 
 void HwmonSensorDriver::read_temps_()
 {
-	std::ifstream f(path());
-	if (!(f.is_open() && f.good()))
-		throw IOerror(MSG_T_GET(path()), errno);
-	int tmp;
-	if (!(f >> tmp))
-		throw IOerror(MSG_T_GET(path()), errno);
-	temp_state_.add_temp(tmp/1000 + correction_[0]);
+	temp_state_.add_temp(
+		readstream(path()) / 1000 + correction_[0]
+	);
 }
+
 
 
 string HwmonSensorDriver::lookup()

@@ -129,6 +129,7 @@ public:
 	void init_fans() const;
 	TemperatureState init_sensors() const;
 	void init_temperature_refs(TemperatureState &tstate) const;
+	void init(TemperatureState &ts) const;
 
 	unsigned int num_temps() const;
 	const vector<unique_ptr<SensorDriver>> &sensors() const;
