@@ -102,11 +102,12 @@ bool convert_driver<vector<wtf_ptr<HwmonSensorDriver>>>(
 
 	opt<vector<int>> correction = decode_opt<vector<int>>(node[kw_correction]);
 	opt<const string> name = decode_opt<string>(node[kw_name]);
+	opt<const string> model = decode_opt<string>(node[kw_model]);
 	bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
 	opt<unsigned int> max_errors = decode_opt<unsigned int>(node[kw_max_errors]);
 	opt<vector<unsigned int>> indices = decode_opt<vector<unsigned int>>(node[kw_indices]);
 
-	auto hwmon_iface = std::make_shared<HwmonInterface<SensorDriver>>(path, name, indices);
+	auto hwmon_iface = std::make_shared<HwmonInterface<SensorDriver>>(path, name, model, indices);
 
 	if (indices) {
 		if (correction && correction->size() != indices->size())
@@ -285,12 +286,13 @@ bool convert_driver<vector<wtf_ptr<HwmonFanDriver>>>(const Node &node, vector<wt
 
 	string path = node[kw_hwmon].as<string>();
 	opt<string> name = decode_opt<string>(node[kw_name]);
+	opt<string> model = decode_opt<string>(node[kw_model]);
 	bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
 	opt<vector<unsigned int>> indices = decode_opt<vector<unsigned int>>(node[kw_indices]);
 	opt<unsigned int> max_errors = decode_opt<unsigned int>(node[kw_max_errors]);
 
 	shared_ptr<HwmonInterface<FanDriver>> hwmon_iface = std::make_shared<HwmonInterface<FanDriver>>(
-		path, name, indices
+		path, name, model, indices
 	);
 
 	if (!indices && optional)

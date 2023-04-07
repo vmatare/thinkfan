@@ -32,6 +32,7 @@ const string kw_speed("speed");
 const string kw_upper("upper_limit");
 const string kw_lower("lower_limit");
 const string kw_name("name");
+const string kw_model("model");
 const string kw_indices("indices");
 const string kw_correction("correction");
 const string kw_optional("optional");

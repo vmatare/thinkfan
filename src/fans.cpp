@@ -201,7 +201,7 @@ string TpFanDriver::type_name() const
 
 HwmonFanDriver::HwmonFanDriver(const string &path)
 : HwmonFanDriver(
-	std::make_shared<HwmonInterface<FanDriver>>(path, nullopt, nullopt),
+	std::make_shared<HwmonInterface<FanDriver>>(path, nullopt, nullopt, nullopt),
 	false,
 	0
 )
