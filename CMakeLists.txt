@@ -133,6 +133,10 @@ if(USE_YAML)
 	target_link_libraries(thinkfan PRIVATE ${YAML_CPP_LIBRARIES})
 endif(USE_YAML)
 
+if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "riscv64")
+    target_link_libraries(thinkfan PRIVATE -latomic)
+endif()
+
 if(SYSTEMD_FOUND)
 	target_compile_definitions(thinkfan PRIVATE -DHAVE_SYSTEMD)
 endif()
