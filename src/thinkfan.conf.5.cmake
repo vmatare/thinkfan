@@ -103,7 +103,7 @@ The syntax for identifying each type of sensors looks as follows:
 
 \f[CB]  \- nvml: \f[CI]nvml-bus-id\f[CR]          # Uses the proprietary nVidia driver
 
-\f[CB]  \- atasmart: \f[CI]disk-device-file\f[CR] # Requires libatasmart support"
+\f[CB]  \- atasmart: \f[CI]disk-device-file\f[CR] # Requires libatasmart support
 
 \f[CB]  \- \f[CR]...
 \fR
@@ -116,7 +116,7 @@ behavior:
 \fC
 ########
 \f[CB]sensors:
-\f[CB]  \- \f[CR]...\f[CB] : \f[CR]... # A sensor specification as shown above
+\f[CB]  \- \f[CR]...\f[CB]: \f[CR]... # A sensor specification as shown above
 \f[CB]    correction: \f[CI]correction-list\f[CR]  # Optional entry
 \f[CB]    optional: \f[CI]bool-ignore-errors\f[CR] # Optional entry
 \f[CB]    max_errors: \f[CI]num-max-errors\f[CR]   # Optional entry
@@ -149,16 +149,18 @@ section:
 \fR
 .fi
 
-The error handling behavior of any fan can be controlled with the \fBoptional\fR
-and \fBmax_errors\fR keywords:
+The behavior of any fan can optionally be controlled with the \fBoptional\fR
+and \fBmax_errors\fR keywords, and by specifying a local fan speed config
+under the \fBlevels:\fR keyword:
 
 .nf
 \fC
 # ...
 \f[CB]fans:
-\f[CB]  \- \f[CR]... \f[CB]: \f[CR] ... # A fan specification as shown above
+\f[CB]  \- \f[CR]...\f[CB]: \f[CR] ... # A fan specification as shown above
 \f[CB]    optional: \f[CI]bool-ignore-errors\f[CR] # Optional entry
 \f[CB]    max_errors: \f[CI]num-max-errors\f[CR]   # Optional entry
+\f[CB]    levels: \f[CI]levels-section\f[CR]       # Optional entry
 
 
 .SS Values
@@ -272,6 +274,21 @@ will be used.
 .RE
 
 .TP
+.I chip-name
+The unique name of an lm-sensors hwmon chip. lm-sensors or libsensors is the
+official client library to access the sysfs hwmon subsystem, and as such it is
+the preferred way of specifying sensors.
+Available chips can be listed by running the \fBsensors\fR command as root.
+The header above each block will be the chip name.
+
+.TP
+.I ids
+A list of lm-sensors feature IDs, for example \*(lq\fB[ SYSTIN, CPUTIN, "Sensor 2"
+]\fR\*(rq.
+In the \fBsensors\fR command output, the name before the colon on each line
+will be the feature ID.
+
+.TP
 .I nvml-bus-id
 NOTE: only available if thinkfan was compiled with USE_NVML enabled.
 
@@ -331,6 +348,18 @@ When a device with a positive \fInum-max-errors\fR fails during runtime,
 thinkfan will likewise attempt to re-initialize it the given number of times
 before failing.
 
+.TP
+.IR levels-section " (optional, use global levels section by default)"
+As of thinkfan 2.0, multiple fans can be configured.
+To this end, each fan can now have its own \fBlevels:\fR section (cf. FAN
+SPEEDS below).
+The syntax of the global vs. the fan-specific \fBlevels:\fR section are
+identical, the only difference being that in a fan-specific one, the speed
+value(s) refer only the fans configured in that particular \fBfans:\fR entry.
+
+NOTE: Global and fan-specific \fBlevels:\fR are mutually exclusive, i.e.
+there cannot be both a global one and fan-specific sections.
+
 
 .SH FAN SPEEDS
 
@@ -340,6 +369,9 @@ section specifies a list of fan speeds with associated lower and upper
 temperature bounds.
 If temperature(s) drop below the lower bound, thinkfan switches to the previous
 level, and if the upper bound is reached, thinkfan switches to the next level.
+
+Since thinkfan 2.0, this section can appear either under an individual fan
+(cf. \fBlevels:\fR keyword under \fBFan Syntax\fR), or globally.
 
 .SS Simple Syntax
 In the simplified form, only one temperature is specified as an upper/lower
