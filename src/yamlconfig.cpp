@@ -608,7 +608,7 @@ bool convert<wtf_ptr<Config>>::decode(const Node &node, wtf_ptr<Config> &config)
 			if (node[kw_levels]) {
 				// Separate "levels:" section
 				if (config->fan_configs().size())
-					throw YamlError(get_mark_compat(node), "Cannot have a separate 'levels:' section when some fan already has specific levels assigned");
+					throw YamlError(get_mark_compat(node), "Cannot have a global 'levels:' section when some fan already has specific levels assigned");
 				if (!node[kw_levels].IsSequence())
 					throw YamlError(get_mark_compat(node), "Level entries must be a sequence. Forgot the dashes?");
 
