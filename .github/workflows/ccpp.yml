@@ -13,13 +13,7 @@ jobs:
       matrix:
         os: [ubuntu-20.04, ubuntu-22.04]
     steps:
-    - uses: actions/checkout@v2
-    - name: install-deps
-      run: sudo apt install libyaml-cpp-dev libatasmart-dev cmake libsensors4-dev
-    - name: build
-      run: |
-        mkdir build
-        cmake -B build
-        cmake --build build
-    - name: install
-      run: sudo cmake --install ${{ github.workspace }}/build
+    - uses: actions/checkout@v4
+    - uses: ./.github/actions/install_thinkfan_deps
+    - uses: ./.github/actions/build_thinkfan
+    - uses: ./.github/actions/install_thinkfan
