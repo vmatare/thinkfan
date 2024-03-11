@@ -1,0 +1,12 @@
+name: Build thinkfan
+description: 'Composite action to build thinkfan.'
+
+runs:
+  using: composite
+  steps:
+    - name: build
+      run: |
+        mkdir build
+        cmake -B build
+        cmake --build build
+      shell: bash

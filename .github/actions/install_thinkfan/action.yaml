@@ -1,0 +1,10 @@
+name: Install thinkfan
+description: 'Composite action to install thinkfan.'
+
+runs:
+  using: composite
+  steps:
+    - name: install
+      run: |
+        sudo cmake --install ${{ github.workspace }}/build
+      shell: bash
