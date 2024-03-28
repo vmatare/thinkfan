@@ -1,9 +1,9 @@
+cmake_minimum_required(VERSION 3.5)
+
 project(thinkfan LANGUAGES CXX)
 include(GNUInstallDirs)
 
 set(THINKFAN_VERSION 2.0.0)
-
-cmake_minimum_required(VERSION 3.0)
 
 # Generate absolute paths or something
 cmake_policy(SET CMP0015 NEW)
