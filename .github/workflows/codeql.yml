@@ -27,10 +27,9 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
-    - name: install-deps
-      run: sudo apt install libyaml-cpp-dev libatasmart-dev cmake libsensors4-dev
+    - uses: ./.github/actions/install_thinkfan_deps
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -44,12 +43,7 @@ jobs:
         # Details on CodeQL's query packs refer to : https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
         queries: +security-and-quality
 
-
-    - name: build
-      run: |
-        mkdir build
-        cmake -B build
-        cmake --build build
+    - uses: ./.github/actions/build_thinkfan
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
