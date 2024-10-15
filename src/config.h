@@ -24,10 +24,7 @@
 
 #include "temperature_state.h"
 
-#include <string>
 #include <vector>
-#include <memory>
-#include <map>
 
 #include "thinkfan.h"
 

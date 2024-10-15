@@ -24,7 +24,6 @@
 #include "thinkfan.h"
 #include "error.h"
 #include <functional>
-#include <optional>
 
 namespace thinkfan {
 

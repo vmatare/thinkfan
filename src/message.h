@@ -25,7 +25,6 @@
 #include <syslog.h>
 #include <string>
 #include <exception>
-#include <memory>
 
 #include "thinkfan.h"
 #include "temperature_state.h"

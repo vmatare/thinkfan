@@ -21,8 +21,6 @@
  *
  * ******************************************************************/
 
-#include <string>
-
 #include "thinkfan.h"
 #include "driver.h"
 #include "hwmon.h"

@@ -4,7 +4,6 @@
 #include "thinkfan.h"
 #include "wtf_ptr.h"
 
-#include <vector>
 #include <yaml-cpp/yaml.h>
 
 

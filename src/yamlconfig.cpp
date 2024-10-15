@@ -4,7 +4,6 @@
 #include "fans.h"
 #include "sensors.h"
 
-#include <tuple>
 #include <memory>
 #include <unordered_set>
 

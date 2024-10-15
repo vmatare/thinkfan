@@ -23,7 +23,6 @@
 #define THINKFAN_PARSER_H_
 
 #include <regex.h>
-#include <vector>
 #include <string>
 #include <initializer_list>
 
