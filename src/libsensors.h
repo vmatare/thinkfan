@@ -26,8 +26,6 @@
 #ifdef USE_LM_SENSORS
 #include <sensors/sensors.h>
 #include <sensors/error.h>
-#include <atomic>
-#include <mutex>
 #include <map>
 
 namespace thinkfan {

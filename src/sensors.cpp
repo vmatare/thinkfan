@@ -25,7 +25,6 @@
 
 #include <fstream>
 #include <cstring>
-#include <thread>
 #include <typeinfo>
 #include <cmath>
 

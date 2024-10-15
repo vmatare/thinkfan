@@ -38,7 +38,6 @@
 #endif /* USE_NVML */
 
 
-#include <functional>
 #include <optional>
 
 namespace thinkfan {

@@ -29,8 +29,6 @@
 #include <cstring>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <algorithm>
-#include <functional>
 
 namespace thinkfan {
 
