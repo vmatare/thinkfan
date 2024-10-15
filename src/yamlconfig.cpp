@@ -95,7 +95,7 @@ bool convert_driver<vector<wtf_ptr<HwmonSensorDriver>>>(
 		return false;
 
 	allowed_keywords(node, {
-		kw_hwmon, kw_correction, kw_name, kw_optional, kw_max_errors, kw_indices
+		kw_hwmon, kw_correction, kw_name, kw_optional, kw_max_errors, kw_indices, kw_model
 	});
 
 	string path = node[kw_hwmon].as<string>();
