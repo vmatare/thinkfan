@@ -31,6 +31,7 @@ namespace thinkfan {
 class Driver {
 protected:
 	Driver(bool optional, unsigned int max_errors);
+	virtual ~Driver() noexcept(false) = default;
 
 	template<typename FnSignatureT>
 	using FN = std::function<FnSignatureT>;

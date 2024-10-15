@@ -53,7 +53,7 @@ protected:
 	SensorDriver(bool optional, opt<vector<int>> correction = nullopt, opt<unsigned int> max_errors = nullopt);
 
 public:
-	virtual ~SensorDriver() noexcept(false);
+	virtual ~SensorDriver() noexcept(false) override;
 	unsigned int num_temps() const { return *num_temps_; }
 	void set_correction(const vector<int> &correction);
 	bool operator == (const SensorDriver &other) const;

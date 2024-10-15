@@ -80,7 +80,7 @@ private:
 	string re_str;
 public:
 	RegexParser(const string expr, const unsigned int data_idx = 0, bool match_nl = false);
-	virtual ~RegexParser();
+	virtual ~RegexParser() override;
 	virtual string *_parse(const char *&input) override;
 };
 

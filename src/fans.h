@@ -35,7 +35,7 @@ protected:
 
 public:
 	bool is_default() { return path().length() == 0; }
-	virtual ~FanDriver() noexcept(false);
+	virtual ~FanDriver() noexcept(false) override;
 	virtual void set_speed(const Level &level) = 0;
 	const string &current_speed() const;
 	virtual void ping_watchdog_and_depulse(const Level &) {}
