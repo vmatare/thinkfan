@@ -184,7 +184,7 @@ public:
 		opt<vector<int>> correction = nullopt,
 		opt<unsigned int> max_errors = nullopt
 	);
-	virtual ~LMSensorsDriver();
+	virtual ~LMSensorsDriver() override;
 
 	const string &chip_name() const;
 	const vector<string> &feature_names() const;

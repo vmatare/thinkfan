@@ -42,7 +42,7 @@ public:
 
 private:
 	static vector<string> find_files(const string &path, const vector<unsigned int> &indices);
-	static string filename(int index);
+	static string filename(unsigned int index);
 
 	static vector<string> find_hwmons_by_model(const string &path, const string &model, unsigned char depth);
 	static vector<string> find_hwmons_by_name(const string &path, const string &name, unsigned char depth);

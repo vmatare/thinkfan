@@ -64,11 +64,11 @@ vector<string> HwmonInterface<HwmonT>::find_files(const string &path, const vect
 }
 
 template<>
-string HwmonInterface<SensorDriver>::filename(int index)
+string HwmonInterface<SensorDriver>::filename(unsigned int index)
 { return "temp" + std::to_string(index) + "_input"; }
 
 template<>
-string HwmonInterface<FanDriver>::filename(int index)
+string HwmonInterface<FanDriver>::filename(unsigned int index)
 { return "pwm" + std::to_string(index); }
 
 

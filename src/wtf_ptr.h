@@ -17,7 +17,7 @@ public:
 	using shared_ptr<unique_ptr<T>>::shared_ptr;
 
 	template<typename T1>
-	wtf_ptr<T>(wtf_ptr<T1> &&ptr)
+	wtf_ptr(wtf_ptr<T1> &&ptr)
 		: shared_ptr<unique_ptr<T>>(new unique_ptr<T>(ptr.release()))
 	{}
 

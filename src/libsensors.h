@@ -65,7 +65,7 @@ private:
 	};
 
 	LibsensorsInterface();
-	friend InitGuard;
+	friend class InitGuard;
 
 
 	static void initialize_lm_sensors();
