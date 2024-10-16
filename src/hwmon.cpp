@@ -147,7 +147,7 @@ vector<string> HwmonInterface<HwmonT>::find_hwmons_by_name(
 		return result;  // don't recurse to subdirs
 	}
 
-	for (const filesystem::path &subdir : dir_entries<filter_subdirs>(path)) {
+	for (const filesystem::path subdir : dir_entries<filter_subdirs>(path)) {
 		struct stat statbuf;
 		int err = stat(path.c_str(), &statbuf);
 		if (err || (statbuf.st_mode & S_IFMT) != S_IFDIR)
@@ -185,7 +185,7 @@ vector<string> HwmonInterface<HwmonT>::find_hwmons_by_model(
 		return result; // don't recurse to subdirs
 	}
 
-	for (const filesystem::path &subdir : dir_entries<filter_subdirs>(path)) {
+	for (const filesystem::path subdir : dir_entries<filter_subdirs>(path)) {
 		struct stat statbuf;
 		int err = stat(path.c_str(), &statbuf);
 		if (err || (statbuf.st_mode & S_IFMT) != S_IFDIR)
