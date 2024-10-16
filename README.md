@@ -11,8 +11,8 @@ bugs that'll make you pull out your hair.
 
    **No warranties whatsoever**
 
-If this program steals your car, kills your horse, smokes your dope or pees
-on your carpet... too bad, you're on your own.
+If this program steals your car, kills your horse, smokes your dope, pees
+on your carpet or shits in your cereal... too bad, you're on your own.
 
 
 # Building and installing
