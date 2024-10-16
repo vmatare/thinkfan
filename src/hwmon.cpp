@@ -56,7 +56,7 @@ int HwmonInterface<SensorDriver>::filter_driver_file(const struct dirent *entry)
 {
 	int idx;
 	return (entry->d_type == DT_REG || entry->d_type == DT_LNK)
-		&& !::sscanf(entry->d_name, "temp%d_input", &idx)
+		&& ::sscanf(entry->d_name, "temp%d_input", &idx) == 1
 	;
 }
 
@@ -65,7 +65,7 @@ int HwmonInterface<FanDriver>::filter_driver_file(const struct dirent *entry)
 {
 	int idx;
 	return (entry->d_type == DT_REG || entry->d_type == DT_LNK)
-		&& !::sscanf(entry->d_name, "pwm%d", &idx)
+		&& ::sscanf(entry->d_name, "pwm%d", &idx) == 1
 	;
 }
 
