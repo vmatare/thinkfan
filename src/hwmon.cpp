@@ -71,14 +71,14 @@ int HwmonInterface<FanDriver>::filter_driver_file(const struct dirent *entry)
 
 
 template<int (* filter_fn)(const struct dirent *)>
-vector<filesystem::path> dir_entries(const filesystem::path &dir)
+vector<string> dir_entries(const filesystem::path &dir)
 {
 	struct dirent **entries;
 	int nentries = ::scandir(dir.c_str(), &entries, filter_fn, nullptr);
 	if (nentries == -1)
 		return {};
 
-	vector<filesystem::path> rv;
+	vector<string> rv;
 	for (int i = 0; i < nentries; ++i) {
 		rv.emplace_back(dir / entries[i]->d_name);
 		::free(entries[i]);
@@ -212,12 +212,12 @@ vector<string> HwmonInterface<HwmonT>::find_hwmons_by_indices(
 	}
 	catch (IOerror &) {
 		if (depth <= max_depth) {
-			vector<filesystem::path> hwmon_dirs = dir_entries<filter_hwmon_dirs>(path);
+			vector<string> hwmon_dirs = dir_entries<filter_hwmon_dirs>(path);
 			if (hwmon_dirs.empty())
 				throw IOerror("Error scanning " + path + ": ", errno);
 
 			vector<string> rv;
-			for (const filesystem::path &hwmon_dir : hwmon_dirs) {
+			for (const filesystem::path hwmon_dir : hwmon_dirs) {
 				rv = HwmonInterface<HwmonT>::find_hwmons_by_indices(
 					hwmon_dir,
 					indices,
@@ -280,7 +280,7 @@ string HwmonInterface<HwmonT>::lookup()
 				throw DriverInitError(path + ": " + "Could not find any hwmons in " + path);
 		}
 		else {
-			vector<filesystem::path> paths = dir_entries<filter_driver_file>(path);
+			vector<string> paths = dir_entries<filter_driver_file>(path);
 			found_paths_.swap(paths);
 		}
 
