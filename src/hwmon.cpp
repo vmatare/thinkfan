@@ -281,7 +281,7 @@ string HwmonInterface<HwmonT>::lookup()
 		}
 		else {
 			vector<filesystem::path> paths = dir_entries<filter_driver_file>(path);
-			found_paths_.assign(paths.begin(), paths.end());
+			found_paths_.swap(paths);
 		}
 
 		paths_it_.emplace(found_paths_.begin());
