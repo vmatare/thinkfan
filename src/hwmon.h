@@ -24,12 +24,15 @@
 #include "thinkfan.h"
 
 #include <dirent.h>
+#include <filesystem>
 
 namespace thinkfan {
 
 
 class HwmonSensorDriver;
 class HwmonFanDriver;
+
+namespace filesystem = std::filesystem;
 
 
 template<class HwmonT>
@@ -42,12 +45,12 @@ public:
 
 private:
 	static int filter_driver_file(const struct dirent *entry);
-	static vector<string> find_files(const string &path, const vector<unsigned int> &indices);
-	static string filename(unsigned int index);
+	static string filename_by_index(unsigned int index);
+	static vector<string> filenames_by_indices(const vector<unsigned int> &indices);
 
-	static vector<string> find_hwmons_by_model(const string &path, const string &model, unsigned char depth);
-	static vector<string> find_hwmons_by_name(const string &path, const string &name, unsigned char depth);
-	static vector<string> find_hwmons_by_indices(const string &path, const vector<unsigned int> &indices, unsigned char depth);
+	static vector<string> find_hwmons_by_model(const filesystem::path &path, const string &model, unsigned char depth);
+	static vector<string> find_hwmons_by_name(const filesystem::path &path, const string &name, unsigned char depth);
+	static vector<string> find_hwmons_by_indices(const filesystem::path &path, const vector<unsigned int> &indices, unsigned char depth);
 
 
 protected:

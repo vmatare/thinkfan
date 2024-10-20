@@ -29,11 +29,9 @@
 #include <cstring>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <filesystem>
 
 namespace thinkfan {
 
-namespace filesystem = std::filesystem;
 
 
 static int filter_hwmon_dirs(const struct dirent *entry)
@@ -88,29 +86,23 @@ vector<string> dir_entries(const filesystem::path &dir)
 }
 
 
-template<class HwmonT>
-vector<string> HwmonInterface<HwmonT>::find_files(const string &path, const vector<unsigned int> &indices)
-{
-	vector<string> rv;
-	for (unsigned int idx : indices) {
-		const string fpath(path + "/" + filename(idx));
-		std::ifstream f(fpath);
-		if (f.is_open() && f.good())
-			rv.push_back(fpath);
-		else
-			throw IOerror("Can't find hwmon file: " + fpath, errno);
-	}
-	return rv;
-}
-
 template<>
-string HwmonInterface<SensorDriver>::filename(unsigned int index)
-{ return "temp" + std::to_string(index) + "_input"; }
-
-template<>
-string HwmonInterface<FanDriver>::filename(unsigned int index)
+string HwmonInterface<FanDriver>::filename_by_index(unsigned int index)
 { return "pwm" + std::to_string(index); }
 
+template<>
+string HwmonInterface<SensorDriver>::filename_by_index(unsigned int index)
+{ return "temp" + std::to_string(index) + "_input"; }
+
+
+template<class HwmonT>
+vector<string> HwmonInterface<HwmonT>::filenames_by_indices(const vector<unsigned int> &indices)
+{
+	vector<string> rv;
+	for (unsigned int index : indices)
+		rv.push_back(filename_by_index(index));
+	return rv;
+}
 
 
 template<class HwmonT>
@@ -128,14 +120,14 @@ HwmonInterface<HwmonT>::HwmonInterface(const string &base_path, opt<const string
 
 template<class HwmonT>
 vector<string> HwmonInterface<HwmonT>::find_hwmons_by_name(
-	const string &path,
+	const filesystem::path &path,
 	const string &name,
 	unsigned char depth
 ) {
 	const unsigned char max_depth = 5;
 	vector<string> result;
 
-	ifstream f(path + "/name");
+	ifstream f(path / "name");
 	if (f.is_open() && f.good()) {
 		string tmp;
 		if ((f >> tmp) && tmp == name) {
@@ -147,7 +139,7 @@ vector<string> HwmonInterface<HwmonT>::find_hwmons_by_name(
 		return result;  // don't recurse to subdirs
 	}
 
-	for (const filesystem::path subdir : dir_entries<filter_subdirs>(path)) {
+	for (const auto &subdir : dir_entries<filter_subdirs>(path)) {
 		struct stat statbuf;
 		int err = stat(path.c_str(), &statbuf);
 		if (err || (statbuf.st_mode & S_IFMT) != S_IFDIR)
@@ -163,14 +155,14 @@ vector<string> HwmonInterface<HwmonT>::find_hwmons_by_name(
 
 template<class HwmonT>
 vector<string> HwmonInterface<HwmonT>::find_hwmons_by_model(
-	const string &path,
+	const filesystem::path &path,
 	const string &model,
 	unsigned char depth
 ) {
 	const unsigned char max_depth = 5;
 	vector<string> result;
 
-	ifstream f(path + "/model");
+	ifstream f(path / "model");
 	if (f.is_open() && f.good()) {
 		string tmp;
 		if (getline(f, tmp)) {
@@ -185,7 +177,7 @@ vector<string> HwmonInterface<HwmonT>::find_hwmons_by_model(
 		return result; // don't recurse to subdirs
 	}
 
-	for (const filesystem::path subdir : dir_entries<filter_subdirs>(path)) {
+	for (const auto &subdir : dir_entries<filter_subdirs>(path)) {
 		struct stat statbuf;
 		int err = stat(path.c_str(), &statbuf);
 		if (err || (statbuf.st_mode & S_IFMT) != S_IFDIR)
@@ -201,37 +193,47 @@ vector<string> HwmonInterface<HwmonT>::find_hwmons_by_model(
 
 template<class HwmonT>
 vector<string> HwmonInterface<HwmonT>::find_hwmons_by_indices(
-	const string &path,
+	const filesystem::path &path,
 	const vector<unsigned int> &indices,
 	unsigned char depth
 ) {
 	constexpr unsigned char max_depth = 3;
 
-	try {
-		return find_files(path, indices);
+	vector<string> rv;
+	vector<string> filenames = filenames_by_indices(indices);
+	for (const filesystem::path fname : filenames) {
+		const filesystem::path fpath(path / fname);
+		std::ifstream f(fpath);
+		if (f.is_open() && f.good())
+			rv.push_back(fpath);
+		else if (rv.size()) // Found one, but another is missing: Error
+			throw IOerror("Can't find hwmon file: " + string(fpath), errno);
 	}
-	catch (IOerror &) {
+
+	if (rv.empty()) { // No matching files in this directory
 		if (depth <= max_depth) {
 			vector<string> hwmon_dirs = dir_entries<filter_hwmon_dirs>(path);
 			if (hwmon_dirs.empty())
-				throw IOerror("Error scanning " + path + ": ", errno);
+				return {};
 
-			vector<string> rv;
-			for (const filesystem::path hwmon_dir : hwmon_dirs) {
+			for (const auto &hwmon_dir : hwmon_dirs) {
 				rv = HwmonInterface<HwmonT>::find_hwmons_by_indices(
 					hwmon_dir,
 					indices,
 					depth + 1
 				);
 				if (rv.size())
-					break;
+					return rv;
 			}
 
-			return rv;
+			if (depth == 0) // Nothing found here or after recursion
+				throw DriverInitError(
+					"Could not find requested files " + vec_to_string(filenames)
+					 + " in " + string(path) + "."
+				);
 		}
-		else
-			throw DriverInitError("Could not find an `hwmon*' directory or `temp*_input' file in " + path + ".");
 	}
+	return rv;
 }
 
 
