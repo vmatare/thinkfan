@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "thinkfan.h"
+#include "fans.h"
 
 namespace thinkfan {
 

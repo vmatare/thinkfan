@@ -37,6 +37,7 @@ public:
 	bool is_default() { return path().length() == 0; }
 	virtual ~FanDriver() noexcept(false) override;
 	virtual void set_speed(const Level &level) = 0;
+	virtual void turn_off() = 0;
 	const string &current_speed() const;
 	virtual void ping_watchdog_and_depulse(const Level &) {}
 	bool operator == (const FanDriver &other) const;
@@ -64,6 +65,7 @@ public:
 	void set_watchdog(const unsigned int timeout);
 	void set_depulse(float duration);
 	virtual void set_speed(const Level &level) override;
+	virtual void turn_off() override;
 	virtual void ping_watchdog_and_depulse(const Level &level) override;
 
 protected:
@@ -88,6 +90,7 @@ public:
 
 	virtual ~HwmonFanDriver() noexcept(false) override;
 	virtual void set_speed(const Level &level) override;
+	virtual void turn_off() override;
 
 protected:
 	virtual void init() override;

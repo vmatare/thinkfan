@@ -129,6 +129,12 @@ void TpFanDriver::set_speed(const Level &level)
 	last_watchdog_ping_ = std::chrono::system_clock::now();
 }
 
+void TpFanDriver::turn_off()
+{
+	FanDriver::set_speed("0");
+	last_watchdog_ping_ = std::chrono::system_clock::now();
+}
+
 
 void TpFanDriver::ping_watchdog_and_depulse(const Level &level)
 {
@@ -287,6 +293,11 @@ void HwmonFanDriver::set_speed(const Level &level)
 	}
 }
 
+
+void HwmonFanDriver::turn_off()
+{
+	FanDriver::set_speed("0");
+}
 
 
 

@@ -112,7 +112,7 @@ void SensorDriver::check_correction_length()
 void SensorDriver::skip_io_error(const ExpectedError &e)
 {
 	if (this->optional()) {
-		log(TF_INF) << DriverLost(e).what();
+		log(TF_DBG) << DriverLost(e).what();
 		// Completely ignore sensor. optional says we're good without it
 		temp_state_.add_temp(-128);
 	}

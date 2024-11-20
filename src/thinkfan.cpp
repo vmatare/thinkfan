@@ -19,7 +19,6 @@
  *
  * ******************************************************************/
 
-#include "error.h"
 
 #include <getopt.h>
 #include <unistd.h>
@@ -32,16 +31,15 @@
 #include <string>
 #include <iostream>
 #include <memory>
-#include <cmath>
 
 #include <unistd.h>
 
 #include "thinkfan.h"
+#include "error.h"
 #include "config.h"
 #include "message.h"
 #include "error.h"
 #include "sensors.h"
-#include "fans.h"
 #include "temperature_state.h"
 
 
@@ -56,6 +54,7 @@ float bias_level(0);
 float depulse = 0;
 static TemperatureState temp_state(0);
 std::atomic<unsigned char> tolerate_errors(0);
+std::atomic<bool> disable_fan_on_sleep(false);
 
 std::condition_variable sleep_cond;
 std::mutex sleep_mutex;
@@ -158,6 +157,7 @@ void sig_handler(int signum) {
 		tolerate_errors = 4;
 		log(TF_NFY) << "Going to sleep: Will allow sensor read errors for the next "
 			<< std::to_string(tolerate_errors) << " loops." << flush;
+		sleep_cond.notify_all();
 	}
 }
 
@@ -180,15 +180,21 @@ void run(const Config &config)
 
 		if (unlikely(interrupted))
 			break;
+		else if (unlikely(tolerate_errors && disable_fan_on_sleep)) {
+			log(TF_NFY) << "Going to sleep: Turning off all fans" << flush;
+			for (auto &fan_config : config.fan_configs())
+				fan_config->fan()->turn_off();
+			continue;
+		}
 
 		for (const unique_ptr<SensorDriver> &sensor : config.sensors())
 			sensor->read_temps();
 
-		if (unlikely(tolerate_errors) > 0)
-			tolerate_errors--;
-
 		for (auto &fan_config : config.fan_configs())
 			did_something |= fan_config->set_fanspeed(temp_state);
+
+		if (unlikely(tolerate_errors > 0))
+			tolerate_errors--;
 
 		if (unlikely(did_something))
 			log(TF_NFY) << temp_state << " -> " << config.fan_configs() << flush;
@@ -200,7 +206,7 @@ void run(const Config &config)
 
 int set_options(int argc, char **argv)
 {
-	const char *optstring = "c:s:b:p::hqDznv"
+	const char *optstring = "c:s:b:p::hqDznvZ"
 #ifdef USE_ATASMART
 			"d";
 #else
@@ -232,6 +238,9 @@ int set_options(int argc, char **argv)
 			break;
 		case 'z':
 			log(TF_WRN) << "Option -z is not needed anymore and therefore deprecated." << flush;
+			break;
+		case 'Z':
+			disable_fan_on_sleep = true;
 			break;
 		case 'n':
 			daemonize = false;
