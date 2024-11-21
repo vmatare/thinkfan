@@ -1,0 +1,11 @@
+name: Install thinkfan Dependencies
+description: 'Composite action to install thinkfan dependencies.'
+
+runs:
+  using: composite
+  steps:
+    - name: install-deps
+      run: |
+        sudo apt update
+        sudo apt install -y libyaml-cpp-dev libatasmart-dev cmake libsensors4-dev
+      shell: bash
