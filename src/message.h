@@ -106,6 +106,32 @@ template<class ErrT, class... ArgTs> void error(const ArgTs &... args) {
 }
 
 
+template<class T>
+string to_string(const T &);
+
+
+template<>
+string to_string(const string &s)
+{ return s; }
+
+template<class T>
+string to_string(const T &o)
+{ return std::to_string(o); }
+
+
+template<class T>
+string vec_to_string(const vector<T> &v)
+{
+	string rv = "[";
+	for (const T& item : v)
+		rv += to_string(item) + ", ";
+	if (rv.length() > 2)
+		rv = rv.substr(0, rv.length() - 2);
+	rv += "]";
+	return rv;
+}
+
+
 } // namespace thinkfan
 
 
