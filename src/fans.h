@@ -83,7 +83,8 @@ public:
 	HwmonFanDriver(
 		shared_ptr<HwmonInterface<FanDriver>> hwmon_interface,
 		bool optional,
-		opt<unsigned int> max_errors = nullopt
+		opt<unsigned int> max_errors = nullopt,
+		bool skip_save = false
 	);
 
 	virtual ~HwmonFanDriver() noexcept(false) override;
@@ -96,6 +97,7 @@ protected:
 
 private:
 	shared_ptr<HwmonInterface<FanDriver>> hwmon_interface_;
+	bool skip_save_;
 };
 
 
