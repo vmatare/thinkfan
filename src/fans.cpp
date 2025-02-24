@@ -210,16 +210,20 @@ HwmonFanDriver::HwmonFanDriver(const string &path)
 HwmonFanDriver::HwmonFanDriver(
 	shared_ptr<HwmonInterface<FanDriver>> hwmon_interface,
 	bool optional,
-	opt<unsigned int> max_errors
+	opt<unsigned int> max_errors,
+	bool skip_save
 )
 : FanDriver(optional, 0, max_errors)
 , hwmon_interface_(hwmon_interface)
+, skip_save_(skip_save)
 {}
 
 
 HwmonFanDriver::~HwmonFanDriver() noexcept(false)
 {
 	if (!initialized())
+		return;
+	if (skip_save_)
 		return;
 
 	std::ofstream f(path() + "_enable");
@@ -238,6 +242,8 @@ HwmonFanDriver::~HwmonFanDriver() noexcept(false)
 
 void HwmonFanDriver::init()
 {
+	if (skip_save_)
+		return;
 	std::fstream f(path() + "_enable");
 	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_FAN_INIT(path()), errno);
