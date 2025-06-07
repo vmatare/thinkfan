@@ -139,7 +139,11 @@ void TpFanDriver::ping_watchdog_and_depulse(const Level &level)
 	}
 	else if (last_watchdog_ping_ + watchdog_ - sleeptime <= std::chrono::system_clock::now()) {
 		log(TF_DBG) << "Watchdog ping" << flush;
-		set_speed(level);
+		std::fstream f(path_);
+		if (!(f.is_open() && f.good()))
+			throw IOerror(MSG_FAN_INIT(path_), errno);
+		if (!(f << "watchdog " << watchdog_.count() << std::flush))
+			throw IOerror(MSG_FAN_INIT(path_), errno);
 	}
 }
 
