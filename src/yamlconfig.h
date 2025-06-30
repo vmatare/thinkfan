@@ -36,6 +36,7 @@ const string kw_indices("indices");
 const string kw_correction("correction");
 const string kw_optional("optional");
 const string kw_max_errors("max_errors");
+const string kw_skip_save("skip_save");
 
 
 template<>

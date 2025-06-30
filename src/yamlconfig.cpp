@@ -280,7 +280,7 @@ bool convert_driver<vector<wtf_ptr<HwmonFanDriver>>>(const Node &node, vector<wt
 		return false;
 
 	allowed_keywords(node, {
-		kw_hwmon, kw_name, kw_indices, kw_optional, kw_max_errors, kw_levels
+		kw_hwmon, kw_name, kw_indices, kw_optional, kw_max_errors, kw_levels, kw_skip_save
 	});
 
 	string path = node[kw_hwmon].as<string>();
@@ -289,6 +289,7 @@ bool convert_driver<vector<wtf_ptr<HwmonFanDriver>>>(const Node &node, vector<wt
 	bool optional = node[kw_optional] ? node[kw_optional].as<bool>() : false;
 	opt<vector<unsigned int>> indices = decode_opt<vector<unsigned int>>(node[kw_indices]);
 	opt<unsigned int> max_errors = decode_opt<unsigned int>(node[kw_max_errors]);
+	bool skip_save = node[kw_skip_save] ? node[kw_skip_save].as<bool>() : false;
 
 	shared_ptr<HwmonInterface<FanDriver>> hwmon_iface = std::make_shared<HwmonInterface<FanDriver>>(
 		path, name, model, indices
@@ -301,7 +302,7 @@ bool convert_driver<vector<wtf_ptr<HwmonFanDriver>>>(const Node &node, vector<wt
 		);
 
 	for (unsigned int i = 0; i < (indices ? indices->size() : 1); ++i)
-		fans.push_back(wtf_ptr<HwmonFanDriver>(new HwmonFanDriver(hwmon_iface, optional, max_errors)));
+		fans.push_back(wtf_ptr<HwmonFanDriver>(new HwmonFanDriver(hwmon_iface, optional, max_errors, skip_save)));
 
 	return true;
 }
