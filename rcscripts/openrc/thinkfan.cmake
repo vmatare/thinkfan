@@ -1,7 +1,7 @@
 #!/sbin/openrc-run
 
 command="@CMAKE_INSTALL_PREFIX@/sbin/thinkfan"
-command_args="-q -s5 -c /etc/thinkfan.conf"
+command_args="-q"
 pidfile="@PID_FILE@"
 
 extra_started_commands="reload"
