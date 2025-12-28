@@ -83,9 +83,9 @@ public:
 	HwmonFanDriver(const string &path);
 
 	HwmonFanDriver(
-		shared_ptr<HwmonInterface<FanDriver>> hwmon_interface,
-		bool optional,
-		opt<unsigned int> max_errors = nullopt
+	    shared_ptr<HwmonInterface<FanDriver>> hwmon_interface,
+	    bool optional,
+	    opt<unsigned int> max_errors = nullopt
 	);
 
 	virtual ~HwmonFanDriver() noexcept(false) override;

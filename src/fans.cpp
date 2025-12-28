@@ -42,10 +42,10 @@ namespace thinkfan {
 ----------------------------------------------------------------------------*/
 
 FanDriver::FanDriver(bool optional, unsigned int watchdog_timeout, opt<unsigned int> max_errors)
-: Driver(optional, max_errors.value_or(0)),
-  current_speed_("_"),
-  watchdog_(watchdog_timeout),
-  depulse_(0)
+: Driver(optional, max_errors.value_or(0))
+, current_speed_("_")
+, watchdog_(watchdog_timeout)
+, depulse_(0)
 {}
 
 FanDriver::~FanDriver() noexcept(false)
@@ -165,7 +165,7 @@ void TpFanDriver::init()
 			// remember initial level, restore it in d'tor
 			string::size_type offs = line.find_last_of(" \t") + 1;
 			if (offs != string::npos) {
-				// Cut of at bogus \000 char that may occur before EOL
+				// Cut off at bogus \000 char that may occur before EOL
 				initial_state_ = line.substr(offs, line.find_first_of('\000') - offs);
 			}
 			log(TF_DBG) << path() << ": Saved initial state: " << initial_state_ << "." << flush;
