@@ -2,7 +2,7 @@
  * thinkfan.cpp: Main program.
  * (C) 2015, Victor Mataré
  *
- * this file is part of thinkfan.
+ * This file represents the thinkfan main process.
  *
  * thinkfan is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,6 +55,7 @@ float depulse = 0;
 static TemperatureState temp_state(0);
 std::atomic<unsigned char> tolerate_errors(0);
 std::atomic<bool> disable_fan_on_sleep(false);
+std::atomic<bool> naptime(false);
 
 std::condition_variable sleep_cond;
 std::mutex sleep_mutex;
@@ -154,6 +155,7 @@ void sig_handler(int signum) {
 		log(TF_NFY) << "Received SIGUSR2: Re-initializing fan control." << flush;
 		break;
 	case SIGPWR:
+		naptime = true;
 		tolerate_errors = 4;
 		log(TF_NFY) << "Going to sleep: Will allow sensor read errors for the next "
 			<< std::to_string(tolerate_errors) << " loops." << flush;
@@ -180,10 +182,11 @@ void run(const Config &config)
 
 		if (unlikely(interrupted))
 			break;
-		else if (unlikely(tolerate_errors && disable_fan_on_sleep)) {
-			log(TF_NFY) << "Going to sleep: Turning off all fans" << flush;
+		else if (unlikely(naptime && disable_fan_on_sleep)) {
+			log(TF_NFY) << "Going to sleep: Resetting all fans." << flush;
 			for (auto &fan_config : config.fan_configs())
-				fan_config->fan()->turn_off();
+				fan_config->fan()->set_initial_state();
+			naptime = false;
 			continue;
 		}
 

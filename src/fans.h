@@ -35,9 +35,9 @@ protected:
 
 public:
 	bool is_default() { return path().length() == 0; }
-	virtual ~FanDriver() noexcept(false) override;
+	virtual ~FanDriver() override;
 	virtual void set_speed(const Level &level) = 0;
-	virtual void turn_off() = 0;
+	virtual void set_initial_state() = 0;
 	const string &current_speed() const;
 	virtual void ping_watchdog_and_depulse(const Level &) {}
 	bool operator == (const FanDriver &other) const;
@@ -61,11 +61,11 @@ class TpFanDriver : public FanDriver {
 public:
 	TpFanDriver(const string &path, bool optional = false, opt<unsigned int> max_errors = nullopt);
 
-	virtual ~TpFanDriver() noexcept(false) override;
+	virtual ~TpFanDriver() override;
 	void set_watchdog(const unsigned int timeout);
 	void set_depulse(float duration);
 	virtual void set_speed(const Level &level) override;
-	virtual void turn_off() override;
+	virtual void set_initial_state() override;
 	virtual void ping_watchdog_and_depulse(const Level &level) override;
 
 protected:
@@ -88,9 +88,9 @@ public:
 	    opt<unsigned int> max_errors = nullopt
 	);
 
-	virtual ~HwmonFanDriver() noexcept(false) override;
+	virtual ~HwmonFanDriver() override;
 	virtual void set_speed(const Level &level) override;
-	virtual void turn_off() override;
+	virtual void set_initial_state() override;
 
 protected:
 	virtual void init() override;
@@ -99,6 +99,7 @@ protected:
 
 private:
 	shared_ptr<HwmonInterface<FanDriver>> hwmon_interface_;
+	const string enable_path_;
 };
 
 

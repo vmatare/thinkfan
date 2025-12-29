@@ -48,7 +48,7 @@ FanDriver::FanDriver(bool optional, unsigned int watchdog_timeout, opt<unsigned 
 , depulse_(0)
 {}
 
-FanDriver::~FanDriver() noexcept(false)
+FanDriver::~FanDriver()
 {}
 
 void FanDriver::set_speed(const string &level)
@@ -96,22 +96,14 @@ TpFanDriver::TpFanDriver(const std::string &path, bool optional, opt<unsigned in
 {}
 
 
-TpFanDriver::~TpFanDriver() noexcept(false)
+TpFanDriver::~TpFanDriver()
 {
-	if (!initialized())
-		return;
-
-	std::ofstream f(path());
-	if (!(f.is_open() && f.good())) {
-		log(TF_ERR) << MSG_FAN_RESET(path()) << strerror(errno) << flush;
-		return;
-	}
-
-	if (!initial_state_.empty()) {
-		log(TF_DBG) << path() << ": Restoring initial state: " << initial_state_ << "." << flush;
-		if (!(f << "level " << initial_state_ << std::flush))
-			log(TF_ERR) << MSG_FAN_RESET(path()) << strerror(errno) << flush;
-	}
+	if (initialized())
+		try {
+			set_initial_state();
+		} catch (std::exception &e) {
+			log(TF_ERR) << MSG_FAN_RESET(path()) << ": " << e.what() << flush;
+		}
 }
 
 
@@ -129,9 +121,12 @@ void TpFanDriver::set_speed(const Level &level)
 	last_watchdog_ping_ = std::chrono::system_clock::now();
 }
 
-void TpFanDriver::turn_off()
+void TpFanDriver::set_initial_state()
 {
-	FanDriver::set_speed("0");
+	if (!initial_state_.empty()) {
+		log(TF_DBG) << path() << ": Restoring initial state: " << initial_state_ << "." << flush;
+		FanDriver::set_speed("level " + initial_state_);
+	}
 	last_watchdog_ping_ = std::chrono::system_clock::now();
 }
 
@@ -220,31 +215,24 @@ HwmonFanDriver::HwmonFanDriver(
 )
 : FanDriver(optional, 0, max_errors)
 , hwmon_interface_(hwmon_interface)
+, enable_path_(*path_ + "_enable")
 {}
 
 
-HwmonFanDriver::~HwmonFanDriver() noexcept(false)
+HwmonFanDriver::~HwmonFanDriver()
 {
-	if (!initialized())
-		return;
-
-	std::ofstream f(path() + "_enable");
-	if (!(f.is_open() && f.good())) {
-		log(TF_ERR) << MSG_FAN_RESET(path()) << strerror(errno) << flush;
-		return;
-	}
-
-	if (!initial_state_.empty()) {
-		log(TF_DBG) << path() << ": Restoring initial state: " << initial_state_ << "." << flush;
-		if (!(f << initial_state_ << std::flush))
-			log(TF_ERR) << MSG_FAN_RESET(path()) << strerror(errno) << flush;
-	}
+	if (initialized())
+		try {
+			set_initial_state();
+		} catch (std::exception &e) {
+			log(TF_ERR) << MSG_FAN_RESET(path()) << ": " << e.what() << flush;
+		}
 }
 
 
 void HwmonFanDriver::init()
 {
-	std::fstream f(path() + "_enable");
+	std::fstream f(enable_path_);
 	if (!(f.is_open() && f.good()))
 		throw IOerror(MSG_FAN_INIT(path()), errno);
 
@@ -294,9 +282,17 @@ void HwmonFanDriver::set_speed(const Level &level)
 }
 
 
-void HwmonFanDriver::turn_off()
+void HwmonFanDriver::set_initial_state()
 {
-	FanDriver::set_speed("0");
+	std::ofstream f(enable_path_);
+	if (!(f.is_open() && f.good())) {
+		log(TF_ERR) << MSG_FAN_RESET(path()) << strerror(errno) << flush;
+		return;
+	}
+
+	log(TF_DBG) << path() << ": Restoring initial state: " << initial_state_ << "." << flush;
+	if (!(f << "0" << std::flush))
+		log(TF_ERR) << MSG_FAN_RESET(path()) << strerror(errno) << flush;
 }
 
 
