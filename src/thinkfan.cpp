@@ -31,6 +31,8 @@
 #include <string>
 #include <iostream>
 #include <memory>
+#include <thread>
+#include <algorithm>
 
 #include <unistd.h>
 
@@ -54,7 +56,6 @@ float bias_level(0);
 float depulse = 0;
 static TemperatureState temp_state(0);
 std::atomic<unsigned char> tolerate_errors(0);
-std::atomic<bool> disable_fan_on_sleep(false);
 std::atomic<bool> naptime(false);
 
 std::condition_variable sleep_cond;
@@ -133,7 +134,10 @@ void sleep(thinkfan::seconds duration) {
 }
 
 
-void sig_handler(int signum) {
+int handle_signal(sigset_t *sigset) {
+	int signum;
+	sigwait(sigset, &signum);
+
 	switch(signum) {
 	case SIGHUP:
 	case SIGINT:
@@ -158,9 +162,11 @@ void sig_handler(int signum) {
 		naptime = true;
 		tolerate_errors = 4;
 		log(TF_NFY) << "Going to sleep: Will allow sensor read errors for the next "
-			<< std::to_string(tolerate_errors) << " loops." << flush;
+		            << std::to_string(tolerate_errors) << " loops." << flush;
 		sleep_cond.notify_all();
 	}
+
+	return signum;
 }
 
 
@@ -178,16 +184,18 @@ void run(const Config &config)
 
 	bool did_something = false;
 	while (likely(!interrupted)) {
-		sleep(tmp_sleeptime);
-
-		if (unlikely(interrupted))
-			break;
-		else if (unlikely(naptime && disable_fan_on_sleep)) {
+		if (unlikely(naptime)) {
 			log(TF_NFY) << "Going to sleep: Resetting all fans." << flush;
 			for (auto &fan_config : config.fan_configs())
 				fan_config->fan()->set_initial_state();
 			naptime = false;
 			continue;
+		}
+		else if (unlikely(interrupted)) {
+			break;
+		}
+		else {
+			sleep(tmp_sleeptime);
 		}
 
 		for (const unique_ptr<SensorDriver> &sensor : config.sensors())
@@ -209,7 +217,7 @@ void run(const Config &config)
 
 int set_options(int argc, char **argv)
 {
-	const char *optstring = "c:s:b:p::hqDznvZ"
+	const char *optstring = "c:s:b:p::hqDznv"
 #ifdef USE_ATASMART
 			"d";
 #else
@@ -241,9 +249,6 @@ int set_options(int argc, char **argv)
 			break;
 		case 'z':
 			log(TF_WRN) << "Option -z is not needed anymore and therefore deprecated." << flush;
-			break;
-		case 'Z':
-			disable_fan_on_sleep = true;
 			break;
 		case 'n':
 			daemonize = false;
@@ -313,9 +318,6 @@ int set_options(int argc, char **argv)
 }
 
 
-void noop()
-{}
-
 
 
 } // namespace thinkfan
@@ -324,10 +326,11 @@ void noop()
 int main(int argc, char **argv) {
 	using namespace thinkfan;
 
-	struct sigaction handler;
 #if defined(PID_FILE)
 	unique_ptr<PidFileHolder> pid_file;
 #endif
+
+	sigset_t sigset;
 
 	if (!isatty(fileno(stdout))) {
 		Logger::instance().enable_syslog();
@@ -336,23 +339,6 @@ int main(int argc, char **argv) {
 #if not defined(DISABLE_BUGGER)
 	std::set_terminate(handle_uncaught);
 #endif
-
-	memset(&handler, 0, sizeof(handler));
-	handler.sa_handler = sig_handler;
-
-	if (sigaction(SIGHUP, &handler, nullptr)
-	 || sigaction(SIGINT, &handler, nullptr)
-	 || sigaction(SIGTERM, &handler, nullptr)
-	 || sigaction(SIGUSR1, &handler, nullptr)
-	 || sigaction(SIGPWR, &handler, nullptr)
-#if not defined(DISABLE_BUGGER)
-	 || sigaction(SIGSEGV, &handler, nullptr)
-#endif
-	 || sigaction(SIGUSR2, &handler, nullptr)) {
-		string msg = strerror(errno);
-		log(TF_ERR) << "sigaction: " << msg;
-		return 1;
-	}
 
 #if not defined(DISABLE_EXCEPTION_CATCHING)
 	try {
@@ -415,6 +401,21 @@ int main(int argc, char **argv) {
 
 		// Load the config for real after forking & enabling syslog
 		unique_ptr<const Config> config(Config::read_config(config_files));
+
+		if (sigemptyset(&sigset))
+			throw SystemError("sigemptyset: " + string(strerror(errno)));
+
+		for (auto sig : {SIGHUP, SIGINT, SIGTERM, SIGUSR1, SIGSEGV, SIGUSR2, SIGPWR})
+			if (sigaddset(&sigset, sig))
+				throw SystemError("sigaddset: " + string(strerror(errno)));
+
+		if (pthread_sigmask(SIG_BLOCK, &sigset, nullptr))
+			throw SystemError("pthread_sigmask: " + string(strerror(errno)));
+
+		std::thread sighandler_thread([&sigset]() {
+			while (std::ranges::contains(std::array{SIGTERM, SIGINT}, handle_signal(&sigset)))
+				;
+		});
 
 		do {
 			config->init(temp_state);
